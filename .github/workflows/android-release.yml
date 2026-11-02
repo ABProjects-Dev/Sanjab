@@ -1,0 +1,138 @@
+name: Android release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing GitHub release tag to build and update
+        required: true
+        default: 1.0.0
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish signed Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Verify release tag matches app version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          version="$(sed -n 's/^version: *//p' pubspec.yaml | tr -d '\"' | head -n 1)"
+          app_version="${version%%+*}"
+          if [[ -z "$app_version" || "$app_version" != "$RELEASE_TAG" ]]; then
+            echo "Release tag does not match pubspec.yaml version." >&2
+            exit 1
+          fi
+
+      - name: Verify GitHub release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: gh release view "$RELEASE_TAG" >/dev/null
+
+      - name: Set up Java
+        uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6.4.1
+        with:
+          gradle-version: 9.3.1
+
+      - name: Generate ignored Gradle wrapper files
+        run: |
+          flutter_root="$(dirname "$(dirname "$(readlink -f "$(command -v flutter)")")")"
+          android_sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$android_sdk"
+          printf 'flutter.sdk=%s\nsdk.dir=%s\n' "$flutter_root" "$android_sdk" > android/local.properties
+          gradle -p android wrapper --gradle-version 9.3.1 --distribution-type all
+
+      - name: Restore and validate release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$ANDROID_KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASS" || \
+                -z "$ANDROID_KEY_ALIAS" || -z "$ANDROID_KEY_PASS" ]]; then
+            echo "Required Android signing secrets are missing." >&2
+            exit 1
+          fi
+
+          keystore_path="$RUNNER_TEMP/android-release.p12"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          chmod 600 "$keystore_path"
+          keytool -list -keystore "$keystore_path" -storetype PKCS12 \
+            -storepass:env ANDROID_KEYSTORE_PASS -alias "$ANDROID_KEY_ALIAS" >/dev/null
+          printf 'ANDROID_KEYSTORE=%s\n' "$keystore_path" >> "$GITHUB_ENV"
+
+      - name: Build signed production APK
+        env:
+          ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        run: flutter build apk --release --no-pub
+
+      - name: Verify APK signature and prepare release assets
+        env:
+          ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk_path="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$apk_path"
+
+          sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          apksigner="$(find "$sdk_root/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          "$apksigner" verify --verbose "$apk_path" >/dev/null
+
+          apk_fingerprint="$("$apksigner" verify --print-certs "$apk_path" | \
+            awk -F': ' '/Signer #1 certificate SHA-256 digest:/ { print $2; exit }' | \
+            tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+          keystore_fingerprint="$(keytool -exportcert -keystore "$ANDROID_KEYSTORE" \
+            -storetype PKCS12 -storepass:env ANDROID_KEYSTORE_PASS \
+            -alias "$ANDROID_KEY_ALIAS" | openssl dgst -sha256 | \
+            awk '{print $NF}' | tr '[:lower:]' '[:upper:]')"
+          if [[ -z "$apk_fingerprint" || "$apk_fingerprint" != "$keystore_fingerprint" ]]; then
+            echo "APK signer does not match the configured release keystore." >&2
+            exit 1
+          fi
+
+          asset="Sanjab-${RELEASE_TAG}.apk"
+          cp "$apk_path" "$asset"
+          sha256sum "$asset" > "${asset}.sha256"
+
+      - name: Upload signed APK and checksum to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: gh release upload "$RELEASE_TAG" "Sanjab-${RELEASE_TAG}.apk" "Sanjab-${RELEASE_TAG}.apk.sha256" --clobber
