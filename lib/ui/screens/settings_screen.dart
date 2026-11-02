@@ -63,7 +63,7 @@ class SettingsScreen extends StatelessWidget {
                       context: context,
                       applicationName: 'شتر مرغ',
                       applicationVersion: faNum('1.0.0'),
-                      applicationLegalese: 'شناسهٔ بسته: com.shotormorgh.game\nکاملاً آفلاین — بدون اینترنت',
+                      applicationLegalese: 'شناسهٔ بسته: com.sanjab.game\nکاملاً آفلاین — بدون اینترنت',
                       children: const [
                         SizedBox(height: 10),
                         Text(

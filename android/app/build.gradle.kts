@@ -21,7 +21,7 @@ val releaseKeyPassword: String? =
         ?: System.getenv("SHOTORMORGH_KEY_PASS")
 
 android {
-    namespace = "com.shotormorgh.game"
+    namespace = "com.sanjab.game"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -32,7 +32,7 @@ android {
 
     defaultConfig {
         // شناسهٔ بستهٔ برنامه — پس از انتشار هرگز تغییر نمی‌کند.
-        applicationId = "com.shotormorgh.game"
+        applicationId = "com.sanjab.game"
         minSdk = 24          // Android 7.0
         targetSdk = flutter.targetSdkVersion
         versionCode = 6      // ShotorMorgh 1.0.0

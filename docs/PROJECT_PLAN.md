@@ -8,7 +8,7 @@
 
 ## Current project state
 
-- Flutter/Dart Android game, package `shotormorgh`, version `1.0.0+6`.
+- Flutter/Dart Android game, Dart package `shotormorgh`, Android application ID `com.sanjab.game`, version `1.0.0+6`.
 - Persian RTL dark portrait UI; bundled Vazirmatn font and artwork.
 - Host-authoritative multiplayer using local TCP plus UDP discovery, QR and manual join paths.
 - 13 category IDs, fixed seven-minute rounds, stop quorum, host-only judging and scoring.

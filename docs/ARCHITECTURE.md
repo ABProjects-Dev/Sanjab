@@ -81,7 +81,7 @@ The host prefers TCP port `50501` and falls back to a system-assigned port. UDP 
 
 ### UI and platform (`lib/ui/`, `android/`)
 
-The UI includes home, profile, host lobby, join/QR scanner, play, judging, results, guide, and settings/log screens. It is Persian and RTL, uses the bundled Vazirmatn font, and uses a fixed dark theme. The Android manifest requests network-state/Wi-Fi permissions and camera permission for QR scanning. `MainActivity.kt` implements the `com.shotormorgh.game/screen` method channel to keep the display on during active game phases.
+The UI includes home, profile, host lobby, join/QR scanner, play, judging, results, guide, and settings/log screens. It is Persian and RTL, uses the bundled Vazirmatn font, and uses a fixed dark theme. The Android manifest requests network-state/Wi-Fi permissions and camera permission for QR scanning. The Android namespace and application ID are `com.sanjab.game`; the Dart package/import name remains `shotormorgh`. `MainActivity.kt` implements the `com.sanjab.game/screen` method channel to keep the display on during active game phases. The new application ID represents a separate Android package and does not update or replace an installed `com.shotormorgh.game` build.
 
 ## Game rules represented in code
 

@@ -90,7 +90,8 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 ## Platform and non-functional requirements
 
 - Current checked-in platform scaffold: Android.
-- Android application ID: `com.shotormorgh.game`.
+- Android application ID and namespace: `com.sanjab.game`. The Dart package name remains `shotormorgh` because it is a separate identifier used by Dart imports.
+- Changing the Android application ID creates a distinct Android package: it does not upgrade/replace an already installed `com.shotormorgh.game` app and will have separate application data.
 - `minSdk`: 24 (Android 7.0). `versionName`: 1.0.0; `versionCode`: 6.
 - Java and Kotlin JVM targets are 17. `compileSdk` and `targetSdk` are sourced from Flutter Gradle defaults in this repository.
 - Flutter app is Persian-only, RTL, dark-themed and portrait-oriented, and bundles Vazirmatn font assets.
