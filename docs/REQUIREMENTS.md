@@ -92,7 +92,7 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 - Current checked-in platform scaffold: Android.
 - Android application ID and namespace: `com.sanjab.game`. The Dart package name remains `sanjab` because it is a separate identifier used by Dart imports.
 - Changing the Android application ID creates a distinct Android package: it does not upgrade/replace an existing installation built with the former application ID and has separate application data.
-- Release signing configuration reads `SANJAB_KEYSTORE`, `SANJAB_KEYSTORE_PASS`, `SANJAB_KEY_ALIAS`, and `SANJAB_KEY_PASS` from Gradle properties or environment variables; external build configurations must use these names.
+- Release signing configuration reads `ANDROID_KEYSTORE`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASS` from Gradle properties or environment variables; external build configurations must use these names.
 - `minSdk`: 24 (Android 7.0). `versionName`: 1.0.0; `versionCode`: 6.
 - Java and Kotlin JVM targets are 17. `compileSdk` and `targetSdk` are sourced from Flutter Gradle defaults in this repository.
 - Flutter app is Persian-only, RTL, dark-themed and portrait-oriented, and bundles Vazirmatn font assets.
