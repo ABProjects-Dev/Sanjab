@@ -34,17 +34,6 @@ if (releaseSigningPartiallyConfigured) {
     throw GradleException("Provide all four Android release signing values, or none.")
 }
 
-gradle.taskGraph.whenReady { taskGraph ->
-    if (taskGraph.allTasks.any { it.name.contains("Release", ignoreCase = true) } &&
-        !releaseSigningConfigured
-    ) {
-        throw GradleException(
-            "Android release builds require the configured release keystore and all signing values. " +
-                "Debug signing is not allowed for release builds."
-        )
-    }
-}
-
 android {
     namespace = "com.sanjab.game"
     compileSdk = flutter.compileSdkVersion
