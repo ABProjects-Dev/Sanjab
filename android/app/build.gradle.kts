@@ -35,8 +35,8 @@ android {
         applicationId = "com.shotormorgh.game"
         minSdk = 24          // Android 7.0
         targetSdk = flutter.targetSdkVersion
-        versionCode = 5      // ShotorMorgh 4.1.0
-        versionName = "4.1.0"
+        versionCode = 6      // ShotorMorgh 1.0.0
+        versionName = "1.0.0"
     }
 
     signingConfigs {

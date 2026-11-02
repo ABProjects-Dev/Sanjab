@@ -1,4 +1,4 @@
-/// آزمون‌های رابط کاربری نسخهٔ ۴.۱.۰: QR روی پس‌زمینهٔ سفید، دکمهٔ یکسان
+/// آزمون‌های رابط کاربری نسخهٔ ۱.۰.۰: QR روی پس‌زمینهٔ سفید، دکمهٔ یکسان
 /// «بازگشت به صفحهٔ اصلی»، بخش «ادامه بازی» در صفحهٔ اصلی و بررسی ایستا برای
 /// حذف کامل قابلیت تعیین کلمه و دکمهٔ خروج از بازی.
 library;
@@ -105,7 +105,7 @@ void main() {
     expect(find.text('ادامه بازی'), findsOneWidget);
     expect(find.text('خروج از اتاق'), findsOneWidget);
     expect(find.textContaining('میزبان: سارا'), findsOneWidget);
-    expect(find.textContaining('نسخهٔ ۴.۱.۰'), findsOneWidget);
+    expect(find.textContaining('نسخهٔ ۱.۰.۰'), findsOneWidget);
   });
 
   testWidgets('اتاق پایان‌یافته در صفحهٔ اصلی «ادامه بازی» ندارد', (tester) async {

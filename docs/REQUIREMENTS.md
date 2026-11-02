@@ -91,7 +91,7 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 
 - Current checked-in platform scaffold: Android.
 - Android application ID: `com.shotormorgh.game`.
-- `minSdk`: 24 (Android 7.0). `versionName`: 4.1.0; `versionCode`: 5.
+- `minSdk`: 24 (Android 7.0). `versionName`: 1.0.0; `versionCode`: 6.
 - Java and Kotlin JVM targets are 17. `compileSdk` and `targetSdk` are sourced from Flutter Gradle defaults in this repository.
 - Flutter app is Persian-only, RTL, dark-themed and portrait-oriented, and bundles Vazirmatn font assets.
 - TCP/UDP sockets require the Android `INTERNET` permission; network-state and Wi-Fi permissions are declared. Camera permission is required at runtime for QR scanning.
@@ -102,11 +102,11 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 
 The repository contains 126 `test`/`testWidgets` declarations under `test/` and one device integration test under `integration_test/`. The test suites cover domain transitions, scoring, stop validation, protocol/discovery, live sockets, controller flows, local persistence, room continuation and widgets. The integration test explicitly covers the host setup path; it does not simulate a two-phone network game.
 
-For a code or release change, run the relevant Flutter tests, `flutter analyze`, and the applicable Android builds on a machine with Flutter/Dart and Android tooling installed. The documentation-only analysis that produced these files did not execute tests, static analysis or builds because Flutter and Dart executables are not available in the current workspace.
+For a code or release change, run the relevant Flutter tests, `flutter analyze`, and the applicable Android builds on a machine with Flutter/Dart and Android tooling installed. This version-metadata update did not execute tests, static analysis or builds because Flutter and Dart executables are not available in the current workspace.
 
-## Current inconsistencies to keep visible
+## Current metadata and documentation notes
 
-- `lib/ui/screens/settings_screen.dart` embeds `1.0.0`, while `pubspec.yaml` and Android Gradle configuration specify 4.1.0 / version code 5.
-- `lib/net/protocol.dart`'s leading comment says protocol version 2; the implementation constant is 3.
+- The app version metadata is now `1.0.0+6`: `pubspec.yaml` uses `1.0.0+6`, Android uses version name `1.0.0` and version code 6, and the UI displays `1.0.0`. The UI values remain hardcoded and could drift later.
+- `lib/net/protocol.dart`'s leading comment says protocol version 2; the implementation constant is 3. This is a network protocol version, not the app release version.
 - The README's former links to a missing `documentation/` directory have been replaced with links to this `docs/` set. Historical release/signing reports remain absent because no authoritative copies were in the repository.
 - The README states target SDK 36, while `android/app/build.gradle.kts` uses `flutter.targetSdkVersion`; the effective SDK value depends on the Flutter toolchain used to build.

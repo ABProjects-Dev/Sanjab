@@ -153,7 +153,7 @@ class _PlayScreenState extends State<PlayScreen> {
     final phase = session.phase;
     final stopped = controller.iAmStopped;
     final canType = phase == GamePhase.playing && !stopped;
-    // شرط فعال بودن دکمهٔ استپ (نسخهٔ ۴.۱.۰).
+    // شرط فعال بودن دکمهٔ استپ (نسخهٔ ۱.۰.۰).
     final canStop = controller.iCanStop;
 
     return ExitGuard(
@@ -286,7 +286,7 @@ class _PlayScreenState extends State<PlayScreen> {
                           SizedBox(
                             height: 54,
                             child: FilledButton.icon(
-                              // نسخهٔ ۴.۱.۰: دکمهٔ استپ تنها وقتی فعال است که
+                              // نسخهٔ ۱.۰.۰: دکمهٔ استپ تنها وقتی فعال است که
                               // همهٔ پاسخ‌های همین بازیکن حداقل ۲ کاراکتر
                               // معتبر داشته باشند.
                               onPressed: canStop ? _stop : null,

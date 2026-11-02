@@ -2,8 +2,8 @@ name: shotormorgh
 description: "شتر مرغ — بازی گروهی اسم و فامیل (Android, Flutter, offline)"
 publish_to: 'none'
 
-# نسخه ۴.۱.۰ — VersionCode: ۵
-version: 4.1.0+5
+# نسخهٔ ۱.۰.۰ — VersionCode: 6
+version: 1.0.0+6
 
 environment:
   sdk: ^3.13.7

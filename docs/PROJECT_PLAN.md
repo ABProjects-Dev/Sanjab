@@ -4,11 +4,11 @@
 
 **Scope:** Source, tests, Flutter/package configuration and Android scaffold in this repository.
 
-**Change scope:** Documentation only; application source was not modified.
+**Change scope:** App version metadata and documentation; gameplay logic and behavior were not intentionally changed.
 
 ## Current project state
 
-- Flutter/Dart Android game, package `shotormorgh`, version `4.1.0+5`.
+- Flutter/Dart Android game, package `shotormorgh`, version `1.0.0+6`.
 - Persian RTL dark portrait UI; bundled Vazirmatn font and artwork.
 - Host-authoritative multiplayer using local TCP plus UDP discovery, QR and manual join paths.
 - 13 category IDs, fixed seven-minute rounds, stop quorum, host-only judging and scoring.
@@ -35,9 +35,9 @@ This is a set of evidence-based recommendations, not a claim that the work is al
 
 ### P1 — Make displayed version derive from package metadata
 
-**Finding:** Settings/About hardcodes `1.0.0`; package and Android configuration identify version 4.1.0, build number 5.
+**Finding:** The home/About UI currently displays `1.0.0`, matching package and Android version name `1.0.0` with Android version code 6. The UI text is still hardcoded in more than one screen.
 
-**Recommended work:** Use one version source or a maintained generated value for the About UI and build configuration.
+**Recommended work:** Use one version source or a maintained generated value for the UI and build configuration to prevent future drift.
 
 **Acceptance criteria:** The UI's displayed version and Android/package version agree; a test guards against recurrence.
 
@@ -49,9 +49,9 @@ The source has socket and controller tests, but the device integration test expl
 
 `protocol.dart`'s header describes version 2 while the runtime constant is 3. Update the stale source comment when code changes are next authorized and add an assertion/documentation source of truth so protocol upgrades remain synchronized.
 
-### P2 — Correct stale project metadata and release documentation
+### P2 — Keep release metadata and documentation aligned
 
-- Replace the hardcoded About version with the actual package version (tracked above as P1).
+- The app version is now `1.0.0+6`; centralize the duplicate UI version literals as tracked above under P1.
 - The README links to this `docs/` set now. Historical `documentation/*.txt` files, including publication and release reports, remain absent; restore them only from an authoritative source and do not fabricate signing or release records.
 - README says target SDK 36 but app Gradle uses Flutter's `targetSdkVersion` default. Either pin and verify an explicit target or document the Flutter-derived value accurately.
 
@@ -66,7 +66,7 @@ No GitHub Actions workflows were found. A small CI workflow could run `flutter a
 ## Suggested implementation sequence
 
 1. Fix production `RoomStore` injection and add process-restart coverage.
-2. Correct the About/version mismatch and ensure build metadata has one source of truth.
+2. Centralize the already-matching UI/package version values and add a regression test against future drift.
 3. Run Flutter formatting, analysis, all 126 unit/widget/network declarations, and the device integration test where available.
 4. Verify two-device LAN scenarios and Android debug/release builds on a configured machine.
 5. Verify the protocol version comment against the runtime constant and decide whether historical release documents should be restored from an authoritative source.
@@ -80,9 +80,10 @@ No GitHub Actions workflows were found. A small CI workflow could run `flutter a
 - Should the app enforce a minimum secure-network model or continue to assume a trusted local Wi-Fi/hotspot?
 - Is a two-device physical test environment available for release validation?
 
-## Verification record for this documentation task
+## Verification record for this version-metadata task
 
-- Inspected source layout, game domain, state/controller, local data adapters, network protocol/transports, UI, tests and Android configuration.
-- Counted 126 test/test-widget declarations and one integration-test declaration by source inspection.
+- Updated app release metadata and user-facing version references to `1.0.0`; kept Android `versionCode` monotonic at 6.
+- Kept package dependency versions, Android Gradle plugin versions, network protocol version and stored-data schema versions unchanged.
 - Flutter and Dart executables are absent from this workspace, so Flutter tests, static analysis and Android builds were not run.
-- Documentation whitespace, Markdown fence balance and relative Markdown links were checked after writing the files; `git diff --check` was also run for tracked changes.
+- `git diff --check` passed. Static checks confirmed `pubspec.yaml` version `1.0.0+6`, Android `versionName` `1.0.0` / `versionCode` 6, matching UI version literals and the updated UI test expectation.
+- Markdown relative links, code-fence balance and trailing whitespace checks passed across the README and `docs/` files.

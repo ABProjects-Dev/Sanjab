@@ -94,10 +94,10 @@ The UI includes home, profile, host lobby, join/QR scanner, play, judging, resul
 
 ## Important implementation observations
 
-These are findings from source inspection, not modifications made as part of the documentation task:
+The version metadata findings below reflect the version update in this change; the other items are current observations from source inspection:
 
 1. **Saved-room persistence is not wired into the app composition.** `main.dart` omits `RoomRepository`, so `GameController` uses its in-memory default. Prioritize this before promising player room recovery after process restart.
-2. **The settings/about screen reports version `1.0.0`.** Package and Android configuration identify this source as `4.1.0+5` / version code 5. Use a single version source to prevent drift.
+2. **The app version is now `1.0.0+6`.** The home/about screens display `1.0.0`, and package/Android build metadata use version name `1.0.0` and version code 6. The UI literals are still duplicated rather than derived from package metadata, so they can drift in a future update.
 3. **Protocol comments are stale.** `protocol.dart`'s file comment describes an envelope version 2, while `kProtocolVersion` in `models.dart` is 3 and is the value used by serialization.
 4. **Historical documentation files are absent.** Before this update, the README linked to a `documentation/` tree that was not in the repository. Its documentation section now links to this `docs/` set; the historical release/signing reports were not recreated because no authoritative copies were present.
 5. **Release signing/build behavior was not executed here.** Android configuration reads signing values from Gradle properties or environment variables and otherwise selects debug signing for the release build path. Verify the intended signing behavior on a configured build machine before distributing a release.
