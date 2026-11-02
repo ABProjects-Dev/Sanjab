@@ -106,6 +106,7 @@ jobs:
 
       - name: ساخت APK امضاشدهٔ انتشار
         env:
+          ANDROID_KEYSTORE: ${{ runner.temp }}/android-release.p12
           ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
@@ -113,6 +114,7 @@ jobs:
 
       - name: بررسی امضای APK و آماده‌سازی فایل‌های انتشار
         env:
+          ANDROID_KEYSTORE: ${{ runner.temp }}/android-release.p12
           ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           RELEASE_TAG: ${{ inputs.tag }}
@@ -135,6 +137,8 @@ jobs:
             -alias "$ANDROID_KEY_ALIAS" | openssl dgst -sha256 | \
             awk '{print $NF}' | tr '[:lower:]' '[:upper:]')"
           if [[ -z "$apk_fingerprint" || "$apk_fingerprint" != "$keystore_fingerprint" ]]; then
+            echo "APK signer fingerprint: ${apk_fingerprint:-missing}" >&2
+            echo "Keystore fingerprint: ${keystore_fingerprint:-missing}" >&2
             echo "امضای APK با keystore انتشار تنظیم‌شده مطابقت ندارد." >&2
             exit 1
           fi
