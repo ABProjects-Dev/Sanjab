@@ -54,9 +54,20 @@ jobs:
           channel: stable
           cache: true
 
-      - name: دریافت وابستگی‌های انتشار (بدون وابستگی‌های توسعه)
-        # Exclude dev-only integration_test from the production plugin registrant.
-        run: flutter pub get --no-dev
+      - name: دریافت وابستگی‌های انتشار
+        # integration_test is a dev-only Flutter SDK plugin and must not enter the release registrant.
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          pubspec = Path("pubspec.yaml")
+          lines = pubspec.read_text().splitlines(keepends=True)
+          matches = [i for i, line in enumerate(lines) if line == "  integration_test:\n"]
+          if len(matches) != 1 or lines[matches[0] + 1] != "    sdk: flutter\n":
+              raise SystemExit("Could not locate the integration_test dev dependency exactly once.")
+          del lines[matches[0]:matches[0] + 2]
+          pubspec.write_text("".join(lines))
+          PY
+          flutter pub get
 
       - name: آماده‌سازی Gradle
         uses: gradle/actions/setup-gradle@v6.4.1
