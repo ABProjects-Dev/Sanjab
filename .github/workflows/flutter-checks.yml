@@ -19,16 +19,16 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6.1.0
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
           cache: true
@@ -39,10 +39,9 @@ jobs:
 
       - name: Set up Gradle
         if: ${{ steps.dependencies.outcome == 'success' }}
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6.4.1
         with:
           gradle-version: '9.3.1'
-          cache-provider: basic
 
       - name: Generate ignored Gradle wrapper files
         if: ${{ steps.dependencies.outcome == 'success' }}
@@ -71,6 +70,16 @@ jobs:
         continue-on-error: true
         run: flutter build apk --debug --no-pub
 
+      - name: Upload debug APK artifact
+        id: artifact
+        if: ${{ steps.build.outcome == 'success' }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: sanjab-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Fail if any verification step failed
         if: ${{ always() }}
         env:
@@ -78,8 +87,10 @@ jobs:
           ANALYZE: ${{ steps.analyze.outcome }}
           TESTS: ${{ steps.tests.outcome }}
           BUILD: ${{ steps.build.outcome }}
+          ARTIFACT: ${{ steps.artifact.outcome }}
         run: |
-          printf 'Dependencies: %s\nAnalyze: %s\nTests: %s\nDebug APK: %s\n' \
-            "$DEPENDENCIES" "$ANALYZE" "$TESTS" "$BUILD"
+          printf 'Dependencies: %s\nAnalyze: %s\nTests: %s\nDebug APK: %s\nArtifact: %s\n' \
+            "$DEPENDENCIES" "$ANALYZE" "$TESTS" "$BUILD" "$ARTIFACT"
           test "$DEPENDENCIES" = success && test "$ANALYZE" = success && \
-            test "$TESTS" = success && test "$BUILD" = success
+            test "$TESTS" = success && test "$BUILD" = success && \
+            test "$ARTIFACT" = success
