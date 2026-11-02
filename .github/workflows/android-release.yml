@@ -54,8 +54,20 @@ jobs:
           channel: stable
           cache: true
 
-      - name: دریافت وابستگی‌های Flutter
-        run: flutter pub get
+      - name: دریافت وابستگی‌های انتشار
+        # integration_test is a dev-only Flutter SDK plugin and must not enter the release registrant.
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          pubspec = Path("pubspec.yaml")
+          lines = pubspec.read_text().splitlines(keepends=True)
+          matches = [i for i, line in enumerate(lines) if line == "  integration_test:\n"]
+          if len(matches) != 1 or lines[matches[0] + 1] != "    sdk: flutter\n":
+              raise SystemExit("Could not locate the integration_test dev dependency exactly once.")
+          del lines[matches[0]:matches[0] + 2]
+          pubspec.write_text("".join(lines))
+          PY
+          flutter pub get
 
       - name: آماده‌سازی Gradle
         uses: gradle/actions/setup-gradle@v6.4.1
@@ -94,6 +106,7 @@ jobs:
 
       - name: ساخت APK امضاشدهٔ انتشار
         env:
+          ANDROID_KEYSTORE: ${{ runner.temp }}/android-release.p12
           ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
@@ -101,6 +114,7 @@ jobs:
 
       - name: بررسی امضای APK و آماده‌سازی فایل‌های انتشار
         env:
+          ANDROID_KEYSTORE: ${{ runner.temp }}/android-release.p12
           ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           RELEASE_TAG: ${{ inputs.tag }}
@@ -115,14 +129,15 @@ jobs:
           test -x "$apksigner"
           "$apksigner" verify --verbose "$apk_path" >/dev/null
 
-          apk_fingerprint="$("$apksigner" verify --print-certs "$apk_path" | \
-            awk -F': ' '/Signer #1 certificate SHA-256 digest:/ { print $2; exit }' | \
-            tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+          apksigner_output="$("$apksigner" verify --print-certs "$apk_path" 2>&1)"
+          apk_fingerprint="$(printf '%s' "$apksigner_output" | \
+            grep -Eo '[[:xdigit:]]{64}' | head -n 1 | tr '[:lower:]' '[:upper:]' || true)"
           keystore_fingerprint="$(keytool -exportcert -keystore "$ANDROID_KEYSTORE" \
             -storetype PKCS12 -storepass:env ANDROID_KEYSTORE_PASS \
             -alias "$ANDROID_KEY_ALIAS" | openssl dgst -sha256 | \
             awk '{print $NF}' | tr '[:lower:]' '[:upper:]')"
           if [[ -z "$apk_fingerprint" || "$apk_fingerprint" != "$keystore_fingerprint" ]]; then
+            echo "::error title=Certificate fingerprint mismatch::APK=${apk_fingerprint:-missing}; keystore=${keystore_fingerprint:-missing}"
             echo "امضای APK با keystore انتشار تنظیم‌شده مطابقت ندارد." >&2
             exit 1
           fi
