@@ -58,10 +58,10 @@ class SettingsScreen extends StatelessWidget {
                   ActionTile(
                     icon: Icons.info_outline_rounded,
                     title: 'دربارهٔ برنامه',
-                    subtitle: 'شتر مرغ — نسخهٔ ${faNum('1.0.0')}',
+                    subtitle: 'سنجاب — نسخهٔ ${faNum('1.0.0')}',
                     onTap: () => showAboutDialog(
                       context: context,
-                      applicationName: 'شتر مرغ',
+                      applicationName: 'سنجاب',
                       applicationVersion: faNum('1.0.0'),
                       applicationLegalese: 'شناسهٔ بسته: com.sanjab.game\nکاملاً آفلاین — بدون اینترنت',
                       children: const [

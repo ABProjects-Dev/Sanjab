@@ -1,8 +1,8 @@
 /// مخزن پروفایل حافظه‌ای برای آزمون‌ها (بدون I/O فایل).
 library;
 
-import 'package:shotormorgh/data/profile_repository.dart';
-import 'package:shotormorgh/domain/profile.dart';
+import 'package:sanjab/data/profile_repository.dart';
+import 'package:sanjab/domain/profile.dart';
 
 class MemoryProfileStore implements ProfileStore {
   MemoryProfileStore({Profile? initial})

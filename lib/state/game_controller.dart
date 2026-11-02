@@ -133,7 +133,7 @@ class GameController extends ChangeNotifier {
   int get hostPort => _hostPort;
   List<String> get localAddresses => List<String>.unmodifiable(_localAddresses);
   bool get sessionFinished => _sessionFinished;
-  String get gameName => _hostName.isEmpty ? 'بازی شتر مرغ' : 'بازی $_hostName';
+  String get gameName => _hostName.isEmpty ? 'بازی سنجاب' : 'بازی $_hostName';
 
   /// نام نمایشی این دستگاه.
   String get myPlayerId => _profile.playerId;

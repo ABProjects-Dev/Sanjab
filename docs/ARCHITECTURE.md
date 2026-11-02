@@ -2,7 +2,7 @@
 
 ## Project summary
 
-ShotorMorgh is a Persian-language, portrait-oriented Flutter game for playing a category-based word game over a local Wi-Fi network or phone hotspot. The Android app is implemented in Dart/Flutter; its Kotlin activity only handles the keep-screen-on platform channel.
+Sanjab is a Persian-language, portrait-oriented Flutter game for playing a category-based word game over a local Wi-Fi network or phone hotspot. The Android app is implemented in Dart/Flutter; its Kotlin activity only handles the keep-screen-on platform channel.
 
 The application uses a host-authoritative model: one device owns the canonical `GameSession`; player devices send input and render state received from that host. The repository contains no remote backend or HTTP API. Local networking uses TCP and UDP sockets.
 
@@ -32,7 +32,7 @@ There are no iOS, web, desktop, or CI workflow directories in the checked-in pro
 1. `lib/main.dart` initializes Flutter, locks the requested device orientation to portrait, installs Flutter/platform error handlers, and resolves the application-support directory (falling back to a temporary directory if path resolution fails).
 2. It initializes `AppLogger` and constructs a `GameController` with `SessionRepository` and `ProfileRepository`.
 3. `GameController.bootstrap()` loads the local profile, active host session and saved-room records, then marks the controller ready.
-4. `ShotorMorghApp` provides the controller through `GameScope` and builds a Persian, right-to-left, dark `MaterialApp`.
+4. `SanjabApp` provides the controller through `GameScope` and builds a Persian, right-to-left, dark `MaterialApp`.
 5. Screens call controller operations; the controller coordinates domain state, networking, persistence, timers, and notifications.
 
 ### Composition gap
@@ -81,7 +81,7 @@ The host prefers TCP port `50501` and falls back to a system-assigned port. UDP 
 
 ### UI and platform (`lib/ui/`, `android/`)
 
-The UI includes home, profile, host lobby, join/QR scanner, play, judging, results, guide, and settings/log screens. It is Persian and RTL, uses the bundled Vazirmatn font, and uses a fixed dark theme. The Android manifest requests network-state/Wi-Fi permissions and camera permission for QR scanning. The Android namespace and application ID are `com.sanjab.game`; the Dart package/import name remains `shotormorgh`. `MainActivity.kt` implements the `com.sanjab.game/screen` method channel to keep the display on during active game phases. The new application ID represents a separate Android package and does not update or replace an installed `com.shotormorgh.game` build.
+The UI includes home, profile, host lobby, join/QR scanner, play, judging, results, guide, and settings/log screens. It is Persian and RTL, uses the bundled Vazirmatn font, and uses a fixed dark theme. The Android manifest requests network-state/Wi-Fi permissions and camera permission for QR scanning. The Android namespace and application ID are `com.sanjab.game`; the Dart package/import name remains `sanjab`. `MainActivity.kt` implements the `com.sanjab.game/screen` method channel to keep the display on during active game phases. The new application ID represents a separate Android package and does not update or replace an installation built with the former application ID.
 
 ## Game rules represented in code
 

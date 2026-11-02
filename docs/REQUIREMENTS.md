@@ -2,7 +2,7 @@
 
 ## Purpose and scope
 
-ShotorMorgh is a Persian, category-based word game for two or more people using Android devices on one local Wi-Fi network or hotspot. One device hosts the session; other devices join it. No external game server is part of the implementation.
+Sanjab is a Persian, category-based word game for two or more people using Android devices on one local Wi-Fi network or hotspot. One device hosts the session; other devices join it. No external game server is part of the implementation.
 
 This document records requirements visible in the current source and distinguishes them from observed gaps. It is not a claim that a release build or physical-device verification has passed.
 
@@ -90,8 +90,9 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 ## Platform and non-functional requirements
 
 - Current checked-in platform scaffold: Android.
-- Android application ID and namespace: `com.sanjab.game`. The Dart package name remains `shotormorgh` because it is a separate identifier used by Dart imports.
-- Changing the Android application ID creates a distinct Android package: it does not upgrade/replace an already installed `com.shotormorgh.game` app and will have separate application data.
+- Android application ID and namespace: `com.sanjab.game`. The Dart package name remains `sanjab` because it is a separate identifier used by Dart imports.
+- Changing the Android application ID creates a distinct Android package: it does not upgrade/replace an existing installation built with the former application ID and has separate application data.
+- Release signing configuration reads `SANJAB_KEYSTORE`, `SANJAB_KEYSTORE_PASS`, `SANJAB_KEY_ALIAS`, and `SANJAB_KEY_PASS` from Gradle properties or environment variables; external build configurations must use these names.
 - `minSdk`: 24 (Android 7.0). `versionName`: 1.0.0; `versionCode`: 6.
 - Java and Kotlin JVM targets are 17. `compileSdk` and `targetSdk` are sourced from Flutter Gradle defaults in this repository.
 - Flutter app is Persian-only, RTL, dark-themed and portrait-oriented, and bundles Vazirmatn font assets.

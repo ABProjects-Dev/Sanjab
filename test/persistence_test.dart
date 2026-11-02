@@ -2,17 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/data/profile_repository.dart';
-import 'package:shotormorgh/data/session_repository.dart';
-import 'package:shotormorgh/domain/game_session.dart';
-import 'package:shotormorgh/domain/models.dart';
+import 'package:sanjab/data/profile_repository.dart';
+import 'package:sanjab/data/session_repository.dart';
+import 'package:sanjab/domain/game_session.dart';
+import 'package:sanjab/domain/models.dart';
 
 void main() {
   late Directory tempDir;
   late SessionRepository repository;
 
   setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('shotormorgh_test');
+    tempDir = Directory.systemTemp.createTempSync('sanjab_test');
     repository = SessionRepository(tempDir);
   });
 

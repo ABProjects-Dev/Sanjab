@@ -8,13 +8,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/domain/answer_rules.dart';
-import 'package:shotormorgh/domain/game_session.dart';
-import 'package:shotormorgh/domain/models.dart';
-import 'package:shotormorgh/domain/profile.dart';
-import 'package:shotormorgh/state/game_controller.dart';
-import 'package:shotormorgh/state/game_scope.dart';
-import 'package:shotormorgh/ui/screens/play_screen.dart';
+import 'package:sanjab/domain/answer_rules.dart';
+import 'package:sanjab/domain/game_session.dart';
+import 'package:sanjab/domain/models.dart';
+import 'package:sanjab/domain/profile.dart';
+import 'package:sanjab/state/game_controller.dart';
+import 'package:sanjab/state/game_scope.dart';
+import 'package:sanjab/ui/screens/play_screen.dart';
 
 import 'test_support/memory_profile_store.dart';
 import 'test_support/memory_store.dart';

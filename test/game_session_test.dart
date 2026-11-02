@@ -2,9 +2,9 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/domain/categories.dart';
-import 'package:shotormorgh/domain/game_session.dart';
-import 'package:shotormorgh/domain/models.dart';
+import 'package:sanjab/domain/categories.dart';
+import 'package:sanjab/domain/game_session.dart';
+import 'package:sanjab/domain/models.dart';
 
 GameSession newSession({int players = 3}) {
   final session = GameSession.fresh(gameId: 'g1', hostPlayerId: 'h1');

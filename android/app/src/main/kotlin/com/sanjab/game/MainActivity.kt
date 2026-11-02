@@ -7,7 +7,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * فعالیت اصلی برنامهٔ «شتر مرغ».
+ * فعالیت اصلی برنامهٔ «سنجاب».
  *
  * تنها وظیفهٔ بومی این کلاس، روشن نگه‌داشتن صفحهٔ گوشی در طول بازی است؛
  * تمام منطق بازی در Dart (Flutter) پیاده‌سازی شده و هیچ وابستگی‌ای به کد

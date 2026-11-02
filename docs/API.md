@@ -98,7 +98,7 @@ The client applies host time offset from `serverNow`, builds/updates its local s
 
 ## UDP discovery
 
-The client sends the UTF-8 probe `SHOTORMORGH_DISCOVER_V2` to UDP port 50507 (broadcast and interface-specific addresses). A host answers probes and periodically broadcasts a JSON beacon:
+The client sends the UTF-8 probe `SANJAB_DISCOVER_V2` to UDP port 50507 (broadcast and interface-specific addresses). A host answers probes and periodically broadcasts a JSON beacon:
 
 ```json
 {

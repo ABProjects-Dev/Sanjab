@@ -5,8 +5,8 @@
 /// بدون I/O برآورده می‌کند.
 library;
 
-import 'package:shotormorgh/data/session_repository.dart';
-import 'package:shotormorgh/domain/game_session.dart';
+import 'package:sanjab/data/session_repository.dart';
+import 'package:sanjab/domain/game_session.dart';
 
 class MemorySessionStore implements SessionStore {
   MemorySessionStore([this.initial]);

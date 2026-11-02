@@ -15,7 +15,7 @@ import 'dart:io';
 const int kDiscoveryPort = 50507;
 
 /// متن پروب شناسایی.
-const String kProbeText = 'SHOTORMORGH_DISCOVER_V2';
+const String kProbeText = 'SANJAB_DISCOVER_V2';
 
 /// یک میزبان شناسایی‌شده در شبکه.
 class DiscoveredHost {
@@ -72,7 +72,7 @@ class DiscoveredHost {
     final token = decoded['token'];
     return DiscoveredHost(
       gameId: gameId,
-      gameName: decoded['gn'] as String? ?? 'بازی شتر مرغ',
+      gameName: decoded['gn'] as String? ?? 'بازی سنجاب',
       hostName: decoded['hn'] as String? ?? 'میزبان',
       address: address,
       port: port,

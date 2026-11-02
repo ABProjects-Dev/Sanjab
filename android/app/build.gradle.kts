@@ -8,17 +8,17 @@ plugins {
 // اطلاعات کلید هرگز داخل سورس ذخیره نمی‌شود؛ از Gradle property یا متغیر محیطی
 // خوانده می‌شود (راهنما: documentation/راهنمای انتشار.txt).
 val releaseStorePath: String? =
-    (project.findProperty("SHOTORMORGH_KEYSTORE") as String?)
-        ?: System.getenv("SHOTORMORGH_KEYSTORE")
+    (project.findProperty("SANJAB_KEYSTORE") as String?)
+        ?: System.getenv("SANJAB_KEYSTORE")
 val releaseStorePassword: String? =
-    (project.findProperty("SHOTORMORGH_KEYSTORE_PASS") as String?)
-        ?: System.getenv("SHOTORMORGH_KEYSTORE_PASS")
+    (project.findProperty("SANJAB_KEYSTORE_PASS") as String?)
+        ?: System.getenv("SANJAB_KEYSTORE_PASS")
 val releaseKeyAlias: String? =
-    (project.findProperty("SHOTORMORGH_KEY_ALIAS") as String?)
-        ?: System.getenv("SHOTORMORGH_KEY_ALIAS")
+    (project.findProperty("SANJAB_KEY_ALIAS") as String?)
+        ?: System.getenv("SANJAB_KEY_ALIAS")
 val releaseKeyPassword: String? =
-    (project.findProperty("SHOTORMORGH_KEY_PASS") as String?)
-        ?: System.getenv("SHOTORMORGH_KEY_PASS")
+    (project.findProperty("SANJAB_KEY_PASS") as String?)
+        ?: System.getenv("SANJAB_KEY_PASS")
 
 android {
     namespace = "com.sanjab.game"
@@ -35,7 +35,7 @@ android {
         applicationId = "com.sanjab.game"
         minSdk = 24          // Android 7.0
         targetSdk = flutter.targetSdkVersion
-        versionCode = 6      // ShotorMorgh 1.0.0
+        versionCode = 6      // Sanjab 1.0.0
         versionName = "1.0.0"
     }
 

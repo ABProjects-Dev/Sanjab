@@ -1,4 +1,4 @@
-/// نقطهٔ ورود برنامهٔ «شتر مرغ».
+/// نقطهٔ ورود برنامهٔ «سنجاب».
 library;
 
 import 'dart:async';
@@ -50,7 +50,7 @@ Future<void> main() async {
     dataDir = Directory(support.path);
   } catch (error, stack) {
     AppLogger.instance.error('paths', error, stack);
-    dataDir = Directory('${Directory.systemTemp.path}/shotormorgh');
+    dataDir = Directory('${Directory.systemTemp.path}/sanjab');
   }
   if (!dataDir.existsSync()) {
     try {
@@ -65,7 +65,7 @@ Future<void> main() async {
   );
   await controller.bootstrap();
 
-  runApp(ShotorMorghApp(controller: controller));
+  runApp(SanjabApp(controller: controller));
 }
 
 /// نمایش خطای قابل فهم برای کاربر (به‌جای صفحهٔ خطای پیش‌فرض).

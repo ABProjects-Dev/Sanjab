@@ -3,9 +3,9 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/domain/models.dart';
-import 'package:shotormorgh/domain/profile.dart';
-import 'package:shotormorgh/state/game_controller.dart';
+import 'package:sanjab/domain/models.dart';
+import 'package:sanjab/domain/profile.dart';
+import 'package:sanjab/state/game_controller.dart';
 
 import 'test_support/memory_profile_store.dart';
 import 'test_support/memory_store.dart';
