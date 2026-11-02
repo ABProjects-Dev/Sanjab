@@ -8,17 +8,17 @@ plugins {
 // اطلاعات کلید هرگز داخل سورس ذخیره نمی‌شود؛ از Gradle property یا متغیر محیطی
 // خوانده می‌شود (راهنما: documentation/راهنمای انتشار.txt).
 val releaseStorePath: String? =
-    (project.findProperty("SANJAB_KEYSTORE") as String?)
-        ?: System.getenv("SANJAB_KEYSTORE")
+    (project.findProperty("ANDROID_KEYSTORE") as String?)
+        ?: System.getenv("ANDROID_KEYSTORE")
 val releaseStorePassword: String? =
-    (project.findProperty("SANJAB_KEYSTORE_PASS") as String?)
-        ?: System.getenv("SANJAB_KEYSTORE_PASS")
+    (project.findProperty("ANDROID_KEYSTORE_PASS") as String?)
+        ?: System.getenv("ANDROID_KEYSTORE_PASS")
 val releaseKeyAlias: String? =
-    (project.findProperty("SANJAB_KEY_ALIAS") as String?)
-        ?: System.getenv("SANJAB_KEY_ALIAS")
+    (project.findProperty("ANDROID_KEY_ALIAS") as String?)
+        ?: System.getenv("ANDROID_KEY_ALIAS")
 val releaseKeyPassword: String? =
-    (project.findProperty("SANJAB_KEY_PASS") as String?)
-        ?: System.getenv("SANJAB_KEY_PASS")
+    (project.findProperty("ANDROID_KEY_PASS") as String?)
+        ?: System.getenv("ANDROID_KEY_PASS")
 
 android {
     namespace = "com.sanjab.game"
