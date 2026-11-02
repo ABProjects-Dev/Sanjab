@@ -1,0 +1,46 @@
+name: shotormorgh
+description: "شتر مرغ — بازی گروهی اسم و فامیل (Android, Flutter, offline)"
+publish_to: 'none'
+
+# نسخه ۴.۱.۰ — VersionCode: ۵
+version: 4.1.0+5
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # مسیر ذخیره‌سازی موقت وضعیت بازی (بدون نیاز به شبکه)
+  path_provider: ^2.1.4
+  # تولید QR Code برای اتصال به میزبان (صفحهٔ ایجاد بازی)
+  qr_flutter: ^4.1.0
+  # اسکن QR Role با دوربین (صفحهٔ پیوستن به بازی)
+  mobile_scanner: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/logo.png
+
+  fonts:
+    - family: Vazirmatn
+      fonts:
+        - asset: assets/fonts/vazirmatn_regular.ttf
+          weight: 400
+        - asset: assets/fonts/vazirmatn_medium.ttf
+          weight: 500
+        - asset: assets/fonts/vazirmatn_semibold.ttf
+          weight: 600
+        - asset: assets/fonts/vazirmatn_bold.ttf
+          weight: 700
