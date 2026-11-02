@@ -10,7 +10,7 @@ class ScreenAwake {
   ScreenAwake._();
 
   static const MethodChannel _channel = MethodChannel(
-    'com.shotormorgh.game/screen',
+    'com.sanjab.game/screen',
   );
 
   static bool _current = false;

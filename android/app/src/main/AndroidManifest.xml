@@ -9,7 +9,7 @@
     <!-- اسکن QR Code با دوربین (بند ۱) — مجوز خطرناک است و در زمان اجرا توسط mobile_scanner درخواست می‌شود. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <application
-        android:label="شتر مرغ"
+        android:label="سنجاب"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"

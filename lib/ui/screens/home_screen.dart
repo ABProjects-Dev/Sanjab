@@ -159,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'شتر مرغ',
+                        'سنجاب',
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: 2),
@@ -340,7 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 18),
             Center(
               child: Text(
-                'نسخهٔ ${faNum('4.1.0')} — بدون اینترنت و بدون سرور بیرونی',
+                'نسخهٔ ${faNum('1.0.0')} — بدون اینترنت و بدون سرور بیرونی',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),

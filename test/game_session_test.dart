@@ -1,10 +1,10 @@
-/// آزمون منطق دامنهٔ نسخهٔ ۲.۱.۰: دست‌ها، استپ (با حد نصاب)، دریافت پاسخ‌ها، داوری و همگام‌سازی.
+/// آزمون منطق دامنهٔ نسخهٔ ۱.۰.۰: دست‌ها، استپ (با حد نصاب)، دریافت پاسخ‌ها، داوری و همگام‌سازی.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/domain/categories.dart';
-import 'package:shotormorgh/domain/game_session.dart';
-import 'package:shotormorgh/domain/models.dart';
+import 'package:sanjab/domain/categories.dart';
+import 'package:sanjab/domain/game_session.dart';
+import 'package:sanjab/domain/models.dart';
 
 GameSession newSession({int players = 3}) {
   final session = GameSession.fresh(gameId: 'g1', hostPlayerId: 'h1');
@@ -15,7 +15,7 @@ GameSession newSession({int players = 3}) {
   return session;
 }
 
-/// نسخهٔ ۴.۱.۰: پاسخ همهٔ دسته‌های فعال را با متن معتبر (دست‌کم دو کاراکتر)
+/// نسخهٔ ۱.۰.۰: پاسخ همهٔ دسته‌های فعال را با متن معتبر (دست‌کم دو کاراکتر)
 /// پر می‌کند تا شرط فعال شدن دکمهٔ «استپ» برقرار شود.
 void fillAllAnswers(GameSession session, String playerId, {String text = 'آب'}) {
   for (final categoryId in session.config.activeCategoryIds) {
@@ -82,7 +82,7 @@ void main() {
       expect(session.phase, GamePhase.playing);
     });
 
-    test('شروع دست به هیچ کلمه یا حرفی وابسته نیست (نسخهٔ ۴.۰.۰)', () {
+    test('شروع دست به هیچ کلمه یا حرفی وابسته نیست (نسخهٔ ۱.۰.۰)', () {
       final session = newSession();
       // هیچ ورودی متنی/کلمه‌ای برای شروع دست لازم نیست.
       final first = session.startNewRound(nowMs: 0);

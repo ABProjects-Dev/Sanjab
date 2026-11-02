@@ -1,4 +1,4 @@
-/// آزمون‌های رابط کاربری نسخهٔ ۴.۱.۰: QR روی پس‌زمینهٔ سفید، دکمهٔ یکسان
+/// آزمون‌های رابط کاربری نسخهٔ ۱.۰.۰: QR روی پس‌زمینهٔ سفید، دکمهٔ یکسان
 /// «بازگشت به صفحهٔ اصلی»، بخش «ادامه بازی» در صفحهٔ اصلی و بررسی ایستا برای
 /// حذف کامل قابلیت تعیین کلمه و دکمهٔ خروج از بازی.
 library;
@@ -8,20 +8,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:shotormorgh/app.dart';
-import 'package:shotormorgh/data/room_repository.dart';
-import 'package:shotormorgh/domain/models.dart';
-import 'package:shotormorgh/domain/profile.dart';
-import 'package:shotormorgh/domain/room_record.dart';
-import 'package:shotormorgh/state/game_controller.dart';
-import 'package:shotormorgh/state/game_scope.dart';
-import 'package:shotormorgh/ui/navigation.dart';
-import 'package:shotormorgh/ui/screens/judging_screen.dart';
-import 'package:shotormorgh/ui/screens/lobby_screen.dart';
-import 'package:shotormorgh/ui/screens/play_screen.dart';
-import 'package:shotormorgh/ui/screens/results_screen.dart';
-import 'package:shotormorgh/ui/widgets/common.dart';
-import 'package:shotormorgh/ui/widgets/exit_guard.dart';
+import 'package:sanjab/app.dart';
+import 'package:sanjab/data/room_repository.dart';
+import 'package:sanjab/domain/models.dart';
+import 'package:sanjab/domain/profile.dart';
+import 'package:sanjab/domain/room_record.dart';
+import 'package:sanjab/state/game_controller.dart';
+import 'package:sanjab/state/game_scope.dart';
+import 'package:sanjab/ui/navigation.dart';
+import 'package:sanjab/ui/screens/judging_screen.dart';
+import 'package:sanjab/ui/screens/lobby_screen.dart';
+import 'package:sanjab/ui/screens/play_screen.dart';
+import 'package:sanjab/ui/screens/results_screen.dart';
+import 'package:sanjab/ui/widgets/common.dart';
+import 'package:sanjab/ui/widgets/exit_guard.dart';
 
 import 'test_support/memory_profile_store.dart';
 import 'test_support/memory_store.dart';
@@ -100,12 +100,12 @@ void main() {
       controller.dispose();
     });
     await controller.bootstrap();
-    await tester.pumpWidget(ShotorMorghApp(controller: controller));
+    await tester.pumpWidget(SanjabApp(controller: controller));
     await tester.pump();
     expect(find.text('ادامه بازی'), findsOneWidget);
     expect(find.text('خروج از اتاق'), findsOneWidget);
     expect(find.textContaining('میزبان: سارا'), findsOneWidget);
-    expect(find.textContaining('نسخهٔ ۴.۱.۰'), findsOneWidget);
+    expect(find.textContaining('نسخهٔ ۱.۰.۰'), findsOneWidget);
   });
 
   testWidgets('اتاق پایان‌یافته در صفحهٔ اصلی «ادامه بازی» ندارد', (tester) async {
@@ -121,7 +121,7 @@ void main() {
       controller.dispose();
     });
     await controller.bootstrap();
-    await tester.pumpWidget(ShotorMorghApp(controller: controller));
+    await tester.pumpWidget(SanjabApp(controller: controller));
     await tester.pump();
     expect(find.text('ادامه بازی'), findsNothing);
   });

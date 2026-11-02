@@ -1,4 +1,4 @@
-package com.shotormorgh.game
+package com.sanjab.game
 
 import android.os.Bundle
 import android.view.WindowManager
@@ -7,7 +7,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * فعالیت اصلی برنامهٔ «شتر مرغ».
+ * فعالیت اصلی برنامهٔ «سنجاب».
  *
  * تنها وظیفهٔ بومی این کلاس، روشن نگه‌داشتن صفحهٔ گوشی در طول بازی است؛
  * تمام منطق بازی در Dart (Flutter) پیاده‌سازی شده و هیچ وابستگی‌ای به کد
@@ -15,7 +15,7 @@ import io.flutter.plugin.common.MethodChannel
  */
 class MainActivity : FlutterActivity() {
 
-    private val channelName = "com.shotormorgh.game/screen"
+    private val channelName = "com.sanjab.game/screen"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

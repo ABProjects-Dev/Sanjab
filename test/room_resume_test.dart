@@ -1,17 +1,17 @@
-/// آزمون‌های نسخهٔ ۴.۰.۰: ذخیرهٔ اتاق، بازگشت به صفحهٔ اصلی، «ادامه بازی»
+/// آزمون‌های نسخهٔ ۱.۰.۰: ذخیرهٔ اتاق، بازگشت به صفحهٔ اصلی، «ادامه بازی»
 /// برای میزبان و بازیکن، خروج صریح از اتاق و پایان رسمی بازی.
 library;
 
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/data/room_repository.dart';
-import 'package:shotormorgh/data/session_repository.dart';
-import 'package:shotormorgh/domain/game_session.dart';
-import 'package:shotormorgh/domain/models.dart';
-import 'package:shotormorgh/domain/profile.dart';
-import 'package:shotormorgh/domain/room_record.dart';
-import 'package:shotormorgh/state/game_controller.dart';
+import 'package:sanjab/data/room_repository.dart';
+import 'package:sanjab/data/session_repository.dart';
+import 'package:sanjab/domain/game_session.dart';
+import 'package:sanjab/domain/models.dart';
+import 'package:sanjab/domain/profile.dart';
+import 'package:sanjab/domain/room_record.dart';
+import 'package:sanjab/state/game_controller.dart';
 
 import 'test_support/memory_profile_store.dart';
 import 'test_support/memory_store.dart';
@@ -398,9 +398,9 @@ void main() {
     });
   });
 
-  group('مهاجرت داده از نسخهٔ ۲.۱.۰', () {
+  group('مهاجرت نشست ذخیره‌شدهٔ قدیمی', () {
     test('نشست ذخیره‌شدهٔ نسخهٔ قبل پس از آپدیت قابل ادامه است', () async {
-      // دادهٔ شبیه‌سازی‌شدهٔ ۲.۱.۰: schemaVersion = 2 و کلید حرف در دست.
+      // دادهٔ شبیه‌سازی‌شدهٔ نشست قدیمی: schemaVersion = 2 و کلید حرف در دست.
       final legacyJson = <String, dynamic>{
         'v': 2,
         'phase': 'playing',

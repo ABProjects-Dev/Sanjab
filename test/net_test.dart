@@ -8,9 +8,9 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/net/game_client.dart';
-import 'package:shotormorgh/net/host_server.dart';
-import 'package:shotormorgh/net/protocol.dart';
+import 'package:sanjab/net/game_client.dart';
+import 'package:sanjab/net/host_server.dart';
+import 'package:sanjab/net/protocol.dart';
 
 Future<bool> waitUntil(
   bool Function() condition, {

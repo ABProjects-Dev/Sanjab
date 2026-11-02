@@ -1,13 +1,13 @@
-/// آزمون ویجت نسخهٔ ۲.۰.۰: صفحهٔ اصلی، پروفایل و راهنمای بازی.
+/// آزمون ویجت نسخهٔ ۱.۰.۰: صفحهٔ اصلی، پروفایل و راهنمای بازی.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/app.dart';
-import 'package:shotormorgh/domain/profile.dart';
-import 'package:shotormorgh/state/game_controller.dart';
-import 'package:shotormorgh/state/game_scope.dart';
-import 'package:shotormorgh/ui/screens/profile_screen.dart';
+import 'package:sanjab/app.dart';
+import 'package:sanjab/domain/profile.dart';
+import 'package:sanjab/state/game_controller.dart';
+import 'package:sanjab/state/game_scope.dart';
+import 'package:sanjab/ui/screens/profile_screen.dart';
 
 import 'test_support/memory_profile_store.dart';
 import 'test_support/memory_store.dart';
@@ -32,7 +32,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1080, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await controller.bootstrap();
-    await tester.pumpWidget(ShotorMorghApp(controller: controller));
+    await tester.pumpWidget(SanjabApp(controller: controller));
     await tester.pump();
   }
 
@@ -40,7 +40,7 @@ void main() {
     tester,
   ) async {
     await pumpApp(tester);
-    expect(find.text('شتر مرغ'), findsWidgets);
+    expect(find.text('سنجاب'), findsWidgets);
     expect(find.text('ایجاد بازی'), findsOneWidget);
     expect(find.text('پیوستن به بازی'), findsOneWidget);
     expect(find.text('راهنمای بازی'), findsOneWidget);

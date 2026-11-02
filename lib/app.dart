@@ -9,8 +9,8 @@ import 'state/game_controller.dart';
 import 'state/game_scope.dart';
 import 'ui/screens/home_screen.dart';
 
-class ShotorMorghApp extends StatefulWidget {
-  const ShotorMorghApp({
+class SanjabApp extends StatefulWidget {
+  const SanjabApp({
     super.key,
     required this.controller,
     this.initialScreen,
@@ -22,10 +22,10 @@ class ShotorMorghApp extends StatefulWidget {
   final Widget? initialScreen;
 
   @override
-  State<ShotorMorghApp> createState() => _ShotorMorghAppState();
+  State<SanjabApp> createState() => _SanjabAppState();
 }
 
-class _ShotorMorghAppState extends State<ShotorMorghApp>
+class _SanjabAppState extends State<SanjabApp>
     with WidgetsBindingObserver {
   @override
   void initState() {
@@ -55,7 +55,7 @@ class _ShotorMorghAppState extends State<ShotorMorghApp>
     return GameScope(
       controller: widget.controller,
       child: MaterialApp(
-        title: 'شتر مرغ',
+        title: 'سنجاب',
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
         darkTheme: buildAppTheme(),

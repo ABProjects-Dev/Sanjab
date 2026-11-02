@@ -4,8 +4,8 @@ library;
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/net/discovery.dart';
-import 'package:shotormorgh/net/protocol.dart';
+import 'package:sanjab/net/discovery.dart';
+import 'package:sanjab/net/protocol.dart';
 
 void main() {
   group('ساخت و خواندن پیام', () {

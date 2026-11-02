@@ -1,4 +1,4 @@
-/// مدیریت وضعیت بازی ۲.۰.۰ — پل میان منطق دامنه، شبکهٔ محلی و رابط کاربری.
+/// مدیریت وضعیت بازی ۱.۰.۰ — پل میان منطق دامنه، شبکهٔ محلی و رابط کاربری.
 ///
 /// دو نقش:
 ///  * **میزبان (Host)**: تنها مرجع وضعیت بازی. با [createGame] نشست می‌سازد،
@@ -64,7 +64,7 @@ class GameController extends ChangeNotifier {
   final SessionStore store;
   final ProfileStore profileRepo;
 
-  /// ذخیره‌سازی پایدار اتاق‌های این دستگاه (نسخهٔ ۴.۰.۰).
+  /// ذخیره‌سازی پایدار اتاق‌های این دستگاه (نسخهٔ ۱.۰.۰).
   final RoomStore roomStore;
   final int Function() _clock;
 
@@ -89,7 +89,7 @@ class GameController extends ChangeNotifier {
   String _hostName = '';
   List<String> _localAddresses = const <String>[];
 
-  /// اتاق‌های ذخیره‌شده روی این دستگاه (نسخهٔ ۴.۰.۰).
+  /// اتاق‌های ذخیره‌شده روی این دستگاه (نسخهٔ ۱.۰.۰).
   List<RoomRecord> _rooms = <RoomRecord>[];
 
   /// آیا نشست به‌صورت resmi (رسمی) تمام شده است. پس از پایان رسمی، بازیابی
@@ -133,7 +133,7 @@ class GameController extends ChangeNotifier {
   int get hostPort => _hostPort;
   List<String> get localAddresses => List<String>.unmodifiable(_localAddresses);
   bool get sessionFinished => _sessionFinished;
-  String get gameName => _hostName.isEmpty ? 'بازی شتر مرغ' : 'بازی $_hostName';
+  String get gameName => _hostName.isEmpty ? 'بازی سنجاب' : 'بازی $_hostName';
 
   /// نام نمایشی این دستگاه.
   String get myPlayerId => _profile.playerId;
@@ -163,7 +163,7 @@ class GameController extends ChangeNotifier {
 
   bool get iAmStopped => _session.isPlayerStopped(myPlayerId);
 
-  /// (نسخهٔ ۴.۱.۰) آیا دکمهٔ «استپ» برای این دستگاه فعال است؟
+  /// (نسخهٔ ۱.۰.۰) آیا دکمهٔ «استپ» برای این دستگاه فعال است؟
   ///
   /// شرط: فاز بازی، استپ نکرده باشیم و همهٔ فیلدهای پاسخ همین بازیکن
   /// حداقل دو کاراکتر معتبر داشته باشند. وضعیت در همهٔ دستگاه‌ها بر اساس
@@ -242,9 +242,8 @@ class GameController extends ChangeNotifier {
       if (!foundSavedGame) {
         foundSavedGame = _rooms.any((r) => r.resumable);
       }
-      // مهاجرت داده از نسخه‌های پیشین (۲.۰.۰/۲.۱.۰): نشست ذخیره‌شده وجود دارد
-      // اما رکورد اتاق (که در ۴.۰.۰ اضافه شده) نیست؛ یک رکورد می‌سازیم تا
-      // «ادامه بازی» پس از آپدیت هم در دسترس باشد.
+      // مهاجرت نشست‌های ذخیره‌شدهٔ قدیمی: ممکن است نشست موجود باشد اما رکورد
+      // اتاق متناظر نداشته باشد؛ رکورد را می‌سازیم تا «ادامه بازی» در دسترس باشد.
       if (_role == GameRole.host &&
           _session.phase != GamePhase.lobby &&
           _gameId.isNotEmpty &&
@@ -371,7 +370,7 @@ class GameController extends ChangeNotifier {
   /// راه‌اندازی سرور محلی، اعلان کشف و زمان‌سنج میزبان.
   ///
   /// این بخش هم در «ایجاد بازی» و هم در «ادامه بازی میزبان» استفاده می‌شود تا
-  /// پس از بازیابی، سرور و QR دوباره فعال شوند (نسخهٔ ۴.۰.۰).
+  /// پس از بازیابی، سرور و QR دوباره فعال شوند (نسخهٔ ۱.۰.۰).
   Future<bool> _startHostServices() async {
     HostCallbacks callbacks() => HostCallbacks(
       onHello: _handleHello,
@@ -537,7 +536,7 @@ class GameController extends ChangeNotifier {
   void _handleRemoteStop(String playerId, int roundIndex) {
     final round = _session.currentRound;
     if (round == null || round.index != roundIndex) return;
-    // نسخهٔ ۴.۱.۰: میزبان نیز مستقلاً بررسی می‌کند که پاسخ‌های همان بازیکن
+    // نسخهٔ ۱.۰.۰: میزبان نیز مستقلاً بررسی می‌کند که پاسخ‌های همان بازیکن
     // کامل باشد؛ درخواست قدیمی/تکراری یا ناقص بی‌اثر رد می‌شود.
     if (!_session.canPlayerStop(playerId)) {
       AppLogger.instance.log('net', 'stop rejected: incomplete answers');
@@ -549,7 +548,7 @@ class GameController extends ChangeNotifier {
       return;
     }
     if (!_session.requestStop(playerId, nowMs: nowMs())) return;
-    // نسخهٔ ۲.۱.۰: اگر حد نصاب استپ هنوز کامل نشده، دست ادامه دارد و نباید
+    // نسخهٔ ۱.۰.۰: اگر حد نصاب استپ هنوز کامل نشده، دست ادامه دارد و نباید
     // پاسخ‌های هیچ دستگاهی (از جمله میزبان) قفل شود.
     if (_session.phase == GamePhase.collecting) {
       _afterRoundEnded();
@@ -888,7 +887,7 @@ class GameController extends ChangeNotifier {
       }
       _syncTicker();
       _syncScreenAwake();
-      // ذخیرهٔ پایدار وضعیت روی دستگاه بازیکن (بند ۷ سند ۴.۰.۰).
+      // ذخیرهٔ پایدار وضعیت روی دستگاه بازیکن (بند ۷ سند ۱.۰.۰).
       if (isPlayer) _scheduleSave();
       notifyListeners();
     } catch (error, stack) {
@@ -915,7 +914,7 @@ class GameController extends ChangeNotifier {
 
   /// شروع دست توسط میزبان (زمان‌سنج از همان لحظه آغاز می‌شود).
   ///
-  /// نسخهٔ ۴.۰.۰: شروع دست به هیچ کلمه یا حرفی وابسته نیست.
+  /// نسخهٔ ۱.۰.۰: شروع دست به هیچ کلمه یا حرفی وابسته نیست.
   void startGame() {
     if (!isHost) return;
     if (!_session.canStartGame) {
@@ -982,7 +981,7 @@ class GameController extends ChangeNotifier {
 
   /// فشردن دکمهٔ «استپ».
   ///
-  /// نسخهٔ ۴.۱.۰: پیش از هر کاری، کامل بودن پاسخ‌های همین بازیکن بررسی
+  /// نسخهٔ ۱.۰.۰: پیش از هر کاری، کامل بودن پاسخ‌های همین بازیکن بررسی
   /// می‌شود؛ اگر حتی یک فیلد کمتر از دو کاراکتر معتبر داشته باشد، عملیات
   /// رد می‌شود (حتی با لمس مکرر دکمه یا رویداد قدیمی/تکراری).
   Future<void> requestStop() async {
@@ -1109,7 +1108,7 @@ class GameController extends ChangeNotifier {
     return scored;
   }
 
-  /// پایان رسمی بازی توسط میزبان (بند ۵ سند ۴.۰.۰).
+  /// پایان رسمی بازی توسط میزبان (بند ۵ سند ۱.۰.۰).
   ///
   /// - پایان جلسه برای همهٔ دستگاه‌ها ارسال می‌شود؛ بازیکنان آنلاین بی‌درنگ به
   ///   صفحهٔ اصلی می‌روند و وضعیت پایان برای بازیکنان آفلاین ذخیره می‌شود.
@@ -1165,7 +1164,7 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// بازگشت به صفحهٔ اصلی بدون خروج از اتاق (بند ۵ سند ۴.۰.۰).
+  /// بازگشت به صفحهٔ اصلی بدون خروج از اتاق (بند ۵ سند ۱.۰.۰).
   ///
   /// جلسه پایان نمی‌یابد، اطلاعات اتاق حفظ می‌شود، ارتباط بازیکنان دیگر قطع
   /// نمی‌شود (میزبان سرور را بالا نگه می‌دارد) و کاربر می‌تواند با «ادامه بازی»
@@ -1521,7 +1520,7 @@ class GameController extends ChangeNotifier {
 
   /// اعتبارسنجی دادهٔ اسکن‌شده از QR.
   ///
-  /// نسخهٔ ۴.۰.۰: اعتبارسنجی «ساختاری» است و به نشست محلی این دستگاه وابسته
+  /// نسخهٔ ۱.۰.۰: اعتبارسنجی «ساختاری» است و به نشست محلی این دستگاه وابسته
   /// نیست؛ پیش از این، مقایسه با شناسهٔ نشست محلی باعث می‌شد اسکن QR روی
   /// دستگاه بازیکن (که هنوز نشستی ندارد) همیشه رد شود.
   bool qrPayloadValid(Map<String, dynamic>? payload) {

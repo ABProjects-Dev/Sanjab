@@ -1,11 +1,11 @@
-/// آزمون سرتاسری نسخهٔ ۲.۰.۰: دو کنترلر واقعی (میزبان و بازیکن) روی
+/// آزمون سرتاسری نسخهٔ ۱.۰.۰: دو کنترلر واقعی (میزبان و بازیکن) روی
 /// لوکال‌هاست با سوکت TCP واقعی؛ از ساخت بازی تا داوری و نتایج.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/domain/models.dart';
-import 'package:shotormorgh/domain/profile.dart';
-import 'package:shotormorgh/state/game_controller.dart';
+import 'package:sanjab/domain/models.dart';
+import 'package:sanjab/domain/profile.dart';
+import 'package:sanjab/state/game_controller.dart';
 
 import 'test_support/memory_profile_store.dart';
 import 'test_support/memory_store.dart';
@@ -63,7 +63,7 @@ void main() {
   });
 
   test('جریان کامل بازی سه‌نفره: اتصال، دست، استپ، داوری و نتایج', () async {
-    // نسخهٔ ۴.۱.۰: دکمهٔ استپ زمانی فعال می‌شود که همهٔ فیلدهای پاسخ
+    // نسخهٔ ۱.۰.۰: دکمهٔ استپ زمانی فعال می‌شود که همهٔ فیلدهای پاسخ
     // بازیکن حداقل دو کاراکتر داشته باشند؛ برای آزمون‌پذیر ماندن این جریان،
     // دسته‌های فعال به دو دسته محدود می‌شود.
     expect(await host.createGame(activeCategoryIds: [0, 1]), isTrue);
@@ -107,7 +107,7 @@ void main() {
       reason: 'وضعیت میزبان باید به بازیکن برسد',
     );
 
-    // نسخهٔ ۴.۰.۰: دست بدون هیچ کلمه یا حرفی و بدون هیچ پیش‌نیاز متنی شروع می‌شود.
+    // نسخهٔ ۱.۰.۰: دست بدون هیچ کلمه یا حرفی و بدون هیچ پیش‌نیاز متنی شروع می‌شود.
     host.startGame();
     expect(host.session.phase, GamePhase.playing);
     expect(

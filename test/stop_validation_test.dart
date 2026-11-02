@@ -1,6 +1,6 @@
-/// آزمون‌های نسخهٔ ۴.۱.۰ — اعتبارسنجی دکمهٔ «استپ».
+/// آزمون‌های نسخهٔ ۱.۰.۰ — اعتبارسنجی دکمهٔ «استپ».
 ///
-/// یازده سناریوی الزامی سند ۴.۱.۰ در سه لایه آزموده می‌شود:
+/// یازده سناریوی الزامی سند ۱.۰.۰ در سه لایه آزموده می‌شود:
 ///  ۱) قاعدهٔ متن (کاراکتر معتبر، فاصله، نیم‌فاصله، کاراکتر نامرئی)
 ///  ۲) منطق دامنه (`GameSession.canPlayerStop` / `requestStop`)
 ///  ۳) منطق اجرای عملیات و رابط کاربری (کنترلر و صفحهٔ بازی، شامل بازی چندنفره)
@@ -8,13 +8,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shotormorgh/domain/answer_rules.dart';
-import 'package:shotormorgh/domain/game_session.dart';
-import 'package:shotormorgh/domain/models.dart';
-import 'package:shotormorgh/domain/profile.dart';
-import 'package:shotormorgh/state/game_controller.dart';
-import 'package:shotormorgh/state/game_scope.dart';
-import 'package:shotormorgh/ui/screens/play_screen.dart';
+import 'package:sanjab/domain/answer_rules.dart';
+import 'package:sanjab/domain/game_session.dart';
+import 'package:sanjab/domain/models.dart';
+import 'package:sanjab/domain/profile.dart';
+import 'package:sanjab/state/game_controller.dart';
+import 'package:sanjab/state/game_scope.dart';
+import 'package:sanjab/ui/screens/play_screen.dart';
 
 import 'test_support/memory_profile_store.dart';
 import 'test_support/memory_store.dart';
@@ -371,7 +371,7 @@ void main() {
       );
       expect(host.session.currentRound!.endReason, RoundEndReason.playerStop);
       // هر دو بازیکن استپ‌کرده‌اند (پس از فاز دریافت پاسخ‌ها، Snapshot هر
-      // بازیکن هم او را «قفل‌شده» می‌کند؛ رفتار نسخهٔ ۴.۰.۰ بدون تغییر).
+      // بازیکن هم او را «قفل‌شده» می‌کند؛ رفتار نسخهٔ ۱.۰.۰ بدون تغییر).
       expect(host.session.isPlayerStopped('p1'), isTrue);
       expect(host.session.isPlayerStopped('p2'), isTrue);
       // بازیکن استپ‌کرده پاسخ‌هایش را می‌فرستد و میزبان همه را می‌گیرد.

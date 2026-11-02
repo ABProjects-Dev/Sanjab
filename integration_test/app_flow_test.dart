@@ -13,10 +13,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shotormorgh/app.dart';
-import 'package:shotormorgh/data/profile_repository.dart';
-import 'package:shotormorgh/data/session_repository.dart';
-import 'package:shotormorgh/state/game_controller.dart';
+import 'package:sanjab/app.dart';
+import 'package:sanjab/data/profile_repository.dart';
+import 'package:sanjab/data/session_repository.dart';
+import 'package:sanjab/state/game_controller.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +41,7 @@ void main() {
 
     expect(await controller.saveDisplayName('میزبان آزمون'), isTrue);
 
-    await tester.pumpWidget(ShotorMorghApp(controller: controller));
+    await tester.pumpWidget(SanjabApp(controller: controller));
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('ایجاد بازی'), findsOneWidget);
