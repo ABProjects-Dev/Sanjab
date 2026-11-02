@@ -129,9 +129,10 @@ jobs:
           test -x "$apksigner"
           "$apksigner" verify --verbose "$apk_path" >/dev/null
 
-          apk_fingerprint="$("$apksigner" verify --print-certs "$apk_path" | \
-            awk -F': ' '/Signer #1 certificate SHA-256 digest:/ { print $2; exit }' | \
-            tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+          apksigner_output="$("$apksigner" verify --print-certs "$apk_path" 2>&1)"
+          apk_fingerprint="$(printf '%s' "$apksigner_output" | \
+            awk -F': ' 'tolower($1) ~ /certificate sha-256 digest/ { print $NF; exit }' | \
+            tr -cd '[:xdigit:]' | tr '[:lower:]' '[:upper:]')"
           keystore_fingerprint="$(keytool -exportcert -keystore "$ANDROID_KEYSTORE" \
             -storetype PKCS12 -storepass:env ANDROID_KEYSTORE_PASS \
             -alias "$ANDROID_KEY_ALIAS" | openssl dgst -sha256 | \
