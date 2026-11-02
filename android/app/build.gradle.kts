@@ -20,6 +20,20 @@ val releaseKeyPassword: String? =
     (project.findProperty("ANDROID_KEY_PASS") as String?)
         ?: System.getenv("ANDROID_KEY_PASS")
 
+val releaseSigningValues = listOf(
+    releaseStorePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+)
+val releaseSigningConfigured = releaseSigningValues.all { !it.isNullOrBlank() }
+val releaseSigningPartiallyConfigured =
+    releaseSigningValues.any { !it.isNullOrBlank() } && !releaseSigningConfigured
+
+if (releaseSigningPartiallyConfigured) {
+    throw GradleException("Provide all four Android release signing values, or none.")
+}
+
 android {
     namespace = "com.sanjab.game"
     compileSdk = flutter.compileSdkVersion
@@ -41,15 +55,11 @@ android {
 
     signingConfigs {
         create("release") {
-            if (releaseStorePath != null &&
-                releaseStorePassword != null &&
-                releaseKeyAlias != null &&
-                releaseKeyPassword != null
-            ) {
-                storeFile = file(releaseStorePath)
-                storePassword = releaseStorePassword
-                keyAlias = releaseKeyAlias
-                keyPassword = releaseKeyPassword
+            if (releaseSigningConfigured) {
+                storeFile = file(releaseStorePath!!)
+                storePassword = releaseStorePassword!!
+                keyAlias = releaseKeyAlias!!
+                keyPassword = releaseKeyPassword!!
             }
         }
     }
@@ -60,11 +70,8 @@ android {
             // روی ماشین قوی‌تر می‌توانید isMinifyEnabled را true کنید.
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = if (releaseStorePath != null) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            // Never fall back to the debug certificate for a release build.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

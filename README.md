@@ -82,8 +82,8 @@ flutter test               # ۱۲۶ آزمون واحد/شبکه/ویجت
 flutter build apk --release
 ```
 
-ساخت نسخهٔ امضاشده به کلید اصلی پروژه نیاز دارد؛ اطلاعات کلید در سورس نیست و
-از متغیر محیطی خوانده می‌شود (راهنما: `documentation/راهنمای انتشار.txt`).
+ساخت و انتشار APK امضاشدهٔ اصلی با GitHub Actions انجام می‌شود؛ اطلاعات کلید در سورس نیست.
+راهنمای فنی: [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md).
 
 ## Documentation
 
