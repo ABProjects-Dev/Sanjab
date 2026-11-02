@@ -1,24 +1,24 @@
-# Android Release Builds
+# ساخت انتشار اندروید
 
-The `Android release` GitHub Actions workflow builds a signed production APK and uploads it, plus a SHA-256 checksum, to an existing GitHub Release. It does not build or publish a debug APK.
+گردش‌کار **انتشار اندروید** در GitHub Actions یک APK اصلیِ امضاشده می‌سازد و آن را به‌همراه checksum از نوع SHA-256 به یک GitHub Release موجود اضافه می‌کند. این گردش‌کار APK آزمایشی (debug) نمی‌سازد یا منتشر نمی‌کند.
 
-## Required GitHub Actions secrets
+## Secretهای لازم در GitHub Actions
 
-Configure these repository secrets before running the workflow:
+پیش از اجرای گردش‌کار، این repository secretها باید در تنظیمات مخزن وجود داشته باشند:
 
-- `ANDROID_KEYSTORE_BASE64` — base64-encoded contents of the password-protected PKCS#12 release keystore.
-- `ANDROID_KEYSTORE_PASS` — keystore password.
-- `ANDROID_KEY_ALIAS` — release key alias.
-- `ANDROID_KEY_PASS` — release key password.
+- `ANDROID_KEYSTORE_BASE64` — محتوای keystore انتشار با قالب PKCS#12 که به Base64 تبدیل شده است.
+- `ANDROID_KEYSTORE_PASS` — گذرواژهٔ keystore.
+- `ANDROID_KEY_ALIAS` — alias کلید انتشار.
+- `ANDROID_KEY_PASS` — گذرواژهٔ کلید.
 
-Keep the original keystore and its passwords outside the repository. The workflow decodes the keystore into the runner's temporary directory, validates it, and removes it when the hosted runner is discarded. It never uploads the keystore or passwords.
+keystore اصلی و گذرواژه‌های آن را بیرون از مخزن نگه دارید. گردش‌کار keystore را در پوشهٔ موقت runner بازیابی و اعتبارسنجی می‌کند؛ این فایل یا گذرواژه‌ها را بارگذاری نمی‌کند. پس از پایان runner میزبانی‌شده، فایل موقت حذف می‌شود.
 
-## Publish a release APK
+## انتشار APK
 
-1. Ensure the release tag already exists, points to the intended source, and has a GitHub Release.
-2. Open **Actions → Android release → Run workflow** on the `main` branch.
-3. Enter the existing release tag (for example, `1.0.0`). The tag must match the app version in `pubspec.yaml`.
-4. Wait for the workflow to build the APK and verify that its signing certificate matches the configured keystore.
-5. Confirm that `Sanjab-<tag>.apk` and `Sanjab-<tag>.apk.sha256` appear as assets on the GitHub Release.
+1. مطمئن شوید تگ انتشار از قبل وجود دارد، به سورس موردنظر اشاره می‌کند و GitHub Release متناظر با آن ساخته شده است.
+2. در شاخهٔ `main`، مسیر **Actions → انتشار اندروید → اجرای گردش‌کار** را باز کنید.
+3. تگ موجود را وارد کنید؛ برای نمونه `1.0.0`. مقدار تگ باید با نسخهٔ برنامه در `pubspec.yaml` برابر باشد.
+4. صبر کنید تا ساخت تمام شود و بررسی کنید گواهی APK با keystore تنظیم‌شده تطابق داشته باشد.
+5. در فایل‌های پیوست GitHub Release وجود `Sanjab-<tag>.apk` و `Sanjab-<tag>.apk.sha256` را تأیید کنید.
 
-The Gradle release build is fail-closed: it never falls back to the debug signing key. Release tasks fail unless all four signing values are configured. Debug builds remain available for CI and development.
+نام تگ نسخه، مانند `1.0.0`، شناسهٔ فنی است و باید همان‌طور باقی بماند؛ متن توضیحات و راهنمای انتشار می‌تواند فارسی باشد. پیکربندی انتشار Gradle در صورت نبود هرکدام از چهار مقدار امضا، ساخت را متوقف می‌کند و هرگز به کلید debug برنمی‌گردد. ساخت debug برای توسعه و CI همچنان در دسترس است.

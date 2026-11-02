@@ -1,10 +1,10 @@
-name: Android release
+name: انتشار اندروید
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing GitHub release tag to build and update
+        description: تگ انتشار موجود در گیت‌هاب برای ساخت و به‌روزرسانی
         required: true
         default: 1.0.0
         type: string
@@ -14,17 +14,17 @@ permissions:
 
 jobs:
   release:
-    name: Build and publish signed Android APK
+    name: ساخت و انتشار APK امضاشدهٔ اندروید
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Check out tagged source
+      - name: دریافت سورس تگ‌شده
         uses: actions/checkout@v7.0.1
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
 
-      - name: Verify release tag matches app version
+      - name: بررسی تطابق تگ انتشار با نسخهٔ برنامه
         shell: bash
         env:
           RELEASE_TAG: ${{ inputs.tag }}
@@ -32,37 +32,37 @@ jobs:
           version="$(sed -n 's/^version: *//p' pubspec.yaml | tr -d '\"' | head -n 1)"
           app_version="${version%%+*}"
           if [[ -z "$app_version" || "$app_version" != "$RELEASE_TAG" ]]; then
-            echo "Release tag does not match pubspec.yaml version." >&2
+            echo "تگ انتشار با نسخهٔ ثبت‌شده در pubspec.yaml مطابقت ندارد." >&2
             exit 1
           fi
 
-      - name: Verify GitHub release exists
+      - name: بررسی وجود انتشار در گیت‌هاب
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: gh release view "$RELEASE_TAG" >/dev/null
 
-      - name: Set up Java
+      - name: آماده‌سازی Java
         uses: actions/setup-java@v6.1.0
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Flutter
+      - name: آماده‌سازی Flutter
         uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
           cache: true
 
-      - name: Resolve Flutter dependencies
+      - name: دریافت وابستگی‌های Flutter
         run: flutter pub get
 
-      - name: Set up Gradle
+      - name: آماده‌سازی Gradle
         uses: gradle/actions/setup-gradle@v6.4.1
         with:
           gradle-version: 9.3.1
 
-      - name: Generate ignored Gradle wrapper files
+      - name: ساخت فایل‌های نادیده‌گرفته‌شدهٔ Gradle Wrapper
         run: |
           flutter_root="$(dirname "$(dirname "$(readlink -f "$(command -v flutter)")")")"
           android_sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
@@ -70,7 +70,7 @@ jobs:
           printf 'flutter.sdk=%s\nsdk.dir=%s\n' "$flutter_root" "$android_sdk" > android/local.properties
           gradle -p android wrapper --gradle-version 9.3.1 --distribution-type all
 
-      - name: Restore and validate release keystore
+      - name: بازیابی و اعتبارسنجی keystore انتشار
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
@@ -81,7 +81,7 @@ jobs:
           set -euo pipefail
           if [[ -z "$ANDROID_KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASS" || \
                 -z "$ANDROID_KEY_ALIAS" || -z "$ANDROID_KEY_PASS" ]]; then
-            echo "Required Android signing secrets are missing." >&2
+            echo "Secretهای لازم برای امضای اندروید تنظیم نشده‌اند." >&2
             exit 1
           fi
 
@@ -92,14 +92,14 @@ jobs:
             -storepass:env ANDROID_KEYSTORE_PASS -alias "$ANDROID_KEY_ALIAS" >/dev/null
           printf 'ANDROID_KEYSTORE=%s\n' "$keystore_path" >> "$GITHUB_ENV"
 
-      - name: Build signed production APK
+      - name: ساخت APK امضاشدهٔ انتشار
         env:
           ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
         run: flutter build apk --release --no-pub
 
-      - name: Verify APK signature and prepare release assets
+      - name: بررسی امضای APK و آماده‌سازی فایل‌های انتشار
         env:
           ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -123,7 +123,7 @@ jobs:
             -alias "$ANDROID_KEY_ALIAS" | openssl dgst -sha256 | \
             awk '{print $NF}' | tr '[:lower:]' '[:upper:]')"
           if [[ -z "$apk_fingerprint" || "$apk_fingerprint" != "$keystore_fingerprint" ]]; then
-            echo "APK signer does not match the configured release keystore." >&2
+            echo "امضای APK با keystore انتشار تنظیم‌شده مطابقت ندارد." >&2
             exit 1
           fi
 
@@ -131,7 +131,7 @@ jobs:
           cp "$apk_path" "$asset"
           sha256sum "$asset" > "${asset}.sha256"
 
-      - name: Upload signed APK and checksum to GitHub Release
+      - name: بارگذاری APK امضاشده و checksum در انتشار گیت‌هاب
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
