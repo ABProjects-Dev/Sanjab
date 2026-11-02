@@ -85,11 +85,11 @@ flutter build apk --release
 ساخت نسخهٔ امضاشده به کلید اصلی پروژه نیاز دارد؛ اطلاعات کلید در سورس نیست و
 از متغیر محیطی خوانده می‌شود (راهنما: `documentation/راهنمای انتشار.txt`).
 
-## مستندات
+## Documentation
 
-- `documentation/راهنمای اتصال چندنفره.txt` — روش‌های اتصال و عیب‌یابی
-- `documentation/معماری شبکه محلی.txt` — پروتکل، پورت‌ها و جریان داده
-- `documentation/قوانین امتیازدهی.txt` — جدول امتیاز و نمونه‌های عددی
-- `documentation/قوانین بازی.txt` — قوانین کلی بازی
-- `documentation/گزارش نسخه 4.0.0.txt` — گزارش ساخت، امضا و انتشار نسخهٔ ۴.۰.۰
-- `documentation/گزارش نسخه 4.1.0.txt` — گزارش ساخت، امضا و انتشار نسخهٔ ۴.۱.۰
+Detailed project documentation is available in [`docs/README.md`](docs/README.md):
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system structure and runtime design
+- [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) — implemented behavior and constraints
+- [`docs/API.md`](docs/API.md) — local-network protocol and join payloads
+- [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) — analysis findings and recommended follow-up work
