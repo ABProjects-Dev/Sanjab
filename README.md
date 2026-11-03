@@ -1,4 +1,4 @@
-# سنجاب — نسخهٔ 1.0.0
+# سنجاب — نسخهٔ 1.0.1
 
 بازی گروهی فارسیِ اسم‌وفامیل برای چند گوشی روی یک شبکهٔ محلی Wi-Fi یا hotspot. برای بازی به سرور بیرونی یا اینترنت عمومی نیاز نیست.
 
@@ -6,14 +6,14 @@
 
 | مورد | مقدار |
 | --- | --- |
-| نسخه | `1.0.0` (Android versionCode: `6`) |
+| نسخه | `1.0.1` (Android versionCode: `7`) |
 | وضعیت | منتشرشده؛ APK و checksum در GitHub Release موجود است |
 | شناسهٔ بسته | `com.sanjab.game` |
 | حداقل Android | ۷٫۰ (API 24) |
 | target SDK | مقدار پیش‌فرض Flutter Gradle؛ در پروژه صریحاً pin نشده است |
 | زبان و چیدمان | فارسی و راست‌به‌چپ، فونت Vazirmatn |
 | ظاهر | تم تیره، جهت عمودی |
-| انتشار | [Sanjab 1.0.0 در GitHub](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0) |
+| انتشار | [Sanjab 1.0.1 در GitHub](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1) |
 
 ## قابلیت‌ها
 

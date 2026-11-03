@@ -7,11 +7,11 @@
 ## Current project and release state
 
 - Flutter/Dart Android game; Dart package `sanjab`, Android application ID `com.sanjab.game`.
-- App version `1.0.0+6`; Android version name `1.0.0`, version code 6.
+- App version `1.0.1+7`; Android version name `1.0.1`, version code 7.
 - Persian RTL dark portrait UI, bundled Vazirmatn font, host-authoritative multiplayer on a local TCP/UDP network.
-- GitHub Release `1.0.0` is published with `Sanjab-1.0.0.apk` and `Sanjab-1.0.0.apk.sha256`.
-- The signed release build and certificate-fingerprint check succeeded in [Android release run 41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107).
-- Flutter analysis, tests, and debug APK build succeeded in [Flutter checks run 41540382070](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41540382070). These checks do not prove two-device network behavior.
+- GitHub Release `1.0.1` is the current release page for the signed APK and its SHA-256 checksum; the previous `1.0.0` release remains available.
+- The previous `1.0.0` signed release build and certificate-fingerprint check succeeded in [Android release run 41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107).
+- Flutter analysis, all tests, and debug APK build succeeded in [Flutter checks run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376). These checks do not prove two-device network behavior.
 - `test/` contains 131 `test`/`testWidgets` declarations; `integration_test/` has one device test for host setup, not a complete two-phone game.
 - GitHub Actions workflows are present under `.github/workflows/`. The release workflow excludes the test-only `integration_test` dependency from the runner's temporary production dependency resolution, passes the keystore path explicitly, and rejects an APK signed with a different certificate.
 
@@ -41,13 +41,13 @@ These recommendations are not claims that the work has already been implemented 
 
 ### P1 — Correct join-state delivery and reconnect ownership
 
-**Status:** Implemented in the current source; regression tests were added but could not be run in this workspace because Flutter/Dart are unavailable.
+**Status:** Implemented and covered by regression tests. Flutter Actions passed on the merged source in [run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376).
 
 `HostNetwork` now registers the accepted channel and sends `helloAck` before notifying the app to broadcast state. Message dispatch and disconnect cleanup check that the channel instance is still current, so a replaced socket cannot act as or remove its replacement. Tests cover immediate initial-state delivery and same-player replacement.
 
 ### P1 — Make final snapshot delivery acknowledgment-based
 
-**Status:** Implemented in the current source; regression tests were added but could not be run in this workspace because Flutter/Dart are unavailable.
+**Status:** Implemented and covered by regression tests. Flutter Actions passed on the merged source in [run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376).
 
 `GameClient` retains a pending snapshot and retries it every two seconds until the matching positive acknowledgment arrives. It sends the pending payload immediately after reconnect. The host responds again to a duplicate same-round snapshot without applying the answers twice. Tests cover timeout retry/stop-after-ack, retry after reconnect, and duplicate acknowledgment with idempotent application.
 
@@ -96,8 +96,8 @@ These recommendations are not claims that the work has already been implemented 
 
 ## Verification and release record
 
-- GitHub release `1.0.0` is live: [release page](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0).
+- GitHub release `1.0.1` is current: [release page](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1).
 - The release workflow validated the APK's signing certificate against the configured keystore before upload. The workflow change is documented in [Android Release Builds](ANDROID_RELEASE.md).
-- The last recorded Flutter checks passed before the current network changes: [run 41540382070](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41540382070). They do not validate this patch.
+- The latest merged multiplayer-reliability changes passed Flutter analysis, tests, and debug APK build in [run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376). These checks do not replace physical-device testing.
 - Regression tests for join ordering, reconnect replacement, snapshot retry, and duplicate acknowledgment were added in `test/net_test.dart` and `test/controller_flow_test.dart`.
-- Flutter/Dart are unavailable in the current workspace, so these tests, analysis, and Android builds could not be run here. No full two-phone game test, physical-device network matrix, or fault-injection run is recorded.
+- Flutter analysis, tests, and debug APK build passed in [run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376). No full two-phone game test, physical-device network matrix, or fault-injection run is recorded.

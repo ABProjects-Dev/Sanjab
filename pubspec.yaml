@@ -2,8 +2,8 @@ name: sanjab
 description: "سنجاب — بازی گروهی اسم و فامیل (Android, Flutter, offline)"
 publish_to: 'none'
 
-# نسخهٔ ۱.۰.۰ — VersionCode: 6
-version: 1.0.0+6
+# نسخهٔ ۱.۰.۱ — VersionCode: 7
+version: 1.0.1+7
 
 environment:
   sdk: ^3.13.7
