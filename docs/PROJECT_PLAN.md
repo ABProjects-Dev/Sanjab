@@ -1,89 +1,109 @@
 # Project Plan and Analysis Snapshot
 
-**Analysis date:** 2026-11-02
+**Review date:** 2026-11-03
 
-**Scope:** Source, tests, Flutter/package configuration and Android scaffold in this repository.
+**Scope:** Static review of the Flutter/Dart source, tests, Android/Gradle setup, GitHub Actions workflows and project documentation. Findings below are source-derived unless explicitly tied to a successful GitHub Actions run. No physical-device fault-injection was performed.
 
-**Change scope:** App version metadata and documentation; gameplay logic and behavior were not intentionally changed.
+## Current project and release state
 
-## Current project state
+- Flutter/Dart Android game; Dart package `sanjab`, Android application ID `com.sanjab.game`.
+- App version `1.0.0+6`; Android version name `1.0.0`, version code 6.
+- Persian RTL dark portrait UI, bundled Vazirmatn font, host-authoritative multiplayer on a local TCP/UDP network.
+- GitHub Release `1.0.0` is published with `Sanjab-1.0.0.apk` and `Sanjab-1.0.0.apk.sha256`.
+- The signed release build and certificate-fingerprint check succeeded in [Android release run 41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107).
+- Flutter analysis, tests, and debug APK build succeeded in [Flutter checks run 41540382070](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41540382070). These checks do not prove two-device network behavior.
+- `test/` contains 126 `test`/`testWidgets` declarations; `integration_test/` has one device test for host setup, not a complete two-phone game.
+- GitHub Actions workflows are present under `.github/workflows/`. The release workflow excludes the test-only `integration_test` dependency from the runner's temporary production dependency resolution, passes the keystore path explicitly, and rejects an APK signed with a different certificate.
 
-- Flutter/Dart Android game, Dart package `sanjab`, Android application ID `com.sanjab.game`, version `1.0.0+6`.
-- Persian RTL dark portrait UI; bundled Vazirmatn font and artwork.
-- Host-authoritative multiplayer using local TCP plus UDP discovery, QR and manual join paths.
-- 13 category IDs, fixed seven-minute rounds, stop quorum, host-only judging and scoring.
-- Local profile and host-session JSON repositories; room-record storage adapter exists but is not wired into production composition.
-- 12 Dart files under `test/` contain 126 `test`/`testWidgets` declarations; one device integration test exists. This is a static source count, not a test execution result.
-- No `.github` workflow files, CI configuration, or iOS/web/desktop scaffolds were found in the checked-in tree during analysis.
-- Flutter, Dart and Java executables were not available in the current workspace, so tests, analysis and builds could not be run.
+## Prioritized follow-up
 
-## Priority recommendations
+These recommendations are not claims that the work has already been implemented or reproduced on physical devices.
 
-This is a set of evidence-based recommendations, not a claim that the work is already scheduled or approved.
+### P0 — Persist player room records in production
 
-### P0 — Wire durable saved-room storage
+**Finding:** `main.dart` does not inject the durable `RoomRepository`; `GameController` defaults to `MemoryRoomStore`.
 
-**Finding:** `GameController` defaults to `MemoryRoomStore`; `main.dart` does not pass the existing `RoomRepository`.
-
-**Recommended work:** Construct `RoomRepository` with the application-support directory and inject it into `GameController` in the production composition root.
+**Impact:** Player-side saved-room records are not reliable across app-process restarts, despite the UI's continuation flow. The host's separate persisted session does not solve this player-side gap.
 
 **Acceptance criteria:**
-- Host and player room records survive an actual app/process restart.
-- Existing host-session recovery and player resume paths remain correct.
-- Add a composition-level/restart regression test proving the production path uses durable storage.
-- Run the complete test suite and a two-device or repeatable network integration test when devices are available.
+- Inject `RoomRepository` using the application-support directory in the production composition root.
+- Add a composition/restart test proving that host and player records survive a real process restart.
+- Keep backup recovery and the room-count cap covered by tests.
 
-### P1 — Make displayed version derive from package metadata
+### P1 — Serialize file-backed saves
 
-**Finding:** The home/About UI currently displays `1.0.0`, matching package and Android version name `1.0.0` with Android version code 6. The UI text is still hardcoded in more than one screen.
+**Finding:** `_scheduleSave` can start a second asynchronous save while the previous save is still in progress; the file repositories reuse fixed temporary paths. Frequent host edits or a lifecycle flush can overlap writes.
 
-**Recommended work:** Use one version source or a maintained generated value for the UI and build configuration to prevent future drift.
+**Acceptance criteria:**
+- Serialize or coalesce writes to each repository so only one write uses a temporary path at a time.
+- Preserve the latest state when several saves are requested rapidly.
+- Add a deterministic concurrent-save/recovery test.
 
-**Acceptance criteria:** The UI's displayed version and Android/package version agree; a test guards against recurrence.
+### P1 — Correct join-state delivery and reconnect ownership
 
-### P1 — Verify LAN join and reconnect end-to-end
+**Findings:** The host's hello callback broadcasts state before the new channel is registered. The old channel's completion callback can also remove a replacement channel without checking identity.
 
-The source has socket and controller tests, but the device integration test explicitly covers only the host setup path and not a two-phone game. Exercise host/player joins, discovery and fallback join, stop/snapshot/judging, disconnect/reconnect, and room restore on real supported Android network combinations.
+**Acceptance criteria:**
+- Send the current state after successful channel registration.
+- Make disconnect cleanup conditional on the exact channel instance still being current.
+- Add controller/network regression tests for a lone player waiting in the lobby and reconnecting while the old socket closes.
 
-### P2 — Synchronize protocol documentation and source comments
+### P1 — Make final snapshot delivery acknowledgment-based
 
-`protocol.dart`'s header describes version 2 while the runtime constant is 3. Update the stale source comment when code changes are next authorized and add an assertion/documentation source of truth so protocol upgrades remain synchronized.
+**Finding:** A player marks a final snapshot as sent when it is queued locally; a same-round reconnect does not necessarily reset or retry it.
 
-### P2 — Keep release metadata and documentation aligned
+**Acceptance criteria:**
+- Track pending versus acknowledged snapshots separately.
+- Retry safely after reconnect or timeout until the host acknowledges the snapshot.
+- Add a deterministic test for a disconnect between local send and host receipt.
 
-- The app version is now `1.0.0+6`; centralize the duplicate UI version literals as tracked above under P1.
-- The README links to this `docs/` set now. Historical `documentation/*.txt` files, including publication and release reports, remain absent; restore them only from an authoritative source and do not fabricate signing or release records.
-- README says target SDK 36 but app Gradle uses Flutter's `targetSdkVersion` default. Either pin and verify an explicit target or document the Flutter-derived value accurately.
+### P1 — Bound network framing before line allocation
 
-### P2 — Verify release signing configuration safely
+**Finding:** `LineSplitter` accumulates input before `NetMessage.parse` checks the 256 KiB character limit. A 15-second handshake timeout does not cap the in-progress line or aggregate pending sockets.
 
-The app build reads signing values from Gradle properties/environment. No keystore is checked in (as desired). Before a stable release, verify the intended release signing config on a controlled build host and confirm missing/incomplete settings cannot silently produce an incorrectly signed artifact. Never add the keystore or passwords to Git.
+**Acceptance criteria:**
+- Enforce an incremental byte limit before completing a line.
+- Bound pending handshakes, remove per-connection callbacks on close, and close abusive sockets promptly.
+- Test an oversized unterminated frame and many concurrent unauthenticated sockets.
 
-### P3 — Add CI only when the project owner wants it
+### P1 — Align answer input with the host's 80-character cap
 
-No GitHub Actions workflows were found. A small CI workflow could run `flutter analyze` and `flutter test` for pull requests once Flutter-version and runner requirements are agreed. Android release builds/signing should not be automated without a reviewed secret/configuration plan, and stable releases require owner approval.
+**Finding:** The host silently drops answer/snapshot values longer than 80 Dart string characters, but the play-screen fields do not enforce that limit.
 
-## Suggested implementation sequence
+**Acceptance criteria:**
+- Apply an explicit UI limit matching the server rule or revise the server rule consistently.
+- Give clear feedback rather than silently losing a player's answer.
+- Test normal typing, paste, and final snapshots at and beyond the boundary.
 
-1. Fix production `RoomStore` injection and add process-restart coverage.
-2. Centralize the already-matching UI/package version values and add a regression test against future drift.
-3. Run Flutter formatting, analysis, all 126 unit/widget/network declarations, and the device integration test where available.
-4. Verify two-device LAN scenarios and Android debug/release builds on a configured machine.
-5. Verify the protocol version comment against the runtime constant and decide whether historical release documents should be restored from an authoritative source.
-6. Consider CI after toolchain and release-signing requirements are agreed.
+### P1 — Fix results navigation for remotely ended sessions
 
-## Decisions requiring project-owner input
+**Finding:** The player controller resets to lobby after `sessionEnded`, while `ResultsScreen` only handles transition to a new playing round. A player on results may remain on that route.
 
-- Is support for platforms beyond Android required, or should the repository remain Android-only?
-- Should the historical `documentation/*.txt` references be restored from an authoritative archive or retired?
-- Which Flutter SDK version should CI and release builds pin?
-- Should the app enforce a minimum secure-network model or continue to assume a trusted local Wi-Fi/hotspot?
-- Is a two-device physical test environment available for release validation?
+**Acceptance criteria:** Add a widget/controller navigation test proving that a remotely ended game returns every connected player to the home flow.
 
-## Verification record for this version-metadata task
+### P2 — Guard async UI lifecycle paths
 
-- Updated app release metadata and user-facing version references to `1.0.0`; kept Android `versionCode` monotonic at 6.
-- Kept package dependency versions, Android Gradle plugin versions, network protocol version and stored-data schema versions unchanged.
-- Flutter and Dart executables are absent from this workspace, so Flutter tests, static analysis and Android builds were not run.
-- `git diff --check` passed. Static checks confirmed `pubspec.yaml` version `1.0.0+6`, Android `versionName` `1.0.0` / `versionCode` 6, matching UI version literals and the updated UI test expectation.
-- Markdown relative links, code-fence balance and trailing whitespace checks passed across the README and `docs/` files.
+**Finding:** `HomeScreen` calls `setState` in `!mounted` branches after asynchronous create/resume operations.
+
+**Acceptance criteria:** Avoid state updates after disposal and add a widget test that disposes the route while the operation is pending.
+
+### P2 — Make failed initial joins terminate or complete visibly
+
+**Finding:** A failed initial connection can leave `GameClient`'s automatic reconnect loop active while the join screen stays in its failure state. A later background connection can leave the user connected without navigating into the game.
+
+**Acceptance criteria:** Close/cancel the client after a failed join, or expose reconnect state and navigate on later success; test both outcomes.
+
+### P2 — Keep release metadata and user-facing copy aligned
+
+- The UI version is hardcoded in multiple places; derive it from one maintained source or add a guard test.
+- `targetSdk` and `compileSdk` are Flutter Gradle defaults, not explicitly pinned; document or pin the toolchain expectation.
+- `guide_screen.dart` contains stale copy about random letters and stop behavior; settings copy describes the game as single-device/offline despite LAN multiplayer.
+- `protocol.dart` has a stale header comment saying version 2 while runtime `kProtocolVersion` is 3.
+
+## Verification and release record
+
+- GitHub release `1.0.0` is live: [release page](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0).
+- The release workflow validated the APK's signing certificate against the configured keystore before upload. The workflow change is documented in [Android Release Builds](ANDROID_RELEASE.md).
+- The latest recorded Flutter checks passed: [run 41540382070](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41540382070).
+- No full two-phone game test, physical-device network matrix, or fault-injection run is recorded. The static network and UI findings above need regression tests and device verification.
+- During this documentation update, Flutter tests and analysis were not re-run locally; only documentation/workflow text was reviewed.

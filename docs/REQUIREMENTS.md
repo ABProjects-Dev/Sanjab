@@ -4,7 +4,7 @@
 
 Sanjab is a Persian, category-based word game for two or more people using Android devices on one local Wi-Fi network or hotspot. One device hosts the session; other devices join it. No external game server is part of the implementation.
 
-This document records requirements visible in the current source and distinguishes them from observed gaps. It is not a claim that a release build or physical-device verification has passed.
+This document records requirements visible in the current source and distinguishes them from observed gaps. The 1.0.0 Android APK has been built, signature-checked, and published by GitHub Actions; that does not constitute two-device or broad physical-device verification.
 
 ## Users and primary flows
 
@@ -39,7 +39,7 @@ This document records requirements visible in the current source and distinguish
 - At round end, clients submit their final answer snapshot. The host waits for snapshots or an explicit host decision to resolve a disconnected player before judging.
 - Only the host judges. Every non-empty answer must be marked confirmed, duplicate, or rejected before finalization.
 - The score is computed once per round and accumulated for the current game. Equal totals share a rank.
-- The host can officially finish the session. That invalidates active join/resume state and returns connected clients to the home flow.
+- The host can officially finish the session. That invalidates active join/resume state and is intended to return connected clients to the home flow; a player already on the results screen may remain there (see the known implementation caveat below).
 
 ## Stop-answer validation
 
@@ -83,7 +83,7 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 - The profile is stored locally in `profile.json`.
 - The host's active `GameSession` is stored in `active_session.json` with a temporary-file write and backup fallback.
 - The source includes a durable `RoomRepository` for `rooms.json`, with atomic replacement, backup recovery and a cap of 20 rooms.
-- **Current gap:** the production app does not inject `RoomRepository`; `GameController` therefore defaults to `MemoryRoomStore`. Player-side room-list continuation across process restarts is not guaranteed in the current app composition. The controller and repository tests do not establish that the real composition persists these room records.
+- **Current gap:** the production app does not inject `RoomRepository`; `GameController` therefore defaults to `MemoryRoomStore`. Player-side saved-room records are not reliably preserved across process restarts. The controller and repository tests do not establish that the real composition persists these records.
 - On Android app lifecycle transitions to background/inactive/hidden/detached, the controller is asked to flush its current saved state.
 - There is no permanent game-history or account service. Officially finishing a session clears the active session/history.
 
@@ -100,15 +100,30 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 - The logger keeps a bounded log file and recent in-memory lines; implementation comments state that player answer text should not be logged.
 - The local network traffic is plain TCP/UDP and has no TLS encryption. Join credentials should be shared only with intended players on a trusted local network.
 
+## Known implementation caveats from static review
+
+These findings are code-derived and have not all been reproduced on a device or under fault injection:
+
+- The host rejects answer strings longer than 80 Dart string characters, but the UI does not cap input at that length; an overlength answer can be silently dropped.
+- The 256 KiB protocol cap is checked after `LineSplitter` has assembled a line, so a peer that sends without a newline can grow a receive buffer before the check runs. The host also retains pending-socket callbacks until the server stops, so repeated pending/rejected connections can accumulate entries.
+- The host broadcasts the lobby state from its `onHello` callback before `HostNetwork` registers the new channel. A newly joined player may not receive initial lobby state until a later host update.
+- Reconnect cleanup can remove the replacement channel when the old socket's completion callback runs; it does not check channel identity.
+- Player final snapshots are marked sent when queued rather than when acknowledged and are not retried on a same-round reconnect.
+- Save scheduling permits a new asynchronous save while a previous save is still writing to the same temporary path. Host answer edits trigger frequent session saves; concurrent writes may conflict and need serialization.
+- A failed initial join can leave the client's automatic reconnect loop active while the join screen remains on the failure state.
+- A player receiving official session end while on the results screen may remain on that route; the results listener only handles transition to a new playing phase.
+- Home-screen async create/resume handlers call `setState` in their `!mounted` branches, which can raise a lifecycle error if the route was disposed.
+
 ## Verification requirements
 
-The repository contains 126 `test`/`testWidgets` declarations under `test/` and one device integration test under `integration_test/`. The test suites cover domain transitions, scoring, stop validation, protocol/discovery, live sockets, controller flows, local persistence, room continuation and widgets. The integration test explicitly covers the host setup path; it does not simulate a two-phone network game.
+The repository contains 126 `test`/`testWidgets` declarations under `test/` and one device integration test under `integration_test/`. The integration test covers the host setup path; it does not simulate a two-phone network game.
 
-For a code or release change, run the relevant Flutter tests, `flutter analyze`, and the applicable Android builds on a machine with Flutter/Dart and Android tooling installed. This version-metadata update did not execute tests, static analysis or builds because Flutter and Dart executables are not available in the current workspace.
+The GitHub Actions Flutter checks completed successfully for the merged project state in [run 41540382070](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41540382070), including analysis, tests and a debug APK build. The signed Android `1.0.0` release build and certificate verification completed successfully in [run 41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107). Neither run verifies a full game on two physical phones or all Wi-Fi/hotspot combinations. Flutter tests and analysis were not re-run locally during this documentation update.
 
-## Current metadata and documentation notes
+## Current metadata, release and documentation notes
 
-- The app version metadata is now `1.0.0+6`: `pubspec.yaml` uses `1.0.0+6`, Android uses version name `1.0.0` and version code 6, and the UI displays `1.0.0`. The UI values remain hardcoded and could drift later.
+- App version metadata is `1.0.0+6`: `pubspec.yaml` uses `1.0.0+6`, Android uses version name `1.0.0` and version code 6, and the UI displays `1.0.0`. The UI values remain hardcoded and could drift later.
+- GitHub Release `1.0.0` is published and contains `Sanjab-1.0.0.apk` plus its `.sha256` checksum. See [the release page](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0).
 - `lib/net/protocol.dart`'s leading comment says protocol version 2; the implementation constant is 3. This is a network protocol version, not the app release version.
-- The README's former links to a missing `documentation/` directory have been replaced with links to this `docs/` set. Historical release/signing reports remain absent because no authoritative copies were in the repository.
-- The README states target SDK 36, while `android/app/build.gradle.kts` uses `flutter.targetSdkVersion`; the effective SDK value depends on the Flutter toolchain used to build.
+- The README links to the checked-in `docs/` set. Historical `documentation/*.txt` reports remain absent because no authoritative copies were found.
+- `android/app/build.gradle.kts` uses `flutter.targetSdkVersion`; the effective target SDK depends on the Flutter toolchain and is not pinned here.

@@ -1,9 +1,9 @@
 # Documentation Index
 
-- [Architecture](ARCHITECTURE.md) — repository structure, runtime composition, layers, state flow, storage and architectural observations.
-- [Requirements and Current Behavior](REQUIREMENTS.md) — user flows, game rules, platform constraints and known inconsistencies.
-- [Local Network API](API.md) — TCP message protocol, UDP discovery, QR payload and security boundaries.
-- [Project Plan and Analysis Snapshot](PROJECT_PLAN.md) — prioritized recommendations, acceptance criteria and owner decisions.
-- [انتشار اندروید](ANDROID_RELEASE.md) — secretهای امضا، پیکربندی امن Gradle و انتشار APK امضاشده در GitHub Releases.
+- [Architecture and Implementation Notes](ARCHITECTURE.md) — repository structure, runtime composition, state flow, persistence, and known implementation risks.
+- [Requirements and Current Behavior](REQUIREMENTS.md) — user flows, game rules, platform constraints, persistence behavior, and verification status.
+- [Local Network API](API.md) — TCP message protocol, UDP discovery, QR payload, and security boundaries.
+- [Project Plan and Analysis Snapshot](PROJECT_PLAN.md) — prioritized findings and recommended follow-up work.
+- [Android Release Builds](ANDROID_RELEASE.md) — signing requirements, release workflow, successful 1.0.0 release, and artifact links.
 
-These documents describe the source as inspected on 2026-11-02. They do not substitute for running Flutter tests, static analysis, Android builds, or device/network verification.
+Documentation was reviewed on 2026-11-03. It describes the checked-in source and recorded GitHub Actions results; it does not replace physical-device verification or tests that were not run.

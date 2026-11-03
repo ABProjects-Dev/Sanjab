@@ -13,7 +13,7 @@ Compatibility is exact-version: the parser rejects a message with a different pr
 | TCP | 50501 preferred; otherwise OS-assigned | Player-to-host game connection |
 | UDP | 50507 | Host discovery probes and announcements |
 
-The host binds TCP to `0.0.0.0`/all IPv4 interfaces. TCP uses newline-delimited UTF-8 JSON. A `LineChannel` sends one serialized message followed by `\n` and parses each received line. The protocol parser limits a line to 256 × 1024 Dart string characters (the constant is named `kMaxMessageBytes`; the implementation checks `String.length`, not encoded UTF-8 byte length).
+The host binds TCP to `0.0.0.0`/all IPv4 interfaces. TCP uses newline-delimited UTF-8 JSON. A `LineChannel` sends one serialized message followed by `\n` and parses each received line. `NetMessage.parse` limits a completed line to 256 × 1024 Dart string characters (the constant is named `kMaxMessageBytes`; the implementation checks `String.length`, not encoded UTF-8 byte length). This limit is applied after `LineSplitter` has assembled a line, not as an incremental socket-buffer cap.
 
 ## TCP message envelope
 
@@ -141,3 +141,12 @@ The host UI encodes this JSON object for QR joining:
 - The join token is a bearer credential. A QR contains it, and an open-join UDP beacon can expose it to devices on the same LAN. Do not publish QR images or beacon data publicly.
 - The host checks the token and game ID and limits player ID length to 40. The protocol is not a hardened Internet-facing service; avoid port forwarding or exposing the host outside the local network.
 - No external service or REST endpoint is used by the game protocol.
+
+## Implementation caveats from static review
+
+- Because the size check runs after line splitting, a peer that sends a long unterminated TCP line may consume memory until the socket is closed. The 15-second handshake timeout does not impose an incremental line-length cap or a global pending-socket limit. The host also retains pending-socket callback entries until server shutdown, rather than removing them when each socket closes.
+- Host answer and snapshot values longer than 80 Dart string characters are silently dropped. The current play-screen text fields do not enforce that same limit, so an overlength answer can appear locally but be absent on the host.
+- The host invokes its state broadcast during the hello callback before registering the joining socket. The new client can miss that initial state until a later host update.
+- On reconnect, an old socket's completion callback removes a player channel without confirming it is still the current socket. Final snapshot send state is also not acknowledgment-based, so a lost snapshot may not be retried after reconnect.
+
+These are source-review findings; they have not all been reproduced with network fault injection.
