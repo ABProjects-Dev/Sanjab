@@ -115,6 +115,15 @@ jobs:
           PY
           exit "$test_status"
 
+      - name: Upload Flutter test report
+        if: ${{ always() && steps.dependencies.outcome == 'success' }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: flutter-test-events
+          path: ${{ runner.temp }}/flutter-test-events.jsonl
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Build Android debug APK
         id: build
         if: ${{ steps.dependencies.outcome == 'success' }}
