@@ -162,12 +162,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('صفحهٔ بازی آزمون'), findsOneWidget);
 
-    final popScope = tester.widget<PopScope<dynamic>>(
-      find.byType(PopScope<dynamic>),
-    );
+    final popScope =
+        tester.widget(find.byWidgetPredicate((widget) => widget is PopScope))
+            as PopScope<dynamic>;
     popScope.onPopInvokedWithResult?.call(false, null);
     await tester.pump();
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('رفتن به بازی'), findsOneWidget);
     expect(tester.takeException(), isNull);
