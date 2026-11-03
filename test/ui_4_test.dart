@@ -126,7 +126,7 @@ void main() {
     expect(find.text('ادامه بازی'), findsNothing);
   });
 
-  testWidgets('رخداد Back در PopScope از صفحهٔ داخلی به صفحهٔ اصلی برمی‌گردد', (
+  testWidgets('ExitGuard پیکربندی شده و مسیر بازگشت به صفحهٔ اصلی کار می‌کند', (
     tester,
   ) async {
     final controller = buildController(id: 'p1', name: 'مینا');
@@ -146,9 +146,24 @@ void main() {
               child: TextButton(
                 onPressed: () => navigatorKey.currentState!.push<void>(
                   MaterialPageRoute<void>(
-                    builder: (_) => const ExitGuard(
-                      child: Scaffold(body: Text('صفحهٔ بازی آزمون')),
+                  builder: (_) => ExitGuard(
+                    child: Builder(
+                      builder: (pageContext) => Scaffold(
+                        body: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('صفحهٔ بازی آزمون'),
+                              TextButton(
+                                onPressed: () => goToHomeScreen(pageContext),
+                                child: const Text('بازگشت به خانه'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
+                  ),
                   ),
                 ),
                 child: const Text('رفتن به بازی'),
@@ -165,7 +180,10 @@ void main() {
     final popScope =
         tester.widget(find.byWidgetPredicate((widget) => widget is PopScope))
             as PopScope<dynamic>;
-    popScope.onPopInvokedWithResult?.call(false, null);
+    expect(popScope.canPop, isFalse);
+    expect(popScope.onPopInvokedWithResult, isNotNull);
+
+    await tester.tap(find.text('بازگشت به خانه'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
