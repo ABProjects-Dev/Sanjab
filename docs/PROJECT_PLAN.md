@@ -1,109 +1,95 @@
-# Project Plan and Analysis Snapshot
+# Project Plan and Prioritized Follow-up
 
-**Review date:** 2026-11-03
+**Updated:** 2026-11-03
+**Source baseline:** `f6fb21168b138c02b523ffa0526a5a253caf8d4a`
+**Current published release:** 1.0.1 (`versionCode` 7)
 
-**Scope:** Static review of the Flutter/Dart source, tests, Android/Gradle setup, GitHub Actions workflows and project documentation. Findings below are source-derived unless explicitly tied to a successful GitHub Actions run. No physical-device fault-injection was performed.
+This is a source-review follow-up plan, not a claim that the listed items have been fixed. Current code changes after 1.0.1 remain under **Unreleased** in `CHANGELOG.md`.
 
-## Current project and release state
+## P1 — Fix first-join retry lifecycle
 
-- Flutter/Dart Android game; Dart package `sanjab`, Android application ID `com.sanjab.game`.
-- App version `1.0.1+7`; Android version name `1.0.1`, version code 7.
-- Persian RTL dark portrait UI, bundled Vazirmatn font, host-authoritative multiplayer on a local TCP/UDP network.
-- GitHub Release `1.0.1` is the current release page for the signed APK and its SHA-256 checksum; the previous `1.0.0` release remains available.
-- The previous `1.0.0` signed release build and certificate-fingerprint check succeeded in [Android release run 41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107).
-- Flutter analysis, all tests, and debug APK build succeeded in [Flutter checks run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376). These checks do not prove two-device network behavior.
-- `test/` contains 131 `test`/`testWidgets` declarations; `integration_test/` has one device test for host setup, not a complete two-phone game.
-- GitHub Actions workflows are present under `.github/workflows/`. The release workflow excludes the test-only `integration_test` dependency from the runner's temporary production dependency resolution, passes the keystore path explicitly, and rejects an APK signed with a different certificate.
+**Status:** Open — see [Bug Report](BUG_REPORT.md) for evidence and retest details.
 
-## Prioritized follow-up
+Acceptance criteria:
+- Failed initial connection and explicit rejection stop retry attempts and dispose/clear the first-join client, unless late reconnect is intentionally exposed in UI.
+- Established-client reconnect behavior remains available.
+- Tests cover unreachable host, rejected token, and any intentional late-success route behavior.
 
-The entries below record implementation status; physical-device verification remains distinct from automated tests.
+## P1 — Correct async widget disposal handling
 
-### P0 — Persist player room records in production
+**Status:** Open — see [Bug Report](BUG_REPORT.md) for evidence and retest details.
 
-**Status:** Implemented. `main.dart` now uses a production controller factory that injects `RoomRepository`; a fresh-controller restart test verifies that a saved player room survives.
+Acceptance criteria:
+- No `setState` is called after `mounted` becomes false in create/resume flows.
+- Widget tests dispose the route while each awaited controller action is pending and assert no framework exception.
 
-**Impact addressed:** Player-side saved-room records now use the same application-support directory as the other production repositories.
+## P1 — Make session completion observable to offline players
 
-**Implemented and covered:**
-- `createProductionGameController` injects file-backed `SessionRepository`, `ProfileRepository`, and `RoomRepository` from the application-support directory.
-- A composition/restart test verifies saved player-room records are loaded by a fresh controller.
-- Existing repository tests continue to cover backup recovery and the 20-room cap.
+**Status:** Open — see [Bug Report](BUG_REPORT.md) for evidence and retest details.
 
-### P1 — Serialize file-backed saves
+Acceptance criteria:
+- Define whether an offline client's saved room is pending, terminal, or reconnectable after host completion.
+- A returning player does not see a permanently misleading “resume” item.
+- Two-device test covers host finish while the client is disconnected and client app is restarted.
 
-**Status:** Implemented with a reusable serial task queue. Session saves snapshot JSON when requested; room mutations serialize their full read-modify-write transaction. Tests cover queue ordering, recovery after a failed task, concurrent session saves, and concurrent room upserts.
+## P1 — Validate LAN discovery fallback
 
-**Implemented and covered:**
-- A reusable serial task queue ensures only one operation at a time uses each repository's temporary paths.
-- Session payloads are snapshotted at call time; room read-modify-write mutations stay within the queue.
-- Tests verify queue ordering, continued operation after failure, and preservation of concurrent session/room updates.
+**Status:** Open — see [Bug Report](BUG_REPORT.md) for evidence and retest details.
 
-### P1 — Correct join-state delivery and reconnect ownership
+Acceptance criteria:
+- Per-interface destinations are actual IPv4 subnet broadcast addresses or the fallback is accurately removed/documented.
+- Unit tests validate address/mask calculation; physical devices verify global-broadcast-restricted Wi-Fi/hotspot behavior.
+- QR and manual join remain available when discovery fails.
 
-**Status:** Implemented and covered by regression tests. Flutter Actions passed on the merged source in [run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376).
+## P2 — Align user-facing guide and source comments
 
-`HostNetwork` now registers the accepted channel and sends `helloAck` before notifying the app to broadcast state. Message dispatch and disconnect cleanup check that the channel instance is still current, so a replaced socket cannot act as or remove its replacement. Tests cover immediate initial-state delivery and same-player replacement.
+**Status:** Open — BUG-05 and BUG-06 in [Bug Report](BUG_REPORT.md).
 
-### P1 — Make final snapshot delivery acknowledgment-based
+Acceptance criteria:
+- Guide accurately states no letter is selected, explains LAN/hotspot multiplayer, answer and Stop rules, and avoids ambiguous “offline” wording.
+- About dialog describes a multiplayer local-network app, not a one-device game.
+- `protocol.dart` example and comment use the runtime version constant's value (currently 3).
+- A widget/source test guards against stale letter-selection copy and protocol version mismatch.
 
-**Status:** Implemented and covered by regression tests. Flutter Actions passed on the merged source in [run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376).
+## P2 — Clarify minimum players in a disconnected lobby
 
-`GameClient` retains a pending snapshot and retries it every two seconds until the matching positive acknowledgment arrives. It sends the pending payload immediately after reconnect. The host responds again to a duplicate same-round snapshot without applying the answers twice. Tests cover timeout retry/stop-after-ack, retry after reconnect, and duplicate acknowledgment with idempotent application.
+**Status:** Requirement clarification needed — see [Bug Report](BUG_REPORT.md).
 
-### P1 — Bound network framing before line allocation
+Acceptance criteria:
+- Decide whether the minimum two players means roster entries or devices connected at start.
+- If connected players are required, use that count consistently in lobby UI and domain validation; otherwise document the reconnect semantics.
+- Test disconnect-before-start and reconnect-during-round behavior.
 
-**Status:** Implemented. The TCP channel counts raw UTF-8 bytes incrementally, closes an over-limit socket before a newline is required, and the host caps pending handshakes at 32 while cleaning up timers and callbacks. Regression tests cover an oversized unterminated frame and pending-capacity release.
+## P2 — Validate lifecycle persistence and error recovery
 
-**Implemented and covered:**
-- Enforce the 256 KiB frame limit incrementally on raw bytes, before a line is complete.
-- Limit concurrent pending handshakes, close excess/abusive sockets, and cancel per-connection timers on completion.
-- Tests exercise an oversized unterminated frame and verify that handshake capacity is reclaimed.
+**Status:** Needs device verification — see [Bug Report](BUG_REPORT.md) for evidence and retest details.
 
-### P1 — Align answer input with the host's 80-character cap
+Acceptance criteria:
+- Determine whether pause/detach flush completes reliably on supported Android versions.
+- Keep periodic/event-driven saves as primary; test immediate background/termination and relaunch with delayed/failing storage.
+- Ensure persistence failures become observable without leaking player answers into logs.
 
-**Status:** Implemented.
+## P2 — Improve release reproducibility and maintainability
 
-**Implemented and covered:**
-- Use a shared 80-grapheme-cluster rule in the play-screen field, controller, domain session, host answer receiver, and final-snapshot receiver.
-- Enforce the limit during typing/paste, show an explicit field hint and length counter, and return a clear host error instead of silently dropping an oversized answer.
-- Network and widget tests cover the exact limit, an over-limit answer, a partially valid final snapshot, and visible player feedback.
+- Decide and document supported Flutter/Gradle/JDK versions and pin Android compile/target SDKs if reproducibility requires it.
+- Use one maintained app-version source instead of repeated UI literals.
+- Consider decomposing the ~1,727-line `GameController` by use case (session, network, persistence/lifecycle) without changing behavior; add tests before refactoring.
+- Add two-device network integration coverage, especially discovery, disconnection/reconnect, app backgrounding, and host completion.
 
-### P1 — Fix results navigation for remotely ended sessions
+## Completed source work (present at reviewed baseline)
 
-**Status:** Implemented.
+- File-backed saved-room records are wired in the production controller factory and survive controller restart.
+- Session/room mutations are serialized per repository instance.
+- TCP frame size and pending handshake count/time are bounded.
+- Final snapshots use acknowledgment, retry, reconnect resend, and duplicate-safe acknowledgment.
+- The 80-grapheme answer ceiling is enforced in UI/domain/controller/host paths with visible errors.
+- Results route handles remote official finish/reset and returns to home.
+- Launcher/home/play squirrel branding is aligned.
 
-**Implemented and covered:** `ResultsScreen` now returns to the home route when the controller reports a finished session or resets to the lobby. A widget test covers the completion notification while the results route is visible.
+These items are source findings and have targeted regression tests; the latest checked-in baseline also passed the GitHub Actions Flutter checks below. They are not all part of the already-published 1.0.1 binary.
 
-### P2 — Align squirrel branding across app icon, splash, and game screens
+## Verification record
 
-**Status:** Implemented.
-
-**Implemented:** The source squirrel artwork remains unchanged. Derived launcher and in-app compositions center the squirrel at about 70% of the square frame; the native splash uses the same image and dark teal background, and the same icon now appears on the home and play screens.
-
-### P2 — Guard async UI lifecycle paths
-
-**Finding:** `HomeScreen` calls `setState` in `!mounted` branches after asynchronous create/resume operations.
-
-**Acceptance criteria:** Avoid state updates after disposal and add a widget test that disposes the route while the operation is pending.
-
-### P2 — Make failed initial joins terminate or complete visibly
-
-**Finding:** A failed initial connection can leave `GameClient`'s automatic reconnect loop active while the join screen stays in its failure state. A later background connection can leave the user connected without navigating into the game.
-
-**Acceptance criteria:** Close/cancel the client after a failed join, or expose reconnect state and navigate on later success; test both outcomes.
-
-### P2 — Keep release metadata and user-facing copy aligned
-
-- The UI version is hardcoded in multiple places; derive it from one maintained source or add a guard test.
-- `targetSdk` and `compileSdk` are Flutter Gradle defaults, not explicitly pinned; document or pin the toolchain expectation.
-- `guide_screen.dart` contains stale copy about random letters and stop behavior; settings copy describes the game as single-device/offline despite LAN multiplayer.
-- `protocol.dart` has a stale header comment saying version 2 while runtime `kProtocolVersion` is 3.
-
-## Verification and release record
-
-- GitHub release `1.0.1` is current: [release page](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1).
-- The release workflow validated the APK's signing certificate against the configured keystore before upload. The workflow change is documented in [Android Release Builds](ANDROID_RELEASE.md).
-- The latest merged multiplayer-reliability changes passed Flutter analysis, tests, and debug APK build in [run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376). These checks do not replace physical-device testing.
-- Regression tests for join ordering, reconnect replacement, snapshot retry, and duplicate acknowledgment were added in `test/net_test.dart` and `test/controller_flow_test.dart`.
-- Flutter analysis, tests, and debug APK build passed in [run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376). No full two-phone game test, physical-device network matrix, or fault-injection run is recorded.
+- Published releases: [1.0.1](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1) and [1.0.0](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0).
+- GitHub Actions run [41651598932](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41651598932) completed successfully on reviewed SHA `f6fb21168b138c02b523ffa0526a5a253caf8d4a` (tests, analysis, Android debug build workflow).
+- No local checks or physical-device/two-phone tests were run in this review because local Flutter/Dart executables are unavailable. See [Test Plan](TEST_PLAN.md).
