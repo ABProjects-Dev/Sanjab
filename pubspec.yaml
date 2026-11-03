@@ -1,9 +1,9 @@
 name: sanjab
-description: "سنجاب — بازی گروهی اسم و فامیل (Android, Flutter, offline)"
+description: "سنجاب — Persian category word game (Android, local-network multiplayer)"
 publish_to: 'none'
 
-# نسخهٔ ۱.۰.۱ — VersionCode: 7
-version: 1.0.1+7
+# نسخهٔ ۱.۰.۲ — VersionCode: 8
+version: 1.0.2+8
 
 environment:
   sdk: ^3.13.7

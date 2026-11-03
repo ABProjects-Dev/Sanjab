@@ -1,6 +1,6 @@
 # Architecture
 
-**Updated:** 2026-11-03; reflects active unreleased branch `arena/0af07290-sanjab`.
+**Updated:** 2026-11-03; reflects active unreleased branch `arena/c87aff83-sanjab`.
 
 ## System overview
 
@@ -108,6 +108,6 @@ The LAN protocol is not TLS-encrypted. A six-character join token is a bearer cr
 - Runtime and documented protocol version is 4. The protocol includes a dedicated explicit `leave` message; transport disconnect remains a separate event.
 - Explicit leave updates active roster membership and persists departed IDs; transient disconnect retains roster membership and allows reconnect.
 - Initial join failures do not retain an automatic retry; the invalid per-interface discovery fallback has been removed.
-- Current source version remains 1.0.1+7; these post-release changes are unreleased.
+- Current source candidate is 1.0.2+8; the latest published artifact remains 1.0.1+7 until the release workflow succeeds.
 
 See [Source Analysis](SOURCE_ANALYSIS.md), [Bug Report](BUG_REPORT.md), and [Project Status](PROJECT_STATUS.md). Current-branch CI is pending, and no local checks or physical-device networking have been run for this change set.

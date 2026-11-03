@@ -2,7 +2,7 @@
 
 ## Current inventory
 
-Static count from the active branch `arena/0af07290-sanjab`:
+Static count from the active branch `arena/c87aff83-sanjab`:
 
 - `test/`: 155 `test` / `testWidgets` declarations across 13 Dart files.
 - `integration_test/`: one device integration test (`app_flow_test.dart`).

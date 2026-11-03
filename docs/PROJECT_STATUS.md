@@ -1,8 +1,9 @@
 # Project Status
 
 **As of:** 2026-11-03
-**Active source branch:** `arena/0af07290-sanjab`
-**Published release:** 1.0.1 (`versionCode` 7); current branch changes are unreleased.
+**Active source branch:** `arena/c87aff83-sanjab`
+**Latest published release:** 1.0.1 (`versionCode` 7)
+**Release candidate on this branch:** 1.0.2 (`versionCode` 8), not yet published.
 
 ## Summary
 
@@ -33,7 +34,7 @@ A previous CI run on a different source baseline is not evidence for this patch.
 ## Security and release posture
 
 - Local-network protocol has no TLS. Join tokens are bearer credentials; do not port-forward the host or use untrusted networks.
-- Android release 1.0.1 is published; this patch has not been released.
+- Android release 1.0.1 is published; 1.0.2+8 is the current release candidate pending PR checks and signed release workflow.
 - No network penetration test, physical-device network matrix, or force-stop durability test has been performed.
 
 ## Next steps
