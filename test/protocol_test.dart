@@ -73,6 +73,15 @@ void main() {
       final huge = 'x' * (kMaxMessageBytes + 10);
       expect(() => NetMessage.parse(huge), throwsA(isA<ProtocolException>()));
     });
+
+    test('محدودیت اندازه بر مبنای بایت UTF-8 است، نه تعداد نویسه', () {
+      final multibyte = 'ا' * (kMaxMessageBytes ~/ 2 + 1);
+      expect(utf8.encode(multibyte).length, greaterThan(kMaxMessageBytes));
+      expect(
+        () => NetMessage.parse(multibyte),
+        throwsA(isA<ProtocolException>()),
+      );
+    });
   });
 
   group('جلوگیری از پردازش تکراری', () {

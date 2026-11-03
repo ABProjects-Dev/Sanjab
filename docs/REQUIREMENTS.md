@@ -83,7 +83,7 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 - The profile is stored locally in `profile.json`.
 - The host's active `GameSession` is stored in `active_session.json` with a temporary-file write and backup fallback.
 - The source includes a durable `RoomRepository` for `rooms.json`, with atomic replacement, backup recovery and a cap of 20 rooms.
-- **Current gap:** the production app does not inject `RoomRepository`; `GameController` therefore defaults to `MemoryRoomStore`. Player-side saved-room records are not reliably preserved across process restarts. The controller and repository tests do not establish that the real composition persists these records.
+- The production controller factory injects `RoomRepository`, and a composition/restart test verifies that a saved player-room record is available to a newly bootstrapped controller using the same app data directory.
 - On Android app lifecycle transitions to background/inactive/hidden/detached, the controller is asked to flush its current saved state.
 - There is no permanent game-history or account service. Officially finishing a session clears the active session/history.
 
@@ -105,12 +105,12 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 These findings are code-derived and have not all been reproduced on a device or under fault injection:
 
 - The host rejects answer strings longer than 80 Dart string characters, but the UI does not cap input at that length; an overlength answer can be silently dropped.
-- The 256 KiB protocol cap is checked after `LineSplitter` has assembled a line, so a peer that sends without a newline can grow a receive buffer before the check runs. The host still has no global pending-socket limit.
+- TCP frames are limited incrementally to 256 KiB of raw bytes before newline assembly; oversized sockets are destroyed. The host accepts at most 32 pending handshakes at a time and releases timers and callbacks when each pending connection ends.
 - The join path now broadcasts state only after `HostNetwork` registers the accepted channel and sends `helloAck`.
 - Reconnect message and completion handlers now verify channel identity; an old socket cannot process messages as or remove its replacement.
 - Final snapshots are retained and retried until the host acknowledges the matching round. Reconnects resend pending snapshots, and the host repeats acknowledgments for already-applied duplicates without changing the stored answers.
 - Regression tests cover initial-state delivery, channel replacement, snapshot retry/acknowledgment, and duplicate snapshot acknowledgment. The merged network changes passed the Flutter Actions test job in run [41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376).
-- Save scheduling permits a new asynchronous save while a previous save is still writing to the same temporary path. Host answer edits trigger frequent session saves; concurrent writes may conflict and need serialization.
+- Session saves and room mutations/clears are serialized per repository instance. Session JSON is snapshotted at call time; deterministic queue and concurrent repository tests cover write ordering and preservation of the newest state.
 - A failed initial join can leave the client's automatic reconnect loop active while the join screen remains on the failure state.
 - A player receiving official session end while on the results screen may remain on that route; the results listener only handles transition to a new playing phase.
 - Home-screen async create/resume handlers call `setState` in their `!mounted` branches, which can raise a lifecycle error if the route was disposed.

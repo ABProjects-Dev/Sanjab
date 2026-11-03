@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../core/app_logger.dart';
+import '../core/serial_task_queue.dart';
 import '../domain/room_record.dart';
 
 /// قرارداد ذخیره‌سازی اتاق‌ها (برای تست‌پذیری).
@@ -35,6 +36,7 @@ class RoomRepository implements RoomStore {
   RoomRepository(this.directory);
 
   final Directory directory;
+  final SerialTaskQueue _writes = SerialTaskQueue();
 
   String get _mainPath => '${directory.path}/rooms.json';
   String get _tempPath => '${directory.path}/rooms.json.tmp';
@@ -119,41 +121,49 @@ class RoomRepository implements RoomStore {
   }
 
   @override
-  Future<bool> upsert(RoomRecord record) async {
-    final records = await loadAll();
-    final index = records.indexWhere((r) => r.key == record.key);
-    if (index >= 0) {
-      records[index] = record;
-    } else {
-      records.add(record);
-    }
-    // نگه‌داری حداکثر ۲۰ اتاق (قدیمی‌ترها حذف می‌شوند) تا فایل بی‌نهایت رشد نکند.
-    if (records.length > 20) {
-      records.sort((a, b) => b.updatedAtEpochMs.compareTo(a.updatedAtEpochMs));
-      records.removeRange(20, records.length);
-    }
-    return _writeAll(records);
+  Future<bool> upsert(RoomRecord record) {
+    return _writes.run(() async {
+      final records = await loadAll();
+      final index = records.indexWhere((r) => r.key == record.key);
+      if (index >= 0) {
+        records[index] = record;
+      } else {
+        records.add(record);
+      }
+      // نگه‌داری حداکثر ۲۰ اتاق (قدیمی‌ترها حذف می‌شوند) تا فایل بی‌نهایت رشد نکند.
+      if (records.length > 20) {
+        records.sort(
+          (a, b) => b.updatedAtEpochMs.compareTo(a.updatedAtEpochMs),
+        );
+        records.removeRange(20, records.length);
+      }
+      return _writeAll(records);
+    });
   }
 
   @override
-  Future<bool> remove(String gameId, String myPlayerId) async {
-    final records = await loadAll();
-    records.removeWhere(
-      (r) => r.gameId == gameId && r.myPlayerId == myPlayerId,
-    );
-    return _writeAll(records);
+  Future<bool> remove(String gameId, String myPlayerId) {
+    return _writes.run(() async {
+      final records = await loadAll();
+      records.removeWhere(
+        (r) => r.gameId == gameId && r.myPlayerId == myPlayerId,
+      );
+      return _writeAll(records);
+    });
   }
 
   @override
   Future<void> clear() async {
-    for (final path in <String>[_mainPath, _tempPath, _backupPath]) {
-      try {
-        final file = File(path);
-        if (await file.exists()) await file.delete();
-      } catch (error, stack) {
-        AppLogger.instance.error('storage.rooms.clear', error, stack);
+    await _writes.run(() async {
+      for (final path in <String>[_mainPath, _tempPath, _backupPath]) {
+        try {
+          final file = File(path);
+          if (await file.exists()) await file.delete();
+        } catch (error, stack) {
+          AppLogger.instance.error('storage.rooms.clear', error, stack);
+        }
       }
-    }
+    });
   }
 }
 

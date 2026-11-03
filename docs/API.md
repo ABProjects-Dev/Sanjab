@@ -13,7 +13,7 @@ Compatibility is exact-version: the parser rejects a message with a different pr
 | TCP | 50501 preferred; otherwise OS-assigned | Player-to-host game connection |
 | UDP | 50507 | Host discovery probes and announcements |
 
-The host binds TCP to `0.0.0.0`/all IPv4 interfaces. TCP uses newline-delimited UTF-8 JSON. A `LineChannel` sends one serialized message followed by `\n` and parses each received line. `NetMessage.parse` limits a completed line to 256 × 1024 Dart string characters (the constant is named `kMaxMessageBytes`; the implementation checks `String.length`, not encoded UTF-8 byte length). This limit is applied after `LineSplitter` has assembled a line, not as an incremental socket-buffer cap.
+The host binds TCP to `0.0.0.0`/all IPv4 interfaces. TCP uses newline-delimited UTF-8 JSON. A `LineChannel` sends one serialized message followed by `\n`; on receive, it counts raw bytes incrementally and buffers no more than 256 × 1024 bytes for an unterminated frame. `NetMessage.parse` also checks the encoded UTF-8 byte length of a completed message. An oversized frame closes the socket before a newline is required.
 
 ## TCP message envelope
 
@@ -146,7 +146,7 @@ The host UI encodes this JSON object for QR joining:
 
 ## Implementation caveats from static review
 
-- Because the size check runs after line splitting, a peer that sends a long unterminated TCP line may consume memory until the socket is closed. The 15-second handshake timeout does not impose an incremental line-length cap or a global pending-socket limit.
+- The host accepts at most 32 simultaneous sockets waiting for a valid hello handshake. Excess sockets are closed immediately; each pending handshake is also closed after 15 seconds, with its timer and per-connection callbacks removed on completion.
 - Host answer and snapshot values longer than 80 Dart string characters are silently dropped. The current play-screen text fields do not enforce that same limit, so an overlength answer can appear locally but be absent on the host.
 - Initial state is now broadcast by the app callback after the host registers the accepted channel. Completion and message handlers for a replaced socket check channel identity so they cannot remove or operate on the replacement.
 - Final snapshots are retried every two seconds until a matching acknowledgment arrives; reconnects resend pending snapshots, and the host re-acknowledges an already-applied same-round snapshot. These code paths have regression tests, but they still need execution in CI and physical-device verification.

@@ -138,7 +138,8 @@ class NetMessage {
   }
 
   static NetMessage parse(String line) {
-    if (line.length > kMaxMessageBytes) {
+    if (line.length > kMaxMessageBytes ||
+        utf8.encode(line).length > kMaxMessageBytes) {
       throw ProtocolException('پیام نامعتبر: اندازهٔ پیام بیش از حد مجاز است.');
     }
     Object? decoded;

@@ -5,6 +5,7 @@
 /// تفاوت، آدرس ۱۲۷.۰.۰.۱ به‌جای آدرس شبکهٔ محلی است.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -28,10 +29,12 @@ class RecordedHost {
   RecordedHost({
     this.sendInitialState = false,
     this.ackAfterSnapshotCount,
+    int maxPendingHandshakes = kMaxPendingHandshakes,
   }) {
     network = HostNetwork(
       gameId: 'g1',
       token: 'ABC123',
+      maxPendingHandshakes: maxPendingHandshakes,
       callbacks: HostCallbacks(
         onHello: (request) async {
           hellos.add(request);
@@ -90,6 +93,90 @@ class RecordedHost {
 }
 
 void main() {
+  group('محدودیت منابع ورودی', () {
+    test('خط بزرگِ بدون پایان‌خط اتصال را فوراً می‌بندد', () async {
+      final host = RecordedHost();
+      final port = await host.start();
+      addTearDown(host.network.stop);
+      final socket = await Socket.connect('127.0.0.1', port);
+      addTearDown(socket.destroy);
+      final disconnected = Completer<void>();
+      socket.listen(
+        (_) {},
+        onDone: () {
+          if (!disconnected.isCompleted) disconnected.complete();
+        },
+        onError: (Object _) {
+          if (!disconnected.isCompleted) disconnected.complete();
+        },
+      );
+
+      socket.add(List<int>.filled(kMaxMessageBytes + 1, 0x61, growable: false));
+      try {
+        await socket.flush();
+      } on SocketException {
+        // The server may reset the connection as soon as the limit is crossed.
+      }
+      await disconnected.future.timeout(const Duration(seconds: 5));
+      expect(
+        await waitUntil(() => host.network.pendingHandshakeCount == 0),
+        isTrue,
+      );
+      expect(host.network.connectedCount, 0);
+    });
+
+    test('تعداد اتصال‌های منتظر handshake سقف دارد و ظرفیت آزاد می‌شود', () async {
+      final host = RecordedHost(maxPendingHandshakes: 2);
+      final port = await host.start();
+      final sockets = <Socket>[];
+      addTearDown(() async {
+        for (final socket in sockets) {
+          socket.destroy();
+        }
+        await host.network.stop();
+      });
+
+      final first = await Socket.connect('127.0.0.1', port);
+      final second = await Socket.connect('127.0.0.1', port);
+      sockets.addAll([first, second]);
+      expect(
+        await waitUntil(() => host.network.pendingHandshakeCount == 2),
+        isTrue,
+      );
+
+      final refusedClosed = Completer<void>();
+      final refused = await Socket.connect('127.0.0.1', port);
+      sockets.add(refused);
+      refused.listen(
+        (_) {},
+        onDone: () {
+          if (!refusedClosed.isCompleted) refusedClosed.complete();
+        },
+        onError: (Object _) {
+          if (!refusedClosed.isCompleted) refusedClosed.complete();
+        },
+      );
+      expect(
+        await waitUntil(() => host.network.rejectedConnections == 1),
+        isTrue,
+      );
+      await refusedClosed.future.timeout(const Duration(seconds: 5));
+      expect(host.network.pendingHandshakeCount, 2);
+
+      first.destroy();
+      expect(
+        await waitUntil(() => host.network.pendingHandshakeCount == 1),
+        isTrue,
+      );
+      final replacement = await Socket.connect('127.0.0.1', port);
+      sockets.add(replacement);
+      expect(
+        await waitUntil(() => host.network.pendingHandshakeCount == 2),
+        isTrue,
+      );
+    });
+  });
+
   group('اتصال و احراز هویت', () {
     test('بازیکن با کد درست وصل می‌شود و پیام خوش‌آمد می‌گیرد', () async {
       final host = RecordedHost();

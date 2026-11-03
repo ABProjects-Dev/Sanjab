@@ -150,11 +150,14 @@ jobs:
           diagnostics = []
           with open(log_path, encoding="utf-8") as log:
               for line in log:
-                  if re.match(r"\s*error\s+•", line):
-                      diagnostics.append(line.strip())
-          for diagnostic in diagnostics:
+                  match = re.match(r"\s*(error|warning|info)\s+•", line)
+                  if match:
+                      diagnostics.append((match.group(1), line.strip()))
+          levels = {"error": "error", "warning": "warning", "info": "notice"}
+          for severity, diagnostic in diagnostics:
               message = diagnostic.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-              print(f"::error title=Dart analysis::{message}")
+              level = levels[severity]
+              print(f"::{level} title=Dart analysis::{message}")
           if status and not diagnostics:
               print("::error title=Dart analysis failed::See the analyzer output above.")
           PY
