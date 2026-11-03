@@ -22,7 +22,9 @@ class ExitGuard extends StatelessWidget {
       canPop: false,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
-        goToHomeScreen(context);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) goToHomeScreen(context);
+        });
       },
       child: child,
     );
