@@ -6,7 +6,7 @@ on:
       tag:
         description: Existing GitHub release tag to build and update
         required: true
-        default: 1.0.0
+        default: 1.0.1
         type: string
 
 permissions:

@@ -4,7 +4,7 @@
 
 Sanjab is a Persian, category-based word game for two or more people using Android devices on one local Wi-Fi network or hotspot. One device hosts the session; other devices join it. No external game server is part of the implementation.
 
-This document records requirements visible in the current source and distinguishes them from observed gaps. The 1.0.0 Android APK has been built, signature-checked, and published by GitHub Actions; that does not constitute two-device or broad physical-device verification.
+This document records requirements visible in the current source and distinguishes them from observed gaps. The Android release workflow builds and signature-checks the APK before publication; a published APK does not constitute two-device or broad physical-device verification.
 
 ## Users and primary flows
 
@@ -93,7 +93,7 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 - Android application ID and namespace: `com.sanjab.game`. The Dart package name remains `sanjab` because it is a separate identifier used by Dart imports.
 - Changing the Android application ID creates a distinct Android package: it does not upgrade/replace an existing installation built with the former application ID and has separate application data.
 - Release signing configuration reads `ANDROID_KEYSTORE`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASS` from Gradle properties or environment variables; external build configurations must use these names.
-- `minSdk`: 24 (Android 7.0). `versionName`: 1.0.0; `versionCode`: 6.
+- `minSdk`: 24 (Android 7.0). Current `versionName`: 1.0.1; `versionCode`: 7.
 - Java and Kotlin JVM targets are 17. `compileSdk` and `targetSdk` are sourced from Flutter Gradle defaults in this repository.
 - Flutter app is Persian-only, RTL, dark-themed and portrait-oriented, and bundles Vazirmatn font assets.
 - TCP/UDP sockets require the Android `INTERNET` permission; network-state and Wi-Fi permissions are declared. Camera permission is required at runtime for QR scanning.
@@ -109,7 +109,7 @@ These findings are code-derived and have not all been reproduced on a device or 
 - The join path now broadcasts state only after `HostNetwork` registers the accepted channel and sends `helloAck`.
 - Reconnect message and completion handlers now verify channel identity; an old socket cannot process messages as or remove its replacement.
 - Final snapshots are retained and retried until the host acknowledges the matching round. Reconnects resend pending snapshots, and the host repeats acknowledgments for already-applied duplicates without changing the stored answers.
-- Regression tests cover initial-state delivery, channel replacement, snapshot retry/acknowledgment, and duplicate snapshot acknowledgment. They have not been executed in this workspace because Flutter/Dart are unavailable.
+- Regression tests cover initial-state delivery, channel replacement, snapshot retry/acknowledgment, and duplicate snapshot acknowledgment. The merged network changes passed the Flutter Actions test job in run [41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376).
 - Save scheduling permits a new asynchronous save while a previous save is still writing to the same temporary path. Host answer edits trigger frequent session saves; concurrent writes may conflict and need serialization.
 - A failed initial join can leave the client's automatic reconnect loop active while the join screen remains on the failure state.
 - A player receiving official session end while on the results screen may remain on that route; the results listener only handles transition to a new playing phase.
@@ -119,12 +119,12 @@ These findings are code-derived and have not all been reproduced on a device or 
 
 The repository contains 131 `test`/`testWidgets` declarations under `test/` and one device integration test under `integration_test/`. The integration test covers the host setup path; it does not simulate a two-phone network game.
 
-The recorded GitHub Actions Flutter checks succeeded before the current network changes in [run 41540382070](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41540382070), including analysis, tests and a debug APK build. The signed Android `1.0.0` release build and certificate verification succeeded in [run 41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107). Neither run validates these new changes, a full two-phone game, or all Wi-Fi/hotspot combinations. Regression tests were added, but Flutter/Dart are unavailable in this workspace, so tests, analysis and builds could not be run here.
+Flutter analysis, the full test suite, and the Android debug APK build succeeded for the merged multiplayer-reliability changes in [run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376). The signed Android `1.0.0` release and certificate verification succeeded in [run 41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107). These checks do not substitute for a full two-phone game, physical-device testing, or all Wi-Fi/hotspot combinations.
 
 ## Current metadata, release and documentation notes
 
-- App version metadata is `1.0.0+6`: `pubspec.yaml` uses `1.0.0+6`, Android uses version name `1.0.0` and version code 6, and the UI displays `1.0.0`. The UI values remain hardcoded and could drift later.
-- GitHub Release `1.0.0` is published and contains `Sanjab-1.0.0.apk` plus its `.sha256` checksum. See [the release page](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0).
+- App version metadata is `1.0.1+7`: `pubspec.yaml` uses `1.0.1+7`, Android uses version name `1.0.1` and version code 7, and the UI displays `1.0.1`. The UI values remain hardcoded and could drift later.
+- GitHub Release `1.0.1` contains `Sanjab-1.0.1.apk` plus its `.sha256` checksum. See [the release page](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1). The prior `1.0.0` release remains available.
 - `lib/net/protocol.dart`'s leading comment says protocol version 2; the implementation constant is 3. This is a network protocol version, not the app release version.
 - The README links to the checked-in `docs/` set. Historical `documentation/*.txt` reports remain absent because no authoritative copies were found.
 - `android/app/build.gradle.kts` uses `flutter.targetSdkVersion`; the effective target SDK depends on the Flutter toolchain and is not pinned here.

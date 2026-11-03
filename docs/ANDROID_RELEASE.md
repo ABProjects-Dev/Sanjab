@@ -2,12 +2,15 @@
 
 ## Current release
 
-Version `1.0.0` (`versionCode` 6) is published on GitHub. The release workflow completed successfully, verified the APK certificate against the configured keystore, and uploaded both artifacts:
+Version `1.0.1` (`versionCode` 7) is the current Sanjab release. Its changes improve initial lobby-state delivery and make final snapshots retry until acknowledged, including after a reconnect.
 
-- [Sanjab-1.0.0.apk](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.0.0/Sanjab-1.0.0.apk)
-- [Sanjab-1.0.0.apk.sha256](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.0.0/Sanjab-1.0.0.apk.sha256)
-- [GitHub Release 1.0.0](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0)
-- [Successful Android release workflow run](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107)
+The signed APK and SHA-256 checksum are attached to the GitHub Release after the Android release workflow completes:
+
+- [Sanjab-1.0.1.apk](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.0.1/Sanjab-1.0.1.apk)
+- [Sanjab-1.0.1.apk.sha256](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.0.1/Sanjab-1.0.1.apk.sha256)
+- [GitHub Release 1.0.1](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1)
+
+The previous stable release, [Sanjab 1.0.0](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0), remains available.
 
 ## Required GitHub Actions secrets
 
@@ -24,7 +27,7 @@ Keep the original keystore and all passwords outside the repository. The workflo
 
 1. Confirm that the intended version tag exists, points to the intended source, and has a GitHub Release.
 2. Open **Actions → Android release → Run workflow** on the `main` branch.
-3. Enter the existing tag (for example, `1.0.0`). The workflow verifies that the tag matches the version in `pubspec.yaml`.
+3. Enter the existing tag (for example, `1.0.1`). The workflow verifies that the tag matches the version in `pubspec.yaml`.
 4. Wait for dependency resolution, the Android release build, and APK certificate verification to finish.
 5. Confirm that `Sanjab-<tag>.apk` and `Sanjab-<tag>.apk.sha256` are attached to the GitHub Release.
 

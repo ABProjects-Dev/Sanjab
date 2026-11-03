@@ -49,8 +49,8 @@ android {
         applicationId = "com.sanjab.game"
         minSdk = 24          // Android 7.0
         targetSdk = flutter.targetSdkVersion
-        versionCode = 6      // Sanjab 1.0.0
-        versionName = "1.0.0"
+        versionCode = 7      // Sanjab 1.0.1
+        versionName = "1.0.1"
     }
 
     signingConfigs {
