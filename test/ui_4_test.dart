@@ -126,7 +126,7 @@ void main() {
     expect(find.text('ادامه بازی'), findsNothing);
   });
 
-  testWidgets('دکمهٔ برگشت سیستم از صفحهٔ داخلی به صفحهٔ اصلی برمی‌گردد', (
+  testWidgets('رخداد Back در PopScope از صفحهٔ داخلی به صفحهٔ اصلی برمی‌گردد', (
     tester,
   ) async {
     final controller = buildController(id: 'p1', name: 'مینا');
@@ -162,7 +162,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('صفحهٔ بازی آزمون'), findsOneWidget);
 
-    await tester.pageBack();
+    final popScope = tester.widget<PopScope<dynamic>>(
+      find.byType(PopScope<dynamic>),
+    );
+    popScope.onPopInvokedWithResult?.call(false, null);
+    await tester.pump();
     await tester.pumpAndSettle();
 
     expect(find.text('رفتن به بازی'), findsOneWidget);
