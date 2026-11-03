@@ -63,11 +63,12 @@ class SettingsScreen extends StatelessWidget {
                       context: context,
                       applicationName: 'سنجاب',
                       applicationVersion: faNum('1.0.1'),
-                      applicationLegalese: 'شناسهٔ بسته: com.sanjab.game\nکاملاً آفلاین — بدون اینترنت',
+                      applicationLegalese:
+                          'شناسهٔ بسته: com.sanjab.game\nچندنفره روی شبکهٔ محلی؛ بدون نیاز به اینترنت',
                       children: const [
                         SizedBox(height: 10),
                         Text(
-                          'بازی گروهی اسم و فامیل برای اجرا روی یک دستگاه.\n'
+                          'بازی گروهی اسم و فامیل روی چند دستگاه در یک شبکهٔ محلی.\n'
                           'تمام منطق بازی به‌صورت مستقل در Flutter (Dart) پیاده‌سازی شده است.',
                           style: TextStyle(
                             fontFamily: 'Vazirmatn',

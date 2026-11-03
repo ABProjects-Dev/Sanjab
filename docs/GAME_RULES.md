@@ -8,7 +8,7 @@ This document describes the rules implemented by the checked-in Dart domain code
 - Players have a persistent device-local ID and a display name. Names must be non-empty, at most 24 Dart string code units, and unique after the game's normalization of whitespace, Persian/Arabic yeh and kaf, and zero-width non-joiner.
 - New players can join in the lobby. Once a round has started, only an existing player ID may reconnect; new entrants are rejected.
 - The host can remove a player only in the lobby and can select one or more active categories before a round or between rounds.
-- The start gate currently checks that at least two player records are in the roster; it does not separately require two live connections. Disconnected roster members remain listed. Whether the minimum should require connected devices is an open product-rule question (see [Bug Report](BUG_REPORT.md)).
+- The start gate requires at least two active roster members. Temporary transport disconnection does not remove a player from the roster or decrement this count; the player may reconnect. Explicit exit is a separate action: it removes the player in the lobby, or after a round starts preserves history while excluding the player from later rounds and the current Stop threshold.
 - There is no chosen-letter or chosen-word step in the implemented rules. A round begins directly with active answer fields.
 
 ## Categories
@@ -39,7 +39,7 @@ The normal state flow is `lobby` → `playing` → `collecting` → `judging` �
 - The host's epoch deadline controls the timer. Clients use the host's reported time offset; client clocks do not decide when a round ends.
 - The host may pause/resume or end the round manually. Timer expiry also ends it.
 - A player may request **Stop** once per round only if every active category field passes the minimum-answer rule below.
-- The stop threshold is `ceil(number of players connected at round start / 2)`. Disconnections after the round starts do not lower that threshold. At the threshold, the host ends the round.
+- The stop threshold is `ceil(number of players connected at round start / 2)`. Temporary disconnections after the round starts do not lower that threshold; an explicit exit removes that player from the active threshold. At the threshold, the host ends the round.
 - When a round ends, players send their final snapshots. The host waits for the required snapshots or an explicit host-side decision about an unavailable player before judging.
 - Only the host judges answers. Every non-empty answer must have a judgement before scores can be finalized.
 
@@ -69,6 +69,6 @@ The 15- and 20-point unique-answer values replace the ordinary 10 points; they a
 
 ## End and persistence
 
-The host may officially finish the session. Connected clients receive a `sessionEnded` event and remove the local saved-room record. Host and player sessions are stored locally to support resume. A known gap remains: an offline player cannot receive the end event, so their room may remain listed until a later attempt reveals that the host session is unavailable. See the [Bug Report](BUG_REPORT.md) for this known limitation.
+The host may officially finish the session. Connected clients receive a `sessionEnded` event and remove the local saved-room record. Host and player sessions are stored locally to support resume. An offline player cannot receive the end event; their saved room is shown as unverified until the host is contacted. If the host has shut down after finishing, an unsuccessful reconnect cannot prove completion, so the player may remove the stale room manually. Immediate offline invalidation is not possible without reconnection or a backend.
 
 Further source-level feature details are in [Features](FEATURES.md); transport and message semantics are in [Local Network API](API.md).

@@ -134,7 +134,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       contentPadding: EdgeInsets.zero,
                       title: Text(player.name),
                       subtitle: Text(
-                        'مجموع: ${faNum(total)}',
+                        session.hasPlayerLeft(player.id)
+                            ? 'از بازی خارج شد · مجموع: ${faNum(total)}'
+                            : 'مجموع: ${faNum(total)}',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       trailing: PillLabel(

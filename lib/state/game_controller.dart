@@ -382,6 +382,7 @@ class GameController extends ChangeNotifier {
       },
       onAnswer: _handleRemoteAnswer,
       onStop: _handleRemoteStop,
+      onLeave: _handleRemoteLeave,
       onSnapshot: _handleRemoteSnapshot,
       onDisconnected: _handlePlayerDisconnected,
       onPing: (_) {},
@@ -429,7 +430,7 @@ class GameController extends ChangeNotifier {
       port: _hostPort,
       openJoin: _openJoin,
       token: _joinToken,
-      playerCount: _session.players.length,
+      playerCount: _session.activePlayerCount,
     );
     final beaconOk = await _beacon!.start();
     if (!beaconOk) {
@@ -457,7 +458,7 @@ class GameController extends ChangeNotifier {
       port: _hostPort,
       openJoin: _openJoin,
       token: _joinToken,
-      playerCount: _session.players.length,
+      playerCount: _session.activePlayerCount,
     );
     unawaited(_beacon!.start());
     notifyListeners();
@@ -488,6 +489,7 @@ class GameController extends ChangeNotifier {
       'reason': 'میزبان شما را از بازی خارج کرد.',
     });
     await _hostNet?.disconnect(playerId);
+    _beacon?.updatePlayerCount(_session.activePlayerCount);
     _broadcastState();
     _touch();
   }
@@ -495,7 +497,12 @@ class GameController extends ChangeNotifier {
   Future<HelloDecision> _handleHello(HelloRequest request) async {
     if (_sessionFinished) {
       return const HelloDecision.reject(
-        'این نشست بازی به‌صورت resmi تمام شده است؛ ورود امکان‌پذیر نیست.',
+        'این نشست بازی به‌صورت رسمی تمام شده است؛ ورود امکان‌پذیر نیست.',
+      );
+    }
+    if (_session.hasPlayerLeft(request.playerId)) {
+      return const HelloDecision.reject(
+        'شما به‌طور کامل از این بازی خارج شده‌اید و امکان اتصال دوباره ندارید.',
       );
     }
     if (_session.phase != GamePhase.lobby &&
@@ -517,7 +524,7 @@ class GameController extends ChangeNotifier {
       return HelloDecision.reject(e.message);
     }
     AppLogger.instance.log('net', 'player joined');
-    _beacon?.updatePlayerCount(_session.players.length);
+    _beacon?.updatePlayerCount(_session.activePlayerCount);
     return const HelloDecision.accept();
   }
 
@@ -591,8 +598,31 @@ class GameController extends ChangeNotifier {
   }
 
   void _handlePlayerDisconnected(String playerId) {
+    // Transport loss is not an explicit departure: retain roster membership so
+    // the same player may reconnect without changing the player count.
     _session.setConnected(playerId, false);
     AppLogger.instance.log('net', 'player disconnected');
+    _broadcastState();
+    _touch();
+  }
+
+  void _handleRemoteLeave(String playerId) {
+    if (!isHost || !_session.markPlayerLeft(playerId)) return;
+    _beacon?.updatePlayerCount(_session.activePlayerCount);
+    final round = _session.currentRound;
+    if ((_session.phase == GamePhase.playing ||
+            _session.phase == GamePhase.paused) &&
+        round != null &&
+        round.stoppedPlayerIds.length >= round.stopThreshold &&
+        _session.endRound(
+          RoundEndReason.playerStop,
+          nowMs: syncedNowMs(),
+        )) {
+      _afterRoundEnded();
+    } else if (_session.phase == GamePhase.collecting) {
+      _session.tryStartJudging();
+    }
+    AppLogger.instance.log('net', 'player explicitly left');
     _broadcastState();
     _touch();
   }
@@ -641,6 +671,7 @@ class GameController extends ChangeNotifier {
       return false;
     }
     await closeSession(silent: true);
+    _sessionFinished = false;
     _gameId = gameId;
     _joinToken = token;
     _hostName = hostName;
@@ -662,7 +693,10 @@ class GameController extends ChangeNotifier {
       gameId: gameId,
       token: token,
     );
-    if (!ok) return false;
+    if (!ok) {
+      await _detachAll();
+      return false;
+    }
     await _persistNow();
     notifyListeners();
     return true;
@@ -674,6 +708,7 @@ class GameController extends ChangeNotifier {
     required int port,
     required String gameId,
     required String token,
+    bool removeRoomOnReject = false,
   }) async {
     final client = GameClient(
       hostAddress: address,
@@ -684,7 +719,10 @@ class GameController extends ChangeNotifier {
       displayName: _profile.displayName,
     );
     _client = client;
+    var connectedOnce = false;
     client.states.listen((state) {
+      if (!identical(_client, client)) return;
+      if (state == ClientConnectionState.connected) connectedOnce = true;
       _clientState = state;
       _netStatus = switch (state) {
         ClientConnectionState.connected => NetStatus.connected,
@@ -697,24 +735,46 @@ class GameController extends ChangeNotifier {
       if (state == ClientConnectionState.connected && isPlayer) {
         _maybeSendSnapshot();
       }
-      if (state == ClientConnectionState.disconnected && isPlayer) {
+      if (state == ClientConnectionState.disconnected &&
+          isPlayer &&
+          connectedOnce) {
         _scheduleSave();
       }
       // رد شدن صریح توسط میزبان یعنی نشست پایان یافته یا نامعتبر شده است؛
       // رکورد اتاق باید حذف شود تا «ادامه بازی» فریب‌دهنده نباشد.
-      if (state == ClientConnectionState.rejected && isPlayer) {
+      if (state == ClientConnectionState.rejected &&
+          isPlayer &&
+          connectedOnce) {
         unawaited(_handleSessionEnded(
           'این جلسه پایان یافته یا نامعتبر است. اتاق از فهرست ادامه بازی حذف شد.',
         ));
       }
       notifyListeners();
     });
-    client.messages.listen(_handleServerMessage);
+    client.messages.listen((message) {
+      if (identical(_client, client)) _handleServerMessage(message);
+    });
 
     final ok = await client.connect();
     if (!ok) {
+      final terminalResumeRejection =
+          removeRoomOnReject &&
+          client.state == ClientConnectionState.rejected;
+      final failedGameId = _gameId;
+      if (terminalResumeRejection) {
+        await _detachAll();
+        await _removeRoomsOfGame(failedGameId);
+        _sessionFinished = true;
+        _setError(
+          'میزبان این نشست را پایان‌یافته یا نامعتبر اعلام کرد؛ اتاق از فهرست حذف شد.',
+        );
+        return false;
+      }
       _setError(client.lastError ?? 'اتصال به میزبان برقرار نشد.');
       _netStatus = NetStatus.disconnected;
+      await client.close();
+      if (identical(_client, client)) _client = null;
+      _clientState = ClientConnectionState.disconnected;
       notifyListeners();
       return false;
     }
@@ -766,6 +826,7 @@ class GameController extends ChangeNotifier {
       case MsgType.hello:
       case MsgType.answer:
       case MsgType.stop:
+      case MsgType.leave:
       case MsgType.snapshot:
       case MsgType.ping:
         break;
@@ -791,6 +852,7 @@ class GameController extends ChangeNotifier {
       if (playersJson is List) {
         final incoming = <Player>[];
         final connected = <String>{};
+        final left = <String>{};
         for (final raw in playersJson) {
           if (raw is! Map<String, dynamic>) continue;
           final id = raw['id'] as String?;
@@ -798,6 +860,7 @@ class GameController extends ChangeNotifier {
           if (id == null || id.isEmpty || name == null) continue;
           incoming.add(Player(id: id, name: name, isHost: raw['h'] == true));
           if (raw['c'] == true) connected.add(id);
+          if (raw['l'] == true) left.add(id);
         }
         if (incoming.isNotEmpty) {
           _session.players
@@ -805,7 +868,10 @@ class GameController extends ChangeNotifier {
             ..addAll(incoming);
           _session.connectedPlayerIds
             ..clear()
-            ..addAll(connected);
+            ..addAll(connected.difference(left));
+          _session.leftPlayerIds
+            ..clear()
+            ..addAll(left);
           final hostId = incoming
               .firstWhere((p) => p.isHost, orElse: () => incoming.first)
               .id;
@@ -1221,10 +1287,22 @@ class GameController extends ChangeNotifier {
   Future<void> leaveRoom([RoomRecord? room]) async {
     final target = room;
     if (target != null) {
-      await roomStore.remove(target.gameId, target.myPlayerId);
-      if (target.gameId == _gameId && target.myPlayerId == myPlayerId) {
+      final isCurrentRoom =
+          target.gameId == _gameId && target.myPlayerId == myPlayerId;
+      if (isCurrentRoom) {
+        if (isHost) {
+          await _broadcastSessionEnded('میزبان از اتاق خارج شد؛ بازی پایان یافت.');
+        } else if (isPlayer) {
+          // Only this explicit action removes roster membership; a socket loss
+          // is handled separately and remains reconnectable.
+          _client?.sendLeave();
+        }
         await _detachAll();
         await store.clear();
+      }
+      await roomStore.remove(target.gameId, target.myPlayerId);
+      if (target.isHost && isCurrentRoom) {
+        await _removeRoomsOfGame(target.gameId);
       }
       await _reloadRooms();
       notifyListeners();
@@ -1233,6 +1311,8 @@ class GameController extends ChangeNotifier {
     final gameId = _gameId;
     if (isHost) {
       await _broadcastSessionEnded('میزبان از اتاق خارج شد؛ بازی پایان یافت.');
+    } else if (isPlayer) {
+      _client?.sendLeave();
     }
     await _detachAll();
     await store.clear();
@@ -1493,9 +1573,15 @@ class GameController extends ChangeNotifier {
       port: room.port,
       gameId: room.gameId,
       token: room.token,
+      removeRoomOnReject: true,
     );
     if (!ok) {
-      // اتاق در دسترس نیست: رکورد حفظ می‌شود تا بعداً دوباره تلاش شود.
+      if (_sessionFinished) {
+        _syncTicker();
+        notifyListeners();
+        return false;
+      }
+      // اتاق فعلاً در دسترس نیست؛ رکورد حفظ می‌شود تا بعداً دوباره تلاش شود.
       _netStatus = NetStatus.disconnected;
       _role = GameRole.player;
       _setError(
@@ -1633,6 +1719,7 @@ class GameController extends ChangeNotifier {
               'name': p.name,
               'h': p.isHost,
               'c': _session.isConnected(p.id),
+              'l': _session.hasPlayerLeft(p.id),
             },
           )
           .toList(growable: false),
@@ -1648,7 +1735,7 @@ class GameController extends ChangeNotifier {
   void _startHostTicker() {
     _hostPingTimer?.cancel();
     _hostPingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      _beacon?.updatePlayerCount(_session.players.length);
+      _beacon?.updatePlayerCount(_session.activePlayerCount);
     });
   }
 

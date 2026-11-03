@@ -1,6 +1,6 @@
 # Architecture
 
-**Source baseline:** `f6fb21168b138c02b523ffa0526a5a253caf8d4a` (reviewed 2026-11-03)
+**Updated:** 2026-11-03; reflects active unreleased branch `arena/0af07290-sanjab`.
 
 ## System overview
 
@@ -66,7 +66,7 @@ A normal round moves through `playing`, `collecting`, `judging` and `roundResult
 
 `GameController` is the application coordinator and a `ChangeNotifier`. It owns profile/session state, host/client lifecycle, connection status, timers, answer operations, save scheduling, room resume/exit and state publication/application. Host operations mutate the canonical session; player actions are locally reflected and sent to the host. Host state is serialized into a recipient-specific payload so players receive their own answer map with shared roster/phase/score information.
 
-`GameScope` exposes/listens to the controller. The controller is about 1,727 lines at this baseline and combines multiple responsibilities; this increases change and test complexity. It is a maintainability concern, not a standalone correctness defect.
+`GameScope` exposes/listens to the controller. The controller is about 1,814 lines on the current branch and combines multiple responsibilities; this increases change and test complexity. It is a maintainability concern, not a standalone correctness defect.
 
 ### Data (`lib/data/`)
 
@@ -96,8 +96,8 @@ UI includes home/profile, lobby, join/QR scanner, play, judging, results, guide,
 - Host active state is saved to `active_session.json`; profiles and room records have their own JSON files.
 - Player records persist room/token/address, own answer/phase data and a local session snapshot for reconnect/resume.
 - Writes use temp files and backups, and room write operations serialize their read-modify-write flow.
-- App paused/inactive/hidden/detached events request `controller.flush()`. The returned Future is not awaited; see [BUG-07](BUG_REPORT.md).
-- Official finish sends a `sessionEnded` event to connected players and deletes host-local session/room records. Offline clients cannot receive this event, creating the saved-room gap in [BUG-04](BUG_REPORT.md).
+- App paused/inactive/hidden/detached events start `controller.flush()` and observe/log errors. The callback cannot be awaited by the OS; this is best effort, not a guarantee against immediate process termination.
+- Official finish sends a `sessionEnded` event to connected players and deletes host-local session/room records. An offline client's room is labelled unverified until authoritative host contact; immediate invalidation without reconnecting is impossible.
 
 ## Security boundaries
 
@@ -105,10 +105,9 @@ The LAN protocol is not TLS-encrypted. A six-character join token is a bearer cr
 
 ## Current implementation notes
 
-- Runtime protocol version is 3; the leading comment/example in `protocol.dart` still says version 2 (BUG-06).
-- The discovery fallback comment promises per-interface broadcast, but code sends to the interface's own address, not a derived broadcast address (BUG-03).
-- First-join failure can leave the auto-reconnect path alive while the join screen shows failure (BUG-01).
-- Home create/resume flows call `setState` after discovering their state is unmounted (BUG-02).
-- Current source 1.0.1+7 is newer than the published 1.0.1 artifact; post-release features are unreleased.
+- Runtime and documented protocol version is 4. The protocol includes a dedicated explicit `leave` message; transport disconnect remains a separate event.
+- Explicit leave updates active roster membership and persists departed IDs; transient disconnect retains roster membership and allows reconnect.
+- Initial join failures do not retain an automatic retry; the invalid per-interface discovery fallback has been removed.
+- Current source version remains 1.0.1+7; these post-release changes are unreleased.
 
-See [Source Analysis](SOURCE_ANALYSIS.md), [Bug Report](BUG_REPORT.md), and [Project Status](PROJECT_STATUS.md). The latest recorded GitHub Actions Flutter checks on this source baseline passed; the review did not run local checks or physical-device networking.
+See [Source Analysis](SOURCE_ANALYSIS.md), [Bug Report](BUG_REPORT.md), and [Project Status](PROJECT_STATUS.md). Current-branch CI is pending, and no local checks or physical-device networking have been run for this change set.

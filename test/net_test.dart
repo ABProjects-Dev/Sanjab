@@ -58,6 +58,7 @@ class RecordedHost {
         onAnswer: (playerId, round, category, text) =>
             answers.add('$playerId|$round|$category|$text'),
         onStop: (playerId, round) => stops.add('$playerId|$round'),
+        onLeave: (playerId) => leaves.add(playerId),
         onSnapshot: (playerId, round, answersMap) {
           snapshots.add('$playerId|$round|${answersMap.length}');
           final ackAfter = ackAfterSnapshotCount;
@@ -84,6 +85,7 @@ class RecordedHost {
   final List<String> registeredOnConnectCallbacks = <String>[];
   final List<String> answers = <String>[];
   final List<String> stops = <String>[];
+  final List<String> leaves = <String>[];
   final List<String> snapshots = <String>[];
   final List<String> disconnects = <String>[];
 
@@ -199,6 +201,29 @@ void main() {
       expect(host.hellos.single.displayName, 'سارا');
       await client.close();
       await host.network.stop();
+    });
+
+    test('خطای اتصال اولیه باعث retry پنهانی نمی‌شود', () async {
+      final host = RecordedHost();
+      final port = await host.start();
+      await host.network.stop();
+      final client = GameClient(
+        hostAddress: '127.0.0.1',
+        port: port,
+        gameId: 'g1',
+        token: 'ABC123',
+        playerId: 'initial-failure',
+        displayName: 'بازیکن',
+        autoReconnect: true,
+      );
+
+      expect(await client.connect(), isFalse);
+      expect(client.state, ClientConnectionState.disconnected);
+      expect(client.hasPendingReconnect, isFalse);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(client.state, ClientConnectionState.disconnected);
+      expect(client.hasPendingReconnect, isFalse);
+      await client.close();
     });
 
     test('کد اتصال نادرست پذیرفته نمی‌شود', () async {
@@ -366,6 +391,29 @@ void main() {
       expect(host.answers.single, 'u1|1|2|تهران');
       expect(host.stops.single, 'u1|1');
       expect(host.snapshots.single, 'u1|1|2');
+      await client.close();
+      await host.network.stop();
+    });
+
+    test('خروج صریح پیام جداگانه‌ای به میزبان می‌فرستد و اتصال را می‌بندد', () async {
+      final host = RecordedHost();
+      final port = await host.start();
+      final client = GameClient(
+        hostAddress: '127.0.0.1',
+        port: port,
+        gameId: 'g1',
+        token: 'ABC123',
+        playerId: 'leaving-player',
+        displayName: 'بازیکن',
+        autoReconnect: false,
+      );
+      expect(await client.connect(), isTrue);
+      expect(client.sendLeave(), isTrue);
+      expect(await waitUntil(() => host.leaves.contains('leaving-player')), isTrue);
+      expect(
+        await waitUntil(() => host.disconnects.contains('leaving-player')),
+        isTrue,
+      );
       await client.close();
       await host.network.stop();
     });

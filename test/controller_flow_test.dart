@@ -339,7 +339,7 @@ void main() {
     expect(host.session.players.length, 1);
   });
 
-  test('قطع اتصال بازیکن روی میزبان مشخص می‌شود', () async {
+  test('قطع اتصال موقت بازیکن او را از roster کم نمی‌کند و اتصال مجدد ممکن است', () async {
     expect(await host.createGame(), isTrue);
     expect(
       await player.joinGame(
@@ -357,7 +357,71 @@ void main() {
       isTrue,
       reason: 'وضعیت اتصال بازیکن باید به‌روزرسانی شود',
     );
-    // بازیکن در فهرست می‌ماند و میزبان دربارهٔ او تصمیم می‌گیرد.
+    // بازیکن در فهرست و شمارش اعضا می‌ماند.
     expect(host.session.players.length, 2);
+    expect(host.session.activePlayerCount, 2);
+
+    expect(
+      await player.joinGame(
+        address: '127.0.0.1',
+        port: host.hostPort,
+        gameId: host.gameId,
+        token: host.joinToken,
+      ),
+      isTrue,
+    );
+    expect(await waitUntil(() => host.session.isConnected('p1')), isTrue);
+    expect(host.session.activePlayerCount, 2);
+  });
+
+  test('خروج صریح بازیکن در میانهٔ بازی حفظ تاریخچه را دارد و مانع ورود دوباره می‌شود', () async {
+    expect(await host.createGame(activeCategoryIds: [0]), isTrue);
+    expect(
+      await player.joinGame(
+        address: '127.0.0.1',
+        port: host.hostPort,
+        gameId: host.gameId,
+        token: host.joinToken,
+      ),
+      isTrue,
+    );
+    expect(await waitUntil(() => host.session.activePlayerCount == 2), isTrue);
+    host.startGame();
+    expect(await waitUntil(() => player.session.phase == GamePhase.playing), isTrue);
+
+    await player.leaveRoom();
+    expect(await waitUntil(() => host.session.hasPlayerLeft('p1')), isTrue);
+    expect(host.session.activePlayerCount, 1);
+    expect(host.session.playerById('p1'), isNotNull);
+
+    expect(
+      await player.joinGame(
+        address: '127.0.0.1',
+        port: host.hostPort,
+        gameId: host.gameId,
+        token: host.joinToken,
+      ),
+      isFalse,
+    );
+    expect(host.session.activePlayerCount, 1);
+  });
+
+  test('خروج صریح بازیکن از اتاق، عضویت او را در میزبان حذف می‌کند', () async {
+    expect(await host.createGame(), isTrue);
+    expect(
+      await player.joinGame(
+        address: '127.0.0.1',
+        port: host.hostPort,
+        gameId: host.gameId,
+        token: host.joinToken,
+      ),
+      isTrue,
+    );
+    expect(await waitUntil(() => host.session.activePlayerCount == 2), isTrue);
+
+    await player.leaveRoom();
+    expect(await waitUntil(() => host.session.activePlayerCount == 1), isTrue);
+    expect(host.session.playerById('p1'), isNull);
+    expect(host.session.players.map((p) => p.id), contains('h1'));
   });
 }

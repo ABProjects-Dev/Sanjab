@@ -173,6 +173,40 @@ void main() {
       expect(File('lib/domain/word_list.dart').existsSync(), isFalse);
     });
 
+    test('راهنما و درباره با قواعد فعلی بازی و شبکهٔ محلی سازگارند', () {
+      final guide = File('lib/ui/screens/guide_screen.dart').readAsStringSync();
+      final settings = File(
+        'lib/ui/screens/settings_screen.dart',
+      ).readAsStringSync();
+      expect(guide, isNot(contains('حرف تصادفی')));
+      expect(guide, isNot(contains('حرف تازه')));
+      expect(settings, contains('چندنفره روی شبکهٔ محلی'));
+      expect(settings, isNot(contains('برای اجرا روی یک دستگاه')));
+      expect(settings, isNot(contains('کاملاً آفلاین')));
+      final home = File('lib/ui/screens/home_screen.dart').readAsStringSync();
+      expect(home, contains('از این دستگاه نمی‌توان'));
+      expect(home, contains('دوباره تلاش کنید'));
+      expect(home, contains('حذف از این دستگاه'));
+      final exitGuard = File('lib/ui/widgets/exit_guard.dart').readAsStringSync();
+      expect(exitGuard, contains('میزبان اکنون از خروج شما باخبر نمی‌شود'));
+    });
+
+    test('Home پس از unmount، setState اجرا نمی‌کند', () {
+      final home = File('lib/ui/screens/home_screen.dart').readAsStringSync();
+      expect(
+        home,
+        isNot(contains('if (!mounted) {\n      setState(() => _busy = false);')),
+      );
+    });
+
+    test('نمونهٔ پروتکل با نسخهٔ runtime هماهنگ است', () {
+      final models = File('lib/domain/models.dart').readAsStringSync();
+      final protocol = File('lib/net/protocol.dart').readAsStringSync();
+      expect(models, contains('const int kProtocolVersion = 4;'));
+      expect(protocol, contains('نسخهٔ ۴'));
+      expect(protocol, contains('{"v":4,"t":"type"'));
+    });
+
     test('در صفحات داخلی دکمهٔ «خروج از بازی» وجود ندارد', () {
       for (final screen in <String>[
         'lib/ui/screens/lobby_screen.dart',

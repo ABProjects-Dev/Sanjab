@@ -65,6 +65,7 @@ class GameClient {
   Map<int, String>? _pendingSnapshotAnswers;
   bool _closedByUser = false;
   bool _helloReceived = false;
+  bool _hasConnectedOnce = false;
 
   static const Duration _snapshotRetryInterval = Duration(seconds: 2);
 
@@ -81,6 +82,9 @@ class GameClient {
 
   /// اتصال برقرار شد و helloAck دریافت شد.
   bool get isConnected => _state == ClientConnectionState.connected;
+
+  /// Exposed for diagnostics/tests: initial connection failures must not retry.
+  bool get hasPendingReconnect => _retryTimer?.isActive ?? false;
 
   void _setState(ClientConnectionState next) {
     if (_state == next) return;
@@ -108,6 +112,7 @@ class GameClient {
         if (!_helloReceived) {
           if (message.type == MsgType.helloAck) {
             _helloReceived = true;
+            _hasConnectedOnce = true;
             _attempt = 0;
             _lastError = null;
             _setState(ClientConnectionState.connected);
@@ -141,6 +146,11 @@ class GameClient {
           _setState(ClientConnectionState.disconnected);
           return;
         }
+        if (_state == ClientConnectionState.rejected) return;
+        if (!_hasConnectedOnce) {
+          _setState(ClientConnectionState.disconnected);
+          return;
+        }
         _setState(ClientConnectionState.reconnecting);
         _scheduleReconnect();
       });
@@ -168,14 +178,18 @@ class GameClient {
       return ok;
     } catch (error) {
       _lastError = 'اتصال به میزبان برقرار نشد. شبکهٔ مشترک را بررسی کنید.';
-      _setState(ClientConnectionState.reconnecting);
-      _scheduleReconnect();
+      if (_hasConnectedOnce) {
+        _setState(ClientConnectionState.reconnecting);
+        _scheduleReconnect();
+      } else {
+        _setState(ClientConnectionState.disconnected);
+      }
       return false;
     }
   }
 
   void _scheduleReconnect() {
-    if (!autoReconnect || _closedByUser) return;
+    if (!autoReconnect || _closedByUser || !_hasConnectedOnce) return;
     _retryTimer?.cancel();
     _attempt += 1;
     final delayMs = (_attempt * 1200).clamp(1200, 8000);
@@ -197,6 +211,12 @@ class GameClient {
   /// ارسال درخواست استپ.
   bool sendStop(int roundIndex) =>
       _channel?.send(MsgType.stop, {'r': roundIndex}) ?? false;
+
+  /// اعلام خروج صریح از بازی؛ قطع اتصال عادی چنین پیامی نمی‌فرستد.
+  bool sendLeave() {
+    if (!isConnected || _closedByUser) return false;
+    return _channel?.send(MsgType.leave, const <String, dynamic>{}) ?? false;
+  }
 
   /// Send a final-answer snapshot and retry it until the host acknowledges it.
   bool sendSnapshot(int roundIndex, Map<int, String> answers) {

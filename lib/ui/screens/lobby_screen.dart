@@ -73,7 +73,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   Future<void> _startGame() async {
     final controller = GameScope.read(context);
-    if (controller.session.players.length < GameSession.minPlayers) {
+    if (controller.session.activePlayerCount < GameSession.minPlayers) {
       showMessage(context, 'برای شروع بازی حداقل دو بازیکن لازم است.');
       return;
     }
@@ -154,7 +154,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
     final session = controller.session;
     final isHost = controller.isHost;
     final players = session.players;
-    final canStart = players.length >= GameSession.minPlayers;
+    final canStart = session.activePlayerCount >= GameSession.minPlayers;
 
     return ExitGuard(
       child: Scaffold(

@@ -1,9 +1,12 @@
 /// ریشهٔ برنامه: تم، زبان فارسی، جهت RTL و مدیریت وضعیت.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'core/app_logger.dart';
 import 'core/app_theme.dart';
 import 'state/game_controller.dart';
 import 'state/game_scope.dart';
@@ -41,12 +44,17 @@ class _SanjabAppState extends State<SanjabApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // خروج از برنامه زمان‌سنج را متوقف نمی‌کند؛ فقط آخرین وضعیت ذخیره می‌شود.
+    // Lifecycle callbacks cannot be awaited by the OS. Start the best-effort
+    // write promptly and observe failures rather than leaking an async error.
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
-      widget.controller.flush();
+      unawaited(
+        widget.controller.flush().catchError((Object error, StackTrace stack) {
+          AppLogger.instance.error('lifecycle.flush', error, stack);
+        }),
+      );
     }
   }
 

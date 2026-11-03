@@ -1,7 +1,7 @@
 # Project Overview
 
-**Review date:** 2026-11-03
-**Source baseline reviewed:** `f6fb21168b138c02b523ffa0526a5a253caf8d4a`
+**Updated:** 2026-11-03
+**Active source branch:** `arena/0af07290-sanjab` (unreleased changes)
 **Current published release:** Sanjab 1.0.1 (`versionCode` 7)
 
 ## Product
@@ -23,7 +23,7 @@ The repository's checked-in source is newer than the published 1.0.1 release. It
 | Match transport | IPv4 TCP and UDP on the local network |
 | Backend | None |
 | Android native code | Main activity and screen-awake method channel |
-| Protocol | Private, strict-version JSON protocol, current version 3 |
+| Protocol | Private, strict-version JSON protocol, current version 4 |
 
 The effective Android compile/target SDK values are supplied by Flutter Gradle defaults rather than explicitly pinned in this repository. The project has no checked-in iOS, web, Windows, macOS, or Linux application scaffold.
 
@@ -63,7 +63,7 @@ The domain layer is Flutter-independent and unit-testable. The production compos
 
 The network is intentionally local-only, not an Internet-facing service. TCP/UDP traffic is not TLS-encrypted, and a QR/open-join beacon carries a bearer join token. Use a trusted local network and do not share those credentials publicly. This is a security boundary/limitation, not a claim that the app has been penetration-tested.
 
-Static review identified several actionable defects and documentation/UI inconsistencies; none was reproduced on a physical device during this review. Prioritized details and proposed fixes are in [Bug Report](BUG_REPORT.md). The review did not modify executable source, configuration, dependencies, or tests.
+The active unreleased branch implements the source fixes for BUG-01 through BUG-08, with new regression tests. Flutter/Dart tests, analysis, and Android build have not yet run for this branch because the SDK is unavailable locally; merge is contingent on passing PR CI. Physical-device verification remains outstanding. See [Bug Report](BUG_REPORT.md) and [Project Status](PROJECT_STATUS.md).
 
 ## Build and verification
 
@@ -75,9 +75,9 @@ flutter test
 flutter build apk --debug
 ```
 
-The source tree contains 144 `test`/`testWidgets` declarations under `test/` and one device integration test under `integration_test/` (static count, not an execution result). The integration test covers host setup on one device; it does not simulate a complete two-phone match.
+The source tree contains 155 `test`/`testWidgets` declarations under `test/` and one device integration test under `integration_test/` (static count, not an execution result). The integration test covers host setup on one device; it does not simulate a complete two-phone match.
 
-The GitHub Actions Flutter checks run on the reviewed baseline SHA and completed successfully as run [41651598932](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41651598932). This records CI verification of that exact baseline; it is not a physical-device LAN test. The review environment has no local `flutter` or `dart` executable, so no local test, analyzer, or build command was run. See [Test Plan](TEST_PLAN.md) for coverage and gaps.
+No GitHub Actions result exists yet for this branch's changes. The review environment has no local `flutter` or `dart` executable, so no local test, analyzer, or build command was run. A passing CI run for this branch is required before merge; it is not a substitute for physical-device LAN testing. See [Test Plan](TEST_PLAN.md) for coverage and gaps.
 
 ## Documentation
 

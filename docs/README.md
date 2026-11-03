@@ -15,4 +15,4 @@ All technical documentation in this repository is maintained in English. Review 
 - [Local Network API](API.md) — TCP/UDP protocol, discovery, QR, and security boundaries.
 - [Android Release Builds](ANDROID_RELEASE.md) — signed release workflow, secrets, and artifact verification.
 
-These documents describe the checked-in source baseline `f6fb21168b138c02b523ffa0526a5a253caf8d4a` as reviewed on 2026-11-03. GitHub Actions results are cited where available. Static review is not a substitute for physical-device or two-phone verification.
+This documentation set is maintained in English. `SOURCE_ANALYSIS.md` is explicitly a historical review of the pre-remediation baseline; `BUG_REPORT.md`, `PROJECT_STATUS.md`, `PROJECT_PLAN.md`, `REQUIREMENTS.md`, and `ARCHITECTURE.md` describe the active unreleased branch. Current-branch CI is pending, and static review is not a substitute for physical-device or two-phone verification.

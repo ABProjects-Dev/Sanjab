@@ -62,6 +62,41 @@ void main() {
         throwsA(isA<GameRuleException>()),
       );
     });
+
+    test('قطع اتصال عضویت را کم نمی‌کند، اما خروج صریح در لابی حذف می‌کند', () {
+      final session = newSession(players: 3);
+      session.setConnected('p1', false);
+      expect(session.activePlayerCount, 3);
+      expect(session.canStartGame, isTrue);
+      expect(session.markPlayerLeft('p2'), isTrue);
+      expect(session.activePlayerCount, 2);
+      expect(session.playerById('p2'), isNull);
+      expect(session.canStartGame, isTrue);
+    });
+
+    test('خروج صریح پس از شروع تاریخچه را نگه می‌دارد و از دست‌های بعدی کنار می‌گذارد', () {
+      final session = newSession(players: 3);
+      session.totals['p1'] = 35;
+      final first = session.startNewRound(nowMs: 0);
+
+      expect(session.markPlayerLeft('p1'), isTrue);
+      expect(session.activePlayerCount, 2);
+      expect(session.playerById('p1'), isNotNull);
+      expect(session.totals['p1'], 35);
+      expect(session.hasPlayerLeft('p1'), isTrue);
+      expect(first.activePlayerIdsAtStart, isNot(contains('p1')));
+      expect(session.setAnswer('p1', 0, 'پاسخ'), isFalse);
+      expect(session.canPlayerStop('p1'), isFalse);
+
+      session.endRound(RoundEndReason.timer, nowMs: 420000);
+      session.applySnapshot('h1', {}, roundIndex: first.index);
+      session.applySnapshot('p2', {}, roundIndex: first.index);
+      expect(session.allSnapshotsReceived, isTrue);
+      expect(session.tryStartJudging(), isTrue);
+      session.finalizeJudging();
+      final second = session.startNewRound(nowMs: 500000);
+      expect(second.answers.keys.any((key) => key.contains('|p1|')), isFalse);
+    });
   });
 
   group('شروع دست', () {
@@ -234,6 +269,19 @@ void main() {
       expect(session.phase, GamePhase.judging);
     });
 
+    test('خروج در فاز دریافت، Snapshot معلق بازیکن را رفع می‌کند', () {
+      final session = newSession(players: 2);
+      final round = session.startNewRound(nowMs: 0);
+      session.endRound(RoundEndReason.timer, nowMs: 420000);
+      session.applySnapshot('h1', {}, roundIndex: round.index);
+
+      expect(session.pendingSnapshotPlayerIds, ['p1']);
+      expect(session.markPlayerLeft('p1'), isTrue);
+      expect(session.pendingSnapshotPlayerIds, isEmpty);
+      expect(session.tryStartJudging(), isTrue);
+      expect(session.phase, GamePhase.judging);
+    });
+
     test('بازیکن قطع‌شده با تصمیم صریح میزبان از دست کنار گذاشته می‌شود', () {
       final session = newSession(players: 2);
       final round = session.startNewRound(nowMs: 0);
@@ -337,6 +385,22 @@ void main() {
       );
       expect(restored.gameId, 'g1');
       expect(GameSession.schemaVersion, 2);
+    });
+
+    test('وضعیت خروج صریح ذخیره می‌شود و نبودن کلید در دادهٔ قدیمی سازگار است', () {
+      final session = newSession(players: 3);
+      session.startNewRound(nowMs: 100);
+      session.markPlayerLeft('p1');
+
+      final restored = GameSession.fromJson(session.toJson());
+      expect(restored.hasPlayerLeft('p1'), isTrue);
+      expect(restored.activePlayerCount, 2);
+      expect(restored.isConnected('p1'), isFalse);
+
+      final legacyJson = session.toJson()..remove('left');
+      final legacy = GameSession.fromJson(legacyJson);
+      expect(legacy.leftPlayerIds, isEmpty);
+      expect(legacy.activePlayerCount, 3);
     });
 
     test('پایان بازی داده‌های موقت را پاک می‌کند', () {

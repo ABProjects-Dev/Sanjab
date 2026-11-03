@@ -2,11 +2,11 @@
 
 ## Current inventory
 
-Static count from the checked-in test tree at baseline `f6fb21168b138c02b523ffa0526a5a253caf8d4a`:
+Static count from the active branch `arena/0af07290-sanjab`:
 
-- `test/`: 144 `test` / `testWidgets` declarations across 13 Dart files.
+- `test/`: 155 `test` / `testWidgets` declarations across 13 Dart files.
 - `integration_test/`: one device integration test (`app_flow_test.dart`).
-- Total: 145 declarations. This is a textual declaration count, not a count of successful executions or unique assertions.
+- Total: 156 declarations. This is a textual declaration count, not a count of successful executions or unique assertions.
 
 The unit/widget test files cover:
 
@@ -29,7 +29,7 @@ The integration test `integration_test/app_flow_test.dart` exercises first-run n
 
 ## Run commands
 
-Use a clean checkout with the project's supported Flutter stable toolchain. Preserve `pubspec.lock`; after any command, inspect `git status` and revert/discard generated tracked changes only if the user has authorized such an action. For this documentation-only review, commands were not run locally because `flutter` and `dart` are unavailable.
+Use a clean checkout with the project's supported Flutter stable toolchain. Preserve `pubspec.lock`; after any command, inspect `git status`. Flutter and Dart are unavailable in the current editing environment, so these commands have not yet been run locally for the active branch.
 
 ```bash
 flutter pub get
@@ -44,7 +44,7 @@ Device integration (requires an Android device/emulator):
 flutter test integration_test/app_flow_test.dart -d <DEVICE_ID>
 ```
 
-The GitHub Actions `Flutter checks` workflow runs Flutter tests, Dart analysis, and Android debug APK build. On the reviewed baseline SHA, run [41651598932](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41651598932) completed successfully. The review itself did not execute any of those checks locally. A CI pass is not physical-LAN verification.
+The GitHub Actions `Flutter checks` workflow runs Flutter tests, Dart analysis, and Android debug APK build. No result is available yet for this branch; a passing run on the current PR is required before merge. Any prior baseline run is not evidence for these changes. CI is not physical-LAN verification.
 
 ## Additional regression scenarios recommended
 
@@ -57,15 +57,15 @@ The GitHub Actions `Flutter checks` workflow runs Flutter tests, Dart analysis, 
 ### Discovery and two-device networking
 
 - Discover across ordinary Wi-Fi and a phone hotspot using at least two physical devices.
-- Exercise a network that rejects limited broadcast and validate interface-subnet broadcast behavior.
+- Exercise a network that rejects limited broadcast; automatic discovery may not work there, so verify QR and manual joining remain usable.
 - Verify QR and manual join when discovery is blocked; verify open-join beacon/token exposure is understood by the user.
 - Run a full host/client match: reconnect, socket replacement, snapshot retry, lost acknowledgment, host/client backgrounding, and address/port changes.
 
 ### Session completion and persistence
 
-- In a two-player lobby, disconnect the non-host and attempt to start. Verify the chosen roster-vs-connected minimum-player rule, Stop threshold, and reconnect behavior.
+- In a two-player lobby, temporarily disconnect the non-host and attempt to start; verify roster membership/count is preserved and the same ID can reconnect. Then test explicit exit separately and confirm it removes the member.
 - Finish the game while every player is connected and verify results navigation/room removal.
-- Disconnect a player, finish the game on the host, relaunch the player, and verify stale-room handling (BUG-04).
+- Disconnect a player, finish the game on the host, relaunch the player, and verify the room is labelled unverified. A connection failure must not be treated as proof of completion; verify manual removal works and a reachable terminal host rejection removes the room.
 - Delay/fail file writes around lifecycle pause/detach and verify the last completed save is recoverable (BUG-07).
 - Verify session/room backup recovery, file permission/sandbox behavior, app update compatibility, and recovery from malformed/old JSON.
 
@@ -78,5 +78,5 @@ The GitHub Actions `Flutter checks` workflow runs Flutter tests, Dart analysis, 
 ## Coverage gaps
 
 - No automated full match across two physical devices or real Wi-Fi/hotspot broadcast test is present.
-- No focused regression tests are identified for BUG-01 through BUG-07 as described above.
+- Regression tests have been added for initial retry cancellation, explicit leave vs transient disconnect/reconnect, roster/history behavior, and legacy serialization. They have not yet been executed; widget disposal/lifecycle and physical discovery/session-completion scenarios still need verification.
 - A passing test suite does not prove security properties, Android lifecycle durability, arbitrary network behavior, or release compatibility on all supported devices.
