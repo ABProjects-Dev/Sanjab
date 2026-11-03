@@ -68,11 +68,12 @@ jobs:
           flutter test --no-pub --reporter=json > "$log_file" 2>&1
           test_status=$?
           cat "$log_file"
-          python3 - "$log_file" <<'PY'
+          python3 - "$log_file" "$test_status" <<'PY'
           import json
           import sys
 
           path = sys.argv[1]
+          test_status = int(sys.argv[2])
           names = {}
           errors = {}
           failures = []
@@ -84,7 +85,13 @@ jobs:
               kind = event.get("event", event.get("type"))
               params = event.get("params")
               if params is None:
-                  params = event.get(kind, event)
+                  for event_name in ("testStart", "error", "testDone"):
+                      if event_name in event:
+                          kind = event_name
+                          params = event[event_name]
+                          break
+              if params is None:
+                  params = event
               if kind == "testStart":
                   test = params.get("test", params)
                   test_id = str(test.get("id", params.get("testID", "")))
@@ -92,10 +99,12 @@ jobs:
               elif kind == "error":
                   test_id = str(params.get("testID", params.get("id", "")))
                   errors[test_id] = params.get("error", "")
-              elif kind == "testDone" and params.get("result") == "failure":
+              elif kind == "testDone" and params.get("result") in ("failure", "error"):
                   test_id = str(params.get("testID", params.get("id", "")))
                   failures.append(test_id)
 
+          if not failures and errors:
+              failures.extend(errors)
           for test_id in failures:
               name = names.get(test_id, f"test id {test_id}")
               detail = errors.get(test_id, "").splitlines()
