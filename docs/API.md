@@ -1,23 +1,19 @@
 # Local Network API
 
-## Scope and compatibility
+**Source baseline:** `f6fb21168b138c02b523ffa0526a5a253caf8d4a` (reviewed 2026-11-03)
 
-This is the app's private local-network protocol, not a public HTTP/REST API. The host-authoritative TCP server and UDP discovery are implemented in `lib/net/`. Messages use JSON and the implementation constant `kProtocolVersion = 3` from `lib/domain/models.dart`.
+This is Sanjab's private local-network protocol, not a public REST/HTTP API. The host is authoritative. Protocol implementation is under `lib/net/`; `kProtocolVersion` is 3 in `lib/domain/models.dart`.
 
-Compatibility is exact-version: the parser rejects a message with a different protocol version. The leading comment in `lib/net/protocol.dart` still shows version 2; the runtime serializer/parser use version 3.
-
-## Transports and endpoints
+## Transports
 
 | Transport | Port | Purpose |
 | --- | ---: | --- |
-| TCP | 50501 preferred; otherwise OS-assigned | Player-to-host game connection |
-| UDP | 50507 | Host discovery probes and announcements |
+| TCP | 50501 preferred; OS-assigned fallback | Host-client gameplay |
+| UDP | 50507 | Discovery probe and host beacon |
 
-The host binds TCP to `0.0.0.0`/all IPv4 interfaces. TCP uses newline-delimited UTF-8 JSON. A `LineChannel` sends one serialized message followed by `\n`; on receive, it counts raw bytes incrementally and buffers no more than 256 × 1024 bytes for an unterminated frame. `NetMessage.parse` also checks the encoded UTF-8 byte length of a completed message. An oversized frame closes the socket before a newline is required.
+TCP binds to all IPv4 interfaces and carries newline-delimited UTF-8 JSON. `LineChannel` counts incoming raw bytes incrementally and closes a connection when an unterminated frame exceeds 256 KiB. Completed messages are also checked by UTF-8 byte length. The host permits at most 32 sockets pending hello and limits a pending handshake to 15 seconds.
 
-## TCP message envelope
-
-Every message has this shape:
+## Message envelope
 
 ```json
 {
@@ -29,78 +25,62 @@ Every message has this shape:
 }
 ```
 
-| Field | Type | Meaning |
+| Field | Meaning |
+| --- | --- |
+| `v` | Exact protocol version; current value is 3 |
+| `t` | Message type (`MsgType` name) |
+| `id` | Non-empty message ID, maximum 64 characters; generated ID is 16 hex characters |
+| `q` | Non-negative per-channel sequence number |
+| `p` | Type-specific JSON object |
+
+Sequence starts at 1. The receiver deduplicates message IDs (bounded capacity 512) and rejects non-increasing sequence numbers; ping is exempt from sequence ordering. Unknown type, malformed JSON, incompatible version, and over-limit frames are not accepted. Parse-invalid complete lines are discarded by the channel without automatically closing the socket.
+
+The header comment/example in `lib/net/protocol.dart` still says version 2; runtime encoding/decoding use version 3. See BUG-06.
+
+## Handshake and gameplay messages
+
+A client first sends `hello`. The host validates game ID, token, player ID and game rules; accepted sockets are registered before the app broadcasts initial state. Existing player IDs can reconnect; a new player is not admitted after the lobby phase.
+
+| Type | Direction | Payload / behavior |
 | --- | --- | --- |
-| `v` | integer | Protocol version; must equal 3 |
-| `t` | string | Exact `MsgType` enum name |
-| `id` | string | Non-empty message ID, maximum length 64; generated IDs are 16 hexadecimal characters |
-| `q` | non-negative integer | Per-channel sequence number |
-| `p` | JSON object | Type-specific payload; defaults to an empty object if omitted/null |
+| `hello` | Client → host | `gid`, `token`, `pid`, `name` |
+| `helloAck` | Host → client | `pid`, `gid`, `resumed`, `serverNow` |
+| `helloReject` | Host → client | User-readable `reason` |
+| `state` | Host → one player | Current authoritative state (keys below); answer map is recipient-specific |
+| `answer` | Client → host | `r` round, `c` category, `t` text; host validates phase/player/category and 80-grapheme-cluster limit |
+| `stop` | Client → host | `r` round index; host independently checks Stop eligibility and duplicate state |
+| `snapshot` | Client → host | `r` round; `a` map from category ID strings to answer text; host validates fields/lengths |
+| `snapshotAck` | Host → player | `r`, `received`; positively acknowledges accepted snapshot |
+| `results` | Host → client | Supported by client parser/handler, but no current host send site was found; host uses `state` updates |
+| `sessionEnded` | Host → connected clients | `reason`, `gameId`; client removes its saved room after receiving it |
+| `error` | Host → player | User-readable `reason` |
+| `ping` / `pong` | Either direction | Supported protocol messages; no periodic application client ping sender was found |
 
-The sender starts sequence numbers at 1. The receiver ignores duplicate message IDs (bounded deduper capacity 512) and non-increasing sequence numbers; ping messages are exempt from sequence ordering checks. Malformed, unknown-type, oversized, or version-incompatible messages are rejected by the parser. The channel discards parse-invalid lines without itself closing the TCP connection.
-
-## TCP message types
-
-### Handshake
-
-1. An unauthenticated client must send `hello` first. A pending handshake is closed after 15 seconds.
-2. The host validates the game ID, token, player ID and the app-level admission decision.
-3. On success the host registers/replaces the player's active channel, sends `helloAck`, and then notifies the app so it can broadcast the current state to the newly registered client. Otherwise it sends `helloReject` and closes the channel.
-
-| Type | Direction | Payload |
-| --- | --- | --- |
-| `hello` | Client → host | `gid`: game ID string; `token`: six-character join token; `pid`: stable player ID; `name`: display name |
-| `helloAck` | Host → client | `pid`: player ID; `gid`: game ID; `resumed`: boolean; `serverNow`: host epoch milliseconds |
-| `helloReject` | Host → client | `reason`: user-facing rejection string |
-
-The host accepts an existing player ID as a reconnection. A new player is rejected once a round has begun. The host validates display-name uniqueness and other game rules in its callback.
-
-### Game messages
-
-| Type | Direction | Payload and behavior |
-| --- | --- | --- |
-| `state` | Host → one player | Authoritative state object described below. Each player receives only their own answer map, plus shared session information. |
-| `answer` | Client → host | `r`: round index integer; `c`: category ID integer; `t`: answer text string. Host currently drops answer strings longer than 80 Dart string characters and validates phase/player/category in the domain. |
-| `stop` | Client → host | `r`: round index integer. Host independently validates eligibility and duplicate stop state. |
-| `snapshot` | Client → host | `r`: round index integer; `a`: object mapping category-ID strings to answer strings. Host ignores invalid category keys and values longer than 80 characters. |
-| `snapshotAck` | Host → player | `r`: round index; `received`: boolean. Sent when a player's snapshot is applied; a duplicate retransmission for an already-received snapshot in the same round is acknowledged again without reapplying it. |
-| `results` | Host → client (supported by client parser/handler) | Client applies this payload using the same authoritative-state handler as `state`. No current host send site for `results` was found; host round updates use `state`. |
-| `sessionEnded` | Host → all connected players | `reason`: string; `gameId`: game ID. Clients detach and remove the saved room. |
-| `error` | Host → player | `reason`: user-facing error string. |
-| `ping` | Either direction (supported) | Empty/application-defined object. Host replies with `pong` and `serverNow`; protocol handler ignores ping sequence ordering. |
-| `pong` | Either direction (supported) | Host response includes `serverNow`; currently no periodic client ping sender was found in the application flow. |
-
-The client retains its final snapshot and retries it every two seconds until it receives a `snapshotAck` with `received: true` for the same round. A reconnect resends the pending snapshot immediately. The host treats same-round duplicates idempotently and repeats the acknowledgment, allowing recovery when the original acknowledgment was lost.
-
-Host-side messages such as `state`, `snapshotAck`, `results`, `sessionEnded` and `error` are not accepted as client commands after handshake.
+The client retains a pending final snapshot and retries every two seconds until it receives a matching positive acknowledgment. On reconnect it resends the snapshot. The host re-acknowledges an already-applied same-round duplicate without applying it twice. Host-only messages are not accepted as client commands.
 
 ## Authoritative `state` payload
-
-The host currently sends these fields:
 
 | Key | Description |
 | --- | --- |
 | `seq` | Host state sequence counter |
-| `serverNow` | Host's synchronized epoch time in milliseconds |
-| `phase` | `GamePhase` enum name |
-| `round` | Current round index, or 0 when no round exists |
-| `endEpochMs` | Current round's host-clock end time, when available |
-| `pausedRemainingMs` | Remaining time while paused, otherwise null |
-| `endReason` | `RoundEndReason` enum name, when set |
-| `judged` | Whether current round judging is finalized |
-| `players` | Array of `{id, name, h, c}` for player ID, display name, host flag and connection flag |
-| `cats` | Active category ID array |
-| `totals` | Object mapping player IDs to cumulative score |
-| `submissions` | Object mapping player IDs to current submission-state names |
-| `my` | Object mapping active category ID strings to this recipient's answer text |
-| `roundScores` | Current round's per-player scores |
-| `pending` | Player IDs whose final snapshots have not been received/resolved |
+| `serverNow` | Host synchronized epoch milliseconds |
+| `phase` | Current `GamePhase` name |
+| `round` | Round index, or 0 when no round exists |
+| `endEpochMs`, `pausedRemainingMs`, `endReason` | Timer/end metadata when applicable |
+| `judged` | Whether current round is finalized |
+| `players` | Entries `{id, name, h, c}` for ID/name/host/connected status |
+| `cats` | Active category ID list |
+| `totals` | Cumulative score by player ID |
+| `submissions` | Submission state by player ID |
+| `my` | This recipient's active-category answer text only |
+| `roundScores` | Current per-player round scores |
+| `pending` | Player IDs whose final snapshots are still pending/unresolved |
 
-The client applies host time offset from `serverNow`, builds/updates its local session snapshot and persists its local room state through the configured `RoomStore`.
+Client derives a clock offset from `serverNow`, applies host state and persists its local room record.
 
 ## UDP discovery
 
-The client sends the UTF-8 probe `SANJAB_DISCOVER_V2` to UDP port 50507 (broadcast and interface-specific addresses). A host answers probes and periodically broadcasts a JSON beacon:
+The client sends `SANJAB_DISCOVER_V2` to UDP port 50507 using limited broadcast and an intended per-interface fallback. Hosts respond and periodically announce JSON beacons of this form:
 
 ```json
 {
@@ -115,11 +95,9 @@ The client sends the UTF-8 probe `SANJAB_DISCOVER_V2` to UDP port 50507 (broadca
 }
 ```
 
-Required parse fields are `k = "SM_HOST"`, non-empty `gid` and a port in 1–65535. `gn`, `hn`, `open`, `token`, and `pc` have defaults/optional handling. In open-join mode the beacon includes the token; otherwise the beacon omits it. Discovery can fail on networks that block broadcast; QR/manual joining is the fallback.
+A valid beacon requires `k = "SM_HOST"`, non-empty `gid`, and a port in 1–65535. In open-join mode the beacon contains the token; otherwise it omits it. The discovery fallback loop currently sends to each interface's own IPv4 address rather than its broadcast address (BUG-03), so discovery behavior on networks that reject limited broadcast needs correction and physical-device verification. QR/manual joining are alternatives.
 
-## QR join payload
-
-The host UI encodes this JSON object for QR joining:
+## QR payload
 
 ```json
 {
@@ -135,20 +113,15 @@ The host UI encodes this JSON object for QR joining:
 }
 ```
 
-`createdAt` is the current device epoch time and `expiresAt` is seven days later. The structural validator requires `v = 1`, `type = "sm_join"`, non-empty `gameId`, `token` and `host`, a positive numeric port, and rejects a supplied expiry in the past. The host still validates the token during TCP handshake; a structurally valid QR alone does not authorize a connection.
+QR data includes the bearer token. The parser validates expected type/version, game ID, host, positive port, token, and rejects an expiry in the past. The host still validates the token during TCP handshake.
 
-## Security and operational notes
+## Security and reliability notes
 
-- TCP and UDP messages are not TLS-encrypted. Use this protocol only on a network trusted by the host and participants.
-- The join token is a bearer credential. A QR contains it, and an open-join UDP beacon can expose it to devices on the same LAN. Do not publish QR images or beacon data publicly.
-- The host checks the token and game ID and limits player ID length to 40. The protocol is not a hardened Internet-facing service; avoid port forwarding or exposing the host outside the local network.
-- No external service or REST endpoint is used by the game protocol.
+- TCP/UDP are not TLS-encrypted. Do not use the service as an Internet-facing server or forward its port.
+- A six-character join token is a bearer credential. Protect QR images and open-join beacon data.
+- The network code is intended for trusted local networks; this is not a hardened public protocol and has not undergone a penetration test.
+- Failed initial joins can leave the client's automatic retry path active while the UI reports an error (BUG-01).
+- Official session-end is sent to connected players only; offline player saved-room records can remain stale (BUG-04).
+- Current answer limit is 80 user-perceived grapheme clusters. The separate Stop minimum counts valid code points after invisible/spacing normalization; see [Game Rules](GAME_RULES.md).
 
-## Implementation caveats from static review
-
-- The host accepts at most 32 simultaneous sockets waiting for a valid hello handshake. Excess sockets are closed immediately; each pending handshake is also closed after 15 seconds, with its timer and per-connection callbacks removed on completion.
-- Host answer and snapshot values longer than 80 Dart string characters are silently dropped. The current play-screen text fields do not enforce that same limit, so an overlength answer can appear locally but be absent on the host.
-- Initial state is now broadcast by the app callback after the host registers the accepted channel. Completion and message handlers for a replaced socket check channel identity so they cannot remove or operate on the replacement.
-- Final snapshots are retried every two seconds until a matching acknowledgment arrives; reconnects resend pending snapshots, and the host re-acknowledges an already-applied same-round snapshot. These code paths have regression tests, but they still need execution in CI and physical-device verification.
-
-These are source-review findings; they have not all been reproduced with network fault injection.
+All issues above are source-review findings. Runtime impact requiring Wi-Fi/device behavior is not represented as reproduced. See [Bug Report](BUG_REPORT.md) and [Test Plan](TEST_PLAN.md).

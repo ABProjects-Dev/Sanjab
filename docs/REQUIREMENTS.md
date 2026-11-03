@@ -1,130 +1,73 @@
 # Requirements and Current Behavior
 
+**Reviewed against:** `f6fb21168b138c02b523ffa0526a5a253caf8d4a` on 2026-11-03.
+
 ## Purpose and scope
 
-Sanjab is a Persian, category-based word game for two or more people using Android devices on one local Wi-Fi network or hotspot. One device hosts the session; other devices join it. No external game server is part of the implementation.
+Sanjab is a Persian category-based word game for at least two Android phones on one local Wi-Fi network or hotspot. One phone hosts the authoritative match; other devices join over the local network. The implementation contains no cloud account or remote game server. This document records current source behavior and observed gaps; it is not a statement that all paths were device-tested.
 
-This document records requirements visible in the current source and distinguishes them from observed gaps. The Android release workflow builds and signature-checks the APK before publication; a published APK does not constitute two-device or broad physical-device verification.
+## User flows
 
-## Users and primary flows
+### Profile and identity
 
-### First-run profile
+- A device has a stable generated player ID and an editable display name.
+- A name must be non-empty, no longer than 24 Dart string code units after trimming, and unique within the session after normalization of selected whitespace and Persian/Arabic characters.
+- Renaming does not change player identity. Hosting/joining requires a display name.
 
-- A device has a stable generated player ID and a user-editable display name.
-- The display name must contain 1–24 trimmed Dart string characters and must be unique within a game after whitespace and selected Persian/Arabic letter normalization.
-- Changing the display name does not change the player ID.
-- A configured display name is required before hosting or joining.
+### Host
 
-### Host a game
+- Host creation makes a new game ID and six-character join token.
+- TCP listener prefers port `50501` and uses an OS-assigned port if unavailable.
+- Lobby supports category selection, open-join setting, player list/removal, connection details and QR.
+- At least two players must be in the roster to start. The current lobby/domain gate checks roster size, not live connection count; disconnected listed players can remain in the roster.
+- New players are accepted only in the lobby; previously registered player IDs may reconnect after play starts.
 
-- The host creates a new session and a six-character join token.
-- A host TCP listener starts on preferred port `50501`, falling back to an OS-assigned port when needed.
-- The lobby allows category selection, open-join configuration, player visibility/removal and QR sharing.
-- At least two players are required before the first round can start.
-- New players are accepted only while the host session is in the lobby. Previously registered players may reconnect after the game starts, subject to host validation.
+### Join
 
-### Join a game
-
-- Players can discover hosts over UDP broadcast, scan a QR code, or enter connection details manually.
-- A joining client presents game ID, token, persistent player ID and display name in the TCP hello message.
-- The host validates the session/token/player and is the authority for admission.
-- Reconnection reuses the stable player ID; duplicate simultaneous sessions for that ID are replaced by the host.
+- A player can use UDP discovery, a QR code, or manual LAN address/port/token.
+- TCP hello presents game ID, token, stable player ID and display name. The host decides admission.
+- The client automatically reconnects; an initial connection failure may leave its retry loop alive while the UI displays an error (see [BUG-01](BUG_REPORT.md)).
 
 ### Play, judge and finish
 
-- A round has the fixed duration of seven minutes (420 seconds); the user cannot configure the duration.
-- The game has 13 categories (IDs 0–12) and no letter/word selection step.
-- The host may pause/resume or end a round. The timer is based on an epoch end time, and clients apply a host clock offset.
-- A player may stop only when every active category answer meets the minimum-character rule. Each player can stop once; the round ends after `ceil(active player count at round start / 2)` stop requests, or on timeout/host decision.
-- At round end, clients submit their final answer snapshot. The host waits for snapshots or an explicit host decision to resolve a disconnected player before judging.
-- Only the host judges. Every non-empty answer must be marked confirmed, duplicate, or rejected before finalization.
-- The score is computed once per round and accumulated for the current game. Equal totals share a rank.
-- The host can officially finish the session. That invalidates active join/resume state and is intended to return connected clients to the home flow; a player already on the results screen may remain there (see the known implementation caveat below).
+- The source has 13 categories and no letter/word selection step.
+- Each round is a fixed 420 seconds. The host can pause/resume or manually end; host epoch time is authoritative.
+- The Stop minimum requires every active category answer to have at least two valid Unicode code points after whitespace/invisible-character filtering. This minimum is distinct from the maximum input limit.
+- Maximum answer size is 80 grapheme clusters, shared across UI, domain, controller and host; over-limit values receive visible feedback.
+- Each player can Stop once. The round ends on `ceil(connected player count at round start / 2)` accepted Stop requests, timeout, or host action. Mid-round disconnection does not alter the threshold.
+- On end, the host collects client snapshots and then judges. Only the host judges; non-empty answers must receive a judgement before finalization.
+- Empty/rejected = 0, duplicate = 5, ordinary confirmed = 10, sole confirmed with a duplicate elsewhere in the category = 15, sole confirmed with all others empty/rejected = 20. Unique scores replace 10 rather than add to it. Cumulative ties share rank.
+- Host official finish informs connected clients and removes the host's local saved-room data. Offline player records may remain stale because they cannot receive that event (BUG-04).
 
-## Stop-answer validation
+Full rule details: [Game Rules](GAME_RULES.md).
 
-The shared domain rule used by the controller and host requires each active answer to contain at least two `String.runes` after filtering whitespace, control, zero-width, directionality and other configured invisible code points. It does not measure user-perceived grapheme clusters. This rule is intentionally stricter than a non-empty check.
+## Storage and lifecycle
 
-## Categories and score rules
+- Profile, host active session and saved rooms use local JSON repositories.
+- The production controller factory injects file-backed profile/session/room repositories; tests can use memory stores.
+- Session and room stores use temporary-file replacement and backup recovery. Room mutations serialize per repository instance, and the repository retains at most 20 rooms.
+- The app requests a storage flush on lifecycle pause/inactive/hidden/detached. The Future is not awaited; its durability under immediate process termination needs device testing (BUG-07).
+- If application-support path resolution fails, startup falls back to `Directory.systemTemp`; this fallback may be less durable than normal app storage.
 
-The stable category IDs and Persian labels are defined in `lib/domain/categories.dart`:
+## Platform and release
 
-| ID | Category |
-| ---: | --- |
-| 0 | Name |
-| 1 | Family name |
-| 2 | City |
-| 3 | Country |
-| 4 | Food |
-| 5 | Fruit |
-| 6 | Animal |
-| 7 | Color |
-| 8 | Occupation |
-| 9 | Objects |
-| 10 | Flower |
-| 11 | Car |
-| 12 | Body parts |
+- Android package: `com.sanjab.game`; minimum API 24.
+- Current source version is `1.0.1+7`. Published release is 1.0.1; newer source changes are unreleased.
+- Persian RTL, dark theme, portrait. QR scanner requires camera access; networking is local IPv4 TCP/UDP.
+- Effective `compileSdk`/`targetSdk` are inherited from Flutter Gradle defaults, not pinned.
+- App includes a screen-awake MethodChannel and bounded local technical logs.
 
-Display order is maintained separately from ID order. Active categories are selected by the host before a round or between rounds.
+## Security and privacy boundary
 
-| Judgement result | Score per answer |
-| --- | ---: |
-| Empty | 0 |
-| Rejected | 0 |
-| Duplicate | 5 |
-| Confirmed, ordinary | 10 |
-| Sole confirmed answer with at least one duplicate in category | 15 (replaces 10) |
-| Sole confirmed answer with all other entries empty/rejected | 20 (replaces 10) |
+- No remote game service or public API exists in the source.
+- TCP/UDP traffic is unencrypted. QR and open-join beacon include/expose a bearer token on the local network; use a trusted LAN and do not port-forward.
+- Local game JSON is in the app data sandbox; no application-layer encryption was identified. Android manifest backup is disabled.
+- The static review did not perform security testing or packet inspection.
 
-If more than one answer is confirmed in a category, the unique-answer bonus is not applied.
+## Verification and known gaps
 
-## Persistence and lifecycle
-
-- The profile is stored locally in `profile.json`.
-- The host's active `GameSession` is stored in `active_session.json` with a temporary-file write and backup fallback.
-- The source includes a durable `RoomRepository` for `rooms.json`, with atomic replacement, backup recovery and a cap of 20 rooms.
-- The production controller factory injects `RoomRepository`, and a composition/restart test verifies that a saved player-room record is available to a newly bootstrapped controller using the same app data directory.
-- On Android app lifecycle transitions to background/inactive/hidden/detached, the controller is asked to flush its current saved state.
-- There is no permanent game-history or account service. Officially finishing a session clears the active session/history.
-
-## Platform and non-functional requirements
-
-- Current checked-in platform scaffold: Android.
-- Android application ID and namespace: `com.sanjab.game`. The Dart package name remains `sanjab` because it is a separate identifier used by Dart imports.
-- Changing the Android application ID creates a distinct Android package: it does not upgrade/replace an existing installation built with the former application ID and has separate application data.
-- Release signing configuration reads `ANDROID_KEYSTORE`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASS` from Gradle properties or environment variables; external build configurations must use these names.
-- `minSdk`: 24 (Android 7.0). Current `versionName`: 1.0.1; `versionCode`: 7.
-- Java and Kotlin JVM targets are 17. `compileSdk` and `targetSdk` are sourced from Flutter Gradle defaults in this repository.
-- Flutter app is Persian-only, RTL, dark-themed and portrait-oriented, and bundles Vazirmatn font assets.
-- TCP/UDP sockets require the Android `INTERNET` permission; network-state and Wi-Fi permissions are declared. Camera permission is required at runtime for QR scanning.
-- The logger keeps a bounded log file and recent in-memory lines; implementation comments state that player answer text should not be logged.
-- The local network traffic is plain TCP/UDP and has no TLS encryption. Join credentials should be shared only with intended players on a trusted local network.
-
-## Known implementation caveats from static review
-
-These findings are code-derived and have not all been reproduced on a device or under fault injection:
-
-- The host rejects answer strings longer than 80 Dart string characters, but the UI does not cap input at that length; an overlength answer can be silently dropped.
-- TCP frames are limited incrementally to 256 KiB of raw bytes before newline assembly; oversized sockets are destroyed. The host accepts at most 32 pending handshakes at a time and releases timers and callbacks when each pending connection ends.
-- The join path now broadcasts state only after `HostNetwork` registers the accepted channel and sends `helloAck`.
-- Reconnect message and completion handlers now verify channel identity; an old socket cannot process messages as or remove its replacement.
-- Final snapshots are retained and retried until the host acknowledges the matching round. Reconnects resend pending snapshots, and the host repeats acknowledgments for already-applied duplicates without changing the stored answers.
-- Regression tests cover initial-state delivery, channel replacement, snapshot retry/acknowledgment, and duplicate snapshot acknowledgment. The merged network changes passed the Flutter Actions test job in run [41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376).
-- Session saves and room mutations/clears are serialized per repository instance. Session JSON is snapshotted at call time; deterministic queue and concurrent repository tests cover write ordering and preservation of the newest state.
-- A failed initial join can leave the client's automatic reconnect loop active while the join screen remains on the failure state.
-- A player receiving official session end while on the results screen may remain on that route; the results listener only handles transition to a new playing phase.
-- Home-screen async create/resume handlers call `setState` in their `!mounted` branches, which can raise a lifecycle error if the route was disposed.
-
-## Verification requirements
-
-The repository contains 131 `test`/`testWidgets` declarations under `test/` and one device integration test under `integration_test/`. The integration test covers the host setup path; it does not simulate a two-phone network game.
-
-Flutter analysis, the full test suite, and the Android debug APK build succeeded for the merged multiplayer-reliability changes in [run 41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376). The signed Android `1.0.0` release and certificate verification succeeded in [run 41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107). These checks do not substitute for a full two-phone game, physical-device testing, or all Wi-Fi/hotspot combinations.
-
-## Current metadata, release and documentation notes
-
-- App version metadata is `1.0.1+7`: `pubspec.yaml` uses `1.0.1+7`, Android uses version name `1.0.1` and version code 7, and the UI displays `1.0.1`. The UI values remain hardcoded and could drift later.
-- GitHub Release `1.0.1` contains `Sanjab-1.0.1.apk` plus its `.sha256` checksum. See [the release page](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1). The prior `1.0.0` release remains available.
-- `lib/net/protocol.dart`'s leading comment says protocol version 2; the implementation constant is 3. This is a network protocol version, not the app release version.
-- The README links to the checked-in `docs/` set. Historical `documentation/*.txt` reports remain absent because no authoritative copies were found.
-- `android/app/build.gradle.kts` uses `flutter.targetSdkVersion`; the effective target SDK depends on the Flutter toolchain and is not pinned here.
+- `test/` contains 144 test/widget declarations; `integration_test/` contains one host-setup device test. Counts are static declarations, not executed results.
+- GitHub Actions Flutter checks passed on the exact reviewed baseline: [run 41651598932](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41651598932), including tests, analysis and Android debug APK build.
+- Local checks were not run in this review because Flutter and Dart executables are missing from the environment.
+- No full automated two-device match or real Wi-Fi/hotspot discovery matrix is present. See [Test Plan](TEST_PLAN.md).
+- Source-level defects and evidence are itemized in [Bug Report](BUG_REPORT.md); none was fixed because the task scope is documentation-only.

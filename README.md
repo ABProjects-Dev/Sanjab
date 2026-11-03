@@ -1,44 +1,45 @@
-# سنجاب — نسخهٔ 1.0.1
+# Sanjab
 
-بازی گروهی فارسیِ اسم‌وفامیل برای چند گوشی روی یک شبکهٔ محلی Wi-Fi یا hotspot. برای بازی به سرور بیرونی یا اینترنت عمومی نیاز نیست.
+Sanjab is a Persian-language, category-based word game for multiple Android phones connected to the same local Wi-Fi network or phone hotspot. One phone hosts the authoritative game session; other phones join over the LAN. A public Internet connection or remote game server is not required.
 
-## وضعیت انتشار و مشخصات
+## Release and source status
 
-| مورد | مقدار |
+| Item | Value |
 | --- | --- |
-| نسخه | `1.0.1` (Android versionCode: `7`) |
-| وضعیت | منتشرشده؛ APK و checksum در GitHub Release موجود است |
-| شناسهٔ بسته | `com.sanjab.game` |
-| حداقل Android | ۷٫۰ (API 24) |
-| target SDK | مقدار پیش‌فرض Flutter Gradle؛ در پروژه صریحاً pin نشده است |
-| زبان و چیدمان | فارسی و راست‌به‌چپ، فونت Vazirmatn |
-| ظاهر | تم تیره، جهت عمودی |
-| انتشار | [Sanjab 1.0.1 در GitHub](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1) |
+| Latest published release | `1.0.1` |
+| Checked-in app version | `1.0.1+7` (`versionCode` 7) |
+| Android package | `com.sanjab.game` |
+| Minimum Android | API 24 (Android 7.0) |
+| UI | Persian, right-to-left, dark theme, portrait, Vazirmatn |
+| Network | Local IPv4 TCP/UDP; no cloud backend |
 
-## قابلیت‌ها
+The repository source includes follow-up improvements newer than the published 1.0.1 APK. They remain unreleased in `CHANGELOG.md`; the app version metadata has not yet been incremented. See [Project Status](docs/PROJECT_STATUS.md).
 
-- میزبانی روی یک گوشی و پیوستن گوشی‌های دیگر از طریق کشف LAN، کد اتصال، ورود دستی یا QR.
-- ۱۳ دسته، دست‌های ثابت ۷ دقیقه‌ای و پایان دست با حد نصاب استپ‌ها یا پایان زمان/تصمیم میزبان.
-- داوری و محاسبهٔ امتیاز روی دستگاه میزبان.
-- پروفایل محلی با شناسهٔ پایدار دستگاه.
-- ذخیرهٔ نشست فعال میزبان و پشتیبانی از ادامهٔ بازی؛ **رکورد اتاق بازیکن در ترکیب فعلی برنامه به‌صورت پایدار ذخیره نمی‌شود**. جزئیات در [محدودیت‌های فعلی](docs/REQUIREMENTS.md#persistence-and-lifecycle) آمده است.
-- ارتباطات بازی روی شبکهٔ محلی‌اند و رمزنگاری TLS ندارند؛ فقط در شبکه‌ای مورداعتماد بازی کنید و QR/کد اتصال را عمومی نکنید.
+## Features
 
-## ساختار مخزن
+- Host/join over a shared Wi-Fi network or hotspot, with LAN discovery, six-character join token, QR code, or manual address entry.
+- 13 categories, fixed seven-minute rounds, no letter-selection step, host-authoritative timer/judging/scoring.
+- Answer input capped at 80 user-perceived grapheme clusters; Stop requires every active category field to contain at least two valid characters.
+- Player reconnect, final-answer snapshot acknowledgment/retry, and persistent host/player room records.
+- Local profile, score totals, saved-room resume, local technical logs, and Android screen-awake behavior during play.
+
+Read [Game Rules](docs/GAME_RULES.md) for full scoring and round behavior. The local-network protocol is not TLS-encrypted; join tokens are bearer credentials. Use a trusted LAN and do not publish QR codes or open-join beacon data.
+
+## Repository layout
 
 ```text
-lib/                 منطق دامنه، ذخیره‌سازی، شبکه، کنترلر و رابط Flutter
-android/             پیکربندی و پوستهٔ Android
-assets/              فونت Vazirmatn و تصاویر برنامه
-test/                آزمون‌های دامنه، شبکه، کنترلر، ذخیره‌سازی و ویجت
-integration_test/    آزمون دستگاه برای مسیر میزبانی
-docs/                مستندات معماری، رفتار، پروتکل و انتشار
-.github/workflows/   بررسی‌های Flutter و ساخت APK انتشار
+lib/                  Flutter/Dart app, domain, state, storage and networking
+android/              Android application and native platform bridge
+assets/               Fonts and artwork
+test/                 Domain, networking, controller, storage and widget tests
+integration_test/     One Android-device host-flow integration test
+docs/                 Project, architecture, rules, API, review and release docs
+.github/workflows/     Flutter checks and Android release workflows
 ```
 
-## توسعه و آزمون
+## Development and verification
 
-با Flutter SDK و Android toolchain سازگار:
+With a compatible Flutter/Android toolchain:
 
 ```bash
 flutter pub get
@@ -47,18 +48,16 @@ flutter test
 flutter build apk --debug
 ```
 
-اسکریپت‌های Gradle Wrapper (`gradlew` و `gradlew.bat`) در مخزن نگه‌داری نمی‌شوند؛ اگر ساخت محلی به‌دلیل نبود wrapper متوقف شد، workflow انتشار آن‌ها را در runner تولید می‌کند. ساخت انتشار امضاشده از مسیر GitHub Actions انجام می‌شود.
+The checked-in test tree contains 144 `test`/`testWidgets` declarations plus one integration test declaration (static count, not a run result). The integration test covers host setup on one device, not a complete two-phone match. GitHub Actions run [41651598932](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41651598932) passed tests, analysis, and Android debug build on the reviewed source baseline. Physical-device LAN behavior still needs verification.
 
-در حال حاضر `test/` شامل ۱۳۱ اعلان `test`/`testWidgets` است و یک آزمون دستگاه در `integration_test/` وجود دارد. آزمون دستگاه مسیر میزبانی را می‌سنجد؛ بازی کامل دوگوشی را شبیه‌سازی نمی‌کند.
+The Gradle wrapper scripts are not tracked; the release workflow generates them on its runner. See [Android Release Builds](docs/ANDROID_RELEASE.md) for signed APK publication and checksum verification.
 
-برای ساخت APK امضاشدهٔ انتشار، از گردش‌کار **Android release** در GitHub Actions استفاده کنید. گردش‌کار کلید را از GitHub Actions secrets می‌گیرد، امضای APK را با گواهی کلید بررسی می‌کند و APK و SHA-256 را به Release اضافه می‌کند. راهنما: [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md).
+## Documentation
 
-## مستندات
+Start at the [documentation index](docs/README.md). Key documents:
 
-فهرست مستندات در [`docs/README.md`](docs/README.md) قرار دارد:
-
-- [معماری و محدودیت‌های پیاده‌سازی](docs/ARCHITECTURE.md)
-- [نیازمندی‌ها و رفتار فعلی](docs/REQUIREMENTS.md)
-- [پروتکل شبکهٔ محلی](docs/API.md)
-- [برنامهٔ کار و یافته‌های بازبینی](docs/PROJECT_PLAN.md)
-- [ساخت و انتشار Android](docs/ANDROID_RELEASE.md)
+- [Project overview](docs/PROJECT_OVERVIEW.md) and [architecture](docs/ARCHITECTURE.md)
+- [Game rules](docs/GAME_RULES.md) and [features/limitations](docs/FEATURES.md)
+- [Source analysis](docs/SOURCE_ANALYSIS.md) and [bug report](docs/BUG_REPORT.md)
+- [Test plan](docs/TEST_PLAN.md) and [project status](docs/PROJECT_STATUS.md)
+- [Local Network API](docs/API.md), [requirements](docs/REQUIREMENTS.md), and [release guide](docs/ANDROID_RELEASE.md)
