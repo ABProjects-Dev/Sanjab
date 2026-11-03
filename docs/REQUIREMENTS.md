@@ -1,11 +1,11 @@
 # Requirements and Current Behavior
 
-**Updated:** 2026-11-03
-**Active source branch:** `arena/c87aff83-sanjab`; changes are unreleased.
+**Updated:** 2026-11-04
+**Active source branch:** `arena/da68caee-sanjab`; preparing release `1.1.0+9`.
 
 ## Purpose and scope
 
-Sanjab is a Persian category-based word game for at least two Android phones on one local Wi-Fi network or hotspot. One phone hosts the authoritative match; other devices join over the local network. The implementation contains no cloud account or remote game server. This document describes source behavior, not physical-device verification.
+Sanjab is a Persian category-based word game for one or more Android phones on one local Wi-Fi network or hotspot. One phone hosts the authoritative match; other devices may join over the local network. The implementation contains no cloud account or remote game server. This document describes source behavior, not physical-device verification.
 
 ## User flows
 
@@ -20,7 +20,7 @@ Sanjab is a Persian category-based word game for at least two Android phones on 
 - Host creation makes a new game ID and six-character join token.
 - TCP listener prefers port `50501` and uses an OS-assigned port if unavailable.
 - Lobby supports category selection, open-join setting, player list/removal, connection details and QR.
-- At least two active roster members are required to start. A temporary network disconnect does not remove roster membership or decrement the count; the same player may reconnect.
+- At least one active roster member is required to start. A temporary network disconnect does not remove roster membership or decrement the count; the same player may reconnect.
 - New players are accepted only in the lobby; previously registered player IDs may reconnect after play starts.
 - Explicit “exit room” is a protocol action distinct from socket loss. In the lobby, the player is removed. After a round starts, historical answers/scores remain while the player is excluded from active membership, the current Stop threshold/pending snapshot set, and later rounds.
 
@@ -55,7 +55,7 @@ Full rule details: [Game Rules](GAME_RULES.md).
 ## Platform and release
 
 - Android package: `com.sanjab.game`; minimum API 24.
-- Latest published release is `1.0.1+7`; this branch's source is the unreleased `1.0.2+8` candidate.
+- Latest published release is `1.0.2+8`; this branch's source is the unreleased `1.1.0+9` candidate.
 - Persian RTL, dark theme, portrait. QR scanner requires camera access; networking is local IPv4 TCP/UDP.
 - Effective `compileSdk`/`targetSdk` are inherited from Flutter Gradle defaults, not pinned.
 - App includes a screen-awake MethodChannel and bounded local technical logs.
@@ -70,6 +70,6 @@ Full rule details: [Game Rules](GAME_RULES.md).
 ## Verification status
 
 - Regression tests have been added for initial-join retry, explicit exit vs transient disconnect, reconnect, roster/state persistence and legacy snapshot loading.
-- The local environment has no Flutter or Dart executable, so the new and existing suites have not been run locally. Current PR CI and device-level verification are pending; do not use an older CI run as evidence for this branch.
+- The local environment has no Flutter or Dart executable, so the new and existing suites have not been run locally. CI passed for the merged gameplay changes; checks for the 1.1.0 version-bump PR are pending. Physical-device verification remains outstanding.
 - No full automated two-device match or real Wi-Fi/hotspot discovery matrix is present. See [Test Plan](TEST_PLAN.md).
 - BUG-01 through BUG-08 remediation and remaining limitations are recorded in [Bug Report](BUG_REPORT.md).

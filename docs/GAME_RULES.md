@@ -4,11 +4,11 @@ This document describes the rules implemented by the checked-in Dart domain code
 
 ## Match and lobby
 
-- A match has at least two players. One player is the host; the host device is the source of truth.
+- A match may have one or more players. One device is the host and source of truth, including in solo play.
 - Players have a persistent device-local ID and a display name. Names must be non-empty, at most 24 Dart string code units, and unique after the game's normalization of whitespace, Persian/Arabic yeh and kaf, and zero-width non-joiner.
 - New players can join in the lobby. Once a round has started, only an existing player ID may reconnect; new entrants are rejected.
 - The host can remove a player only in the lobby and can select one or more active categories before a round or between rounds.
-- The start gate requires at least two active roster members. Temporary transport disconnection does not remove a player from the roster or decrement this count; the player may reconnect. Explicit exit is a separate action: it removes the player in the lobby, or after a round starts preserves history while excluding the player from later rounds and the current Stop threshold.
+- The start gate requires at least one active roster member. Temporary transport disconnection does not remove a player from the roster or decrement this count; the player may reconnect. Explicit exit is a separate action: it removes the player in the lobby, or after a round starts preserves history while excluding the player from later rounds and the current Stop threshold.
 - There is no chosen-letter or chosen-word step in the implemented rules. A round begins directly with active answer fields.
 
 ## Categories

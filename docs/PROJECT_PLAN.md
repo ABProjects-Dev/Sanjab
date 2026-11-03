@@ -1,17 +1,17 @@
 # Project Plan and Verification
 
-**Updated:** 2026-11-03
-**Active branch:** `arena/c87aff83-sanjab`
-**Latest published release:** 1.0.1 (`versionCode` 7)
-**Release candidate:** 1.0.2 (`versionCode` 8), pending publication
+**Updated:** 2026-11-04
+**Active branch:** `arena/da68caee-sanjab`
+**Latest published release:** 1.0.2 (`versionCode` 8)
+**Release candidate:** 1.1.0 (`versionCode` 9), pending publication
 
 ## Current remediation
 
-BUG-01 through BUG-08 are implemented in the current unreleased branch. The scope, explicit-exit decision, and remaining limitations are recorded in [Bug Report](BUG_REPORT.md). Regression tests have been added but have not yet run locally because Flutter and Dart are absent from the editing environment.
+The gameplay and room-lifecycle changes in PR #16 are merged. Regression tests, Dart analysis, and the Android debug build passed in GitHub Actions. The current change set prepares version 1.1.0; local Flutter/Dart commands remain unavailable in this environment.
 
-## Acceptance criteria before merge
+## Acceptance criteria before release
 
-- `flutter test`, `flutter analyze`, and the Android debug build pass in CI for this exact PR.
+- `flutter test`, `flutter analyze`, and the Android debug build pass in CI for the 1.1.0 version-bump PR.
 - Initial join failure does not retry invisibly; established reconnect remains supported.
 - Explicit exit is delivered separately from transport disconnect. Explicit exit removes roster membership; transient disconnect preserves it and allows reconnect.
 - Mid-game explicit exit preserves historical answers/scores while excluding the player from later rounds and current pending snapshot/Stop threshold.
@@ -29,11 +29,11 @@ BUG-01 through BUG-08 are implemented in the current unreleased branch. The scop
 
 ## Release and maintenance
 
-- Keep the published 1.0.1 artifact unchanged; publish the 1.0.2+8 candidate only after CI and signed APK verification pass.
-- Update the app version only in a separately reviewed release change.
+- Keep the published 1.0.2 artifact unchanged; publish the 1.1.0+9 candidate only after CI and signed APK verification pass.
+- Preserve the original signing key and publish the APK/checksum assets through the Android release workflow.
 - Consider pinning the supported Flutter/Gradle/JDK toolchain and Android SDK targets for reproducibility.
 - Add a full two-device integration environment when practical.
 
 ## Verification record
 
-No current-branch CI result exists yet. A prior successful workflow on another source baseline does not satisfy this PR's merge condition. See [Project Status](PROJECT_STATUS.md), [Bug Report](BUG_REPORT.md), and [Test Plan](TEST_PLAN.md).
+The gameplay PR's CI passed; the 1.1.0 version-bump PR checks are pending. No physical-device network or lifecycle matrix has been run. See [Project Status](PROJECT_STATUS.md), [Bug Report](BUG_REPORT.md), and [Test Plan](TEST_PLAN.md).

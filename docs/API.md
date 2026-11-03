@@ -1,6 +1,6 @@
 # Local Network API
 
-**Updated:** 2026-11-03; active source branch `arena/c87aff83-sanjab`.
+**Updated:** 2026-11-04; active source branch `arena/da68caee-sanjab`.
 
 This is Sanjab's private local-network protocol, not a public REST/HTTP API. The host is authoritative. Protocol implementation is under `lib/net/`; `kProtocolVersion` is 4 in `lib/domain/models.dart`.
 

@@ -58,11 +58,11 @@ class SettingsScreen extends StatelessWidget {
                   ActionTile(
                     icon: Icons.info_outline_rounded,
                     title: 'دربارهٔ برنامه',
-                    subtitle: 'سنجاب — نسخهٔ ${faNum('1.0.2')}',
+                    subtitle: 'سنجاب — نسخهٔ ${faNum('1.1.0')}',
                     onTap: () => showAboutDialog(
                       context: context,
                       applicationName: 'سنجاب',
-                      applicationVersion: faNum('1.0.2'),
+                      applicationVersion: faNum('1.1.0'),
                       applicationLegalese:
                           'شناسهٔ بسته: com.sanjab.game\nچندنفره روی شبکهٔ محلی؛ بدون نیاز به اینترنت',
                       children: const [
