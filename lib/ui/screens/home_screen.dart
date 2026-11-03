@@ -94,16 +94,21 @@ class _HomeScreenState extends State<HomeScreen> {
     final controller = GameScope.read(context);
     final ok = await confirmDialog(
       context,
-      title: 'خروج از اتاق',
+      title: room.isHost ? 'بستن اتاق' : 'خروج از اتاق',
       message: !room.isHost && room.linkStatus == RoomLinkStatus.offline
           ? 'این دستگاه آفلاین است؛ میزبان از این اقدام باخبر نمی‌شود و ممکن '
                 'است شما را همچنان در شمارش نگه دارد. ادامه فقط اتاق ذخیره‌شده '
                 'را از این دستگاه حذف می‌کند. برای اعلام خروج، ابتدا دوباره وصل شوید.'
+          : room.isHost
+          ? 'با بستن اتاق، جلسه در صورت فعال‌بودن برای همه پایان می‌یابد و '
+                'اطلاعات آن از این دستگاه حذف می‌شود. ادامه می‌دهید؟'
           : 'از اتاق «${room.roomName}» خارج می‌شوید؟ اطلاعات این اتاق از این '
                 'دستگاه حذف می‌شود و برای بازگشت باید دوباره عضو شوید. '
-                '(بازگشت به صفحهٔ اصلی به معنی خروج از اتاق نیست.)',
+                'بازگشت به صفحهٔ اصلی، در صورت حضور بازیکنان دیگر اتاق را حفظ می‌کند.',
       confirmLabel: !room.isHost && room.linkStatus == RoomLinkStatus.offline
           ? 'حذف از این دستگاه'
+          : room.isHost
+          ? 'بستن اتاق'
           : 'خروج از اتاق',
       destructive: true,
     );
@@ -272,7 +277,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 onPressed: _busy
                                     ? null
                                     : () => _leaveSavedRoom(room),
-                                child: const Text('خروج از اتاق'),
+                                child: Text(
+                                  room.isHost ? 'بستن اتاق' : 'خروج از اتاق',
+                                ),
                               ),
                             ],
                           ),

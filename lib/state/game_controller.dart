@@ -1003,7 +1003,7 @@ class GameController extends ChangeNotifier {
   void startGame() {
     if (!isHost) return;
     if (!_session.canStartGame) {
-      _setError('برای شروع بازی حداقل دو بازیکن لازم است.');
+      _setError('برای شروع بازی حداقل یک بازیکن لازم است.');
       return;
     }
     try {
@@ -1177,7 +1177,7 @@ class GameController extends ChangeNotifier {
   }
 
   void _maybeSendSnapshot() {
-    if (isHost) return;
+    if (isHost || _session.phase != GamePhase.collecting) return;
     final round = _session.currentRound;
     if (round == null) return;
     if (_snapshotRoundIndex != round.index) {
@@ -1270,12 +1270,16 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// بازگشت به صفحهٔ اصلی بدون خروج از اتاق (بند ۵ سند ۱.۰.۰).
+  /// بازگشت به صفحهٔ اصلی و نگه‌داشتن اتاق برای ادامهٔ بعدی.
   ///
-  /// جلسه پایان نمی‌یابد، اطلاعات اتاق حفظ می‌شود، ارتباط بازیکنان دیگر قطع
-  /// نمی‌شود (میزبان سرور را بالا نگه می‌دارد) و کاربر می‌تواند با «ادامه بازی»
-  /// برگردد.
+  /// اگر میزبان تنها عضو باقی‌مانده باشد، بازگشت اتاق را می‌بندد تا سرور و
+  /// اعلان کشف بی‌استفاده نمانند. با وجود عضو دیگری، وضعیت و ارتباط‌ها حفظ
+  /// می‌شوند و میزبان می‌تواند از «ادامه بازی» برگردد.
   Future<void> backToHome() async {
+    if (isHost && _session.activePlayerCount <= 1) {
+      await leaveRoom();
+      return;
+    }
     await _persistNow();
     notifyListeners();
   }

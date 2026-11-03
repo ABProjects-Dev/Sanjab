@@ -67,8 +67,8 @@ class GameSession {
   /// نسخهٔ ساختار ذخیره‌سازی (۲ = ساختار چندنفرهٔ ۱.۰.۰).
   static const int schemaVersion = 2;
 
-  /// حداقل بازیکن برای شروع بازی.
-  static const int minPlayers = 2;
+  /// حداقل بازیکن برای شروع بازی؛ میزبان می‌تواند به‌تنهایی تمرین کند.
+  static const int minPlayers = 1;
 
   GameConfig config;
 
@@ -274,7 +274,7 @@ class GameSession {
     List<int>? activeCategoryIds,
   }) {
     if (activePlayerCount < minPlayers) {
-      throw GameRuleException('برای شروع بازی حداقل دو بازیکن لازم است.');
+      throw GameRuleException('برای شروع بازی حداقل یک بازیکن لازم است.');
     }
     final previous = currentRound;
     if (previous != null && !previous.judged) {

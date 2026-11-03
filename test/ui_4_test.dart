@@ -1,5 +1,5 @@
-/// آزمون‌های رابط کاربری نسخهٔ ۱.۰.۰: QR روی پس‌زمینهٔ سفید، دکمهٔ یکسان
-/// «بازگشت به صفحهٔ اصلی»، بخش «ادامه بازی» در صفحهٔ اصلی و بررسی ایستا برای
+/// آزمون‌های رابط کاربری نسخهٔ ۱.۰.۰: QR روی پس‌زمینهٔ سفید، برگشت سیستمی،
+/// بخش «ادامه بازی» در صفحهٔ اصلی و بررسی ایستا برای
 /// حذف کامل قابلیت تعیین کلمه و دکمهٔ خروج از بازی.
 library;
 
@@ -126,25 +126,68 @@ void main() {
     expect(find.text('ادامه بازی'), findsNothing);
   });
 
-  testWidgets('دکمهٔ «بازگشت به صفحهٔ اصلی» رفتار یکسانی دارد', (tester) async {
+  testWidgets('ExitGuard پیکربندی شده و مسیر بازگشت به صفحهٔ اصلی کار می‌کند', (
+    tester,
+  ) async {
     final controller = buildController(id: 'p1', name: 'مینا');
     addTearDown(() async {
       await controller.closeSession(silent: true);
       controller.dispose();
     });
     await controller.bootstrap();
+    final navigatorKey = GlobalKey<NavigatorState>();
     await tester.pumpWidget(
       GameScope(
         controller: controller,
         child: MaterialApp(
-          home: Scaffold(appBar: AppBar(leading: const HomeIconButton())),
+          navigatorKey: navigatorKey,
+          home: Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () => navigatorKey.currentState!.push<void>(
+                  MaterialPageRoute<void>(
+                  builder: (_) => ExitGuard(
+                    child: Builder(
+                      builder: (pageContext) => Scaffold(
+                        body: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('صفحهٔ بازی آزمون'),
+                              TextButton(
+                                onPressed: () => goToHomeScreen(pageContext),
+                                child: const Text('بازگشت به خانه'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  ),
+                ),
+                child: const Text('رفتن به بازی'),
+              ),
+            ),
+          ),
         ),
       ),
     );
+    await tester.tap(find.text('رفتن به بازی'));
+    await tester.pumpAndSettle();
+    expect(find.text('صفحهٔ بازی آزمون'), findsOneWidget);
+
+    final popScope =
+        tester.widget(find.byWidgetPredicate((widget) => widget is PopScope))
+            as PopScope<dynamic>;
+    expect(popScope.canPop, isFalse);
+    expect(popScope.onPopInvokedWithResult, isNotNull);
+
+    await tester.tap(find.text('بازگشت به خانه'));
     await tester.pump();
-    expect(find.byTooltip('بازگشت به صفحه اصلی'), findsOneWidget);
-    await tester.tap(find.byTooltip('بازگشت به صفحه اصلی'));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('رفتن به بازی'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -222,8 +265,8 @@ void main() {
         );
         expect(
           content.contains('HomeIconButton'),
-          isTrue,
-          reason: '$screen باید دکمهٔ «بازگشت به صفحهٔ اصلی» داشته باشد',
+          isFalse,
+          reason: '$screen نباید آیکون خانه داشته باشد',
         );
       }
     });

@@ -60,7 +60,7 @@ void main() {
       expect(room.token, host.joinToken);
       expect(room.port, host.hostPort);
       expect(room.phase, GamePhase.lobby);
-      expect(room.resumable, isFalse, reason: 'در لابی بازی قابل ادامه نیست');
+      expect(room.resumable, isTrue, reason: 'لابی هم باید قابل ادامه باشد');
       await host.closeSession(silent: true);
       host.dispose();
     });
@@ -84,18 +84,72 @@ void main() {
       host.dispose();
     });
 
-    test('بازگشت به صفحهٔ اصلی، اتاق و جلسه را حفظ می‌کند', () async {
+    test('با حضور بازیکن دیگر، بازگشت وضعیت لابی را برای ادامه حفظ می‌کند', () async {
+      final rooms = MemoryRoomStore();
+      final host = buildController(id: 'h1', name: 'سارا', rooms: rooms);
+      await host.bootstrap();
+      await host.createGame();
+      host.session.addPlayer('مینا', id: 'p1');
+      final gameId = host.gameId;
+
+      await host.backToHome();
+      expect(host.role, GameRole.host, reason: 'نقش میزبان حفظ می‌شود');
+      expect(host.session.phase, GamePhase.lobby);
+      expect(host.netStatus, NetStatus.hosting, reason: 'سرور محلی فعال می‌ماند');
+      expect(host.savedRooms.single.resumable, isTrue);
+      expect(host.savedRooms.single.phase, GamePhase.lobby);
+
+      final resumed = await host.resumeRoom(host.savedRooms.single);
+      expect(resumed, isTrue, reason: host.lastError ?? 'بازیابی لابی باید موفق شود');
+      expect(host.gameId, gameId);
+      expect(host.isHost, isTrue);
+      expect(host.session.phase, GamePhase.lobby);
+      expect(host.session.playerById('p1'), isNotNull);
+
+      await host.closeSession(silent: true);
+      host.dispose();
+    });
+
+    test('بازگشت میزبان تنها، اتاق و اعلان شبکه را می‌بندد', () async {
+      final rooms = MemoryRoomStore();
+      final host = buildController(id: 'h1', name: 'سارا', rooms: rooms);
+      await host.bootstrap();
+      await host.createGame();
+      expect(host.session.activePlayerCount, 1);
+      expect(host.netStatus, NetStatus.hosting);
+
+      await host.backToHome();
+
+      expect(host.role, GameRole.none);
+      expect(host.netStatus, NetStatus.offline);
+      expect(host.hostPort, 0);
+      expect(host.savedRooms, isEmpty);
+      expect(rooms.records, isEmpty);
+
+      host.dispose();
+    });
+
+    test('در بازیِ درحال اجرا، بازگشت با بازیکن دیگر وضعیت را حفظ می‌کند', () async {
       final rooms = MemoryRoomStore();
       final host = buildController(id: 'h1', name: 'سارا', rooms: rooms);
       await host.bootstrap();
       await host.createGame();
       host.session.addPlayer('مینا', id: 'p1');
       host.startGame();
+      host.setAnswer(0, 'تهران');
       await host.backToHome();
-      expect(host.role, GameRole.host, reason: 'نقش میزبان حفظ می‌شود');
-      expect(host.session.phase, GamePhase.playing, reason: 'دست پایان نمی‌یابد');
-      expect(host.netStatus, NetStatus.hosting, reason: 'سرور محلی فعال می‌ماند');
-      expect(host.savedRooms.length, 1);
+
+      expect(host.role, GameRole.host);
+      expect(host.session.phase, GamePhase.playing);
+      expect(host.netStatus, NetStatus.hosting);
+      expect(host.savedRooms.single.resumable, isTrue);
+
+      final resumed = await host.resumeRoom(host.savedRooms.single);
+      expect(resumed, isTrue);
+      expect(host.session.phase, GamePhase.playing);
+      expect(host.session.currentRound!.answerOf('h1', 0)!.text, 'تهران');
+      expect(host.session.playerById('p1'), isNotNull);
+
       await host.closeSession(silent: true);
       host.dispose();
     });
@@ -269,6 +323,17 @@ void main() {
         'مشهد',
         reason: 'پاسخ قبلی بازیکن حفظ می‌شود',
       );
+      expect(
+        await waitUntil(() => host.session.isConnected('p1')),
+        isTrue,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(
+        host.session.isPlayerStopped('p1'),
+        isFalse,
+        reason: 'اتصال مجدد حین بازی نباید به‌عنوان استپ یا Snapshot نهایی ثبت شود',
+      );
+      expect(host.submissionOf('p1'), SubmissionState.typing);
 
       await second.leaveGame();
       second.dispose();

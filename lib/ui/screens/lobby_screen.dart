@@ -74,7 +74,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
   Future<void> _startGame() async {
     final controller = GameScope.read(context);
     if (controller.session.activePlayerCount < GameSession.minPlayers) {
-      showMessage(context, 'برای شروع بازی حداقل دو بازیکن لازم است.');
+      showMessage(context, 'برای شروع بازی حداقل یک بازیکن لازم است.');
       return;
     }
     controller.startGame();
@@ -159,7 +159,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
     return ExitGuard(
       child: Scaffold(
         appBar: AppBar(
-          leading: const HomeIconButton(),
+          automaticallyImplyLeading: false,
           title: Text(isHost ? 'لابی بازی' : 'در انتظار شروع'),
           actions: [
             PopupMenuButton<String>(
@@ -168,10 +168,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
               onSelected: (value) {
                 if (value == 'leave') _leaveRoom();
               },
-              itemBuilder: (context) => const [
+              itemBuilder: (context) => [
                 PopupMenuItem(
                   value: 'leave',
-                  child: Text('خروج از اتاق'),
+                  child: Text(isHost ? 'بستن اتاق' : 'خروج از اتاق'),
                 ),
               ],
             ),
@@ -408,11 +408,17 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   onPressed: canStart ? _startGame : null,
                   icon: const Icon(Icons.play_arrow_rounded, size: 22),
                   label: Text(
-                    canStart
-                        ? 'شروع بازی'
-                        : 'دست‌کم یک بازیکن دیگر لازم است',
+                    canStart ? 'شروع بازی' : 'حداقل یک بازیکن لازم است',
                   ),
                 ),
+                if (session.activePlayerCount == 1) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'می‌توانید به‌تنهایی برای تمرین بازی را شروع کنید.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
                 const SizedBox(height: 8),
                 Text(
                   'زمان هر دست ۷ دقیقه است و قابل تغییر نیست. هیچ کلمه یا حرفی '
