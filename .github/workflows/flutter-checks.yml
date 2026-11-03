@@ -122,16 +122,23 @@ jobs:
               summaries.append(f"{name} {detail[0]}" if detail else name)
           summary = "; ".join(summaries) if summaries else ("passed" if test_status == 0 else "failure-not-parsed")
           summary = re.sub(r"[^A-Za-z0-9._-]+", "_", summary)[:120]
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"failure_summary={summary}\n")
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "flutter-test-summary.txt"), "w", encoding="utf-8") as output:
+              output.write(summary)
           PY
           exit "$test_status"
+
+      - name: Prepare Flutter test report label
+        id: test_report
+        if: ${{ always() && steps.dependencies.outcome == 'success' }}
+        run: |
+          summary="$(cat "$RUNNER_TEMP/flutter-test-summary.txt" 2>/dev/null || echo report-unavailable)"
+          printf 'failure_summary=%s\n' "$summary" >> "$GITHUB_OUTPUT"
 
       - name: Upload Flutter test report
         if: ${{ always() && steps.dependencies.outcome == 'success' }}
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: flutter-test-events-${{ steps.tests.outputs.failure_summary }}
+          name: flutter-test-events-${{ steps.test_report.outputs.failure_summary }}
           path: ${{ runner.temp }}/flutter-test-events.jsonl
           if-no-files-found: ignore
           retention-days: 7
