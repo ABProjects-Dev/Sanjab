@@ -8,6 +8,7 @@ import 'package:sanjab/domain/profile.dart';
 import 'package:sanjab/state/game_controller.dart';
 import 'package:sanjab/state/game_scope.dart';
 import 'package:sanjab/ui/screens/profile_screen.dart';
+import 'package:sanjab/ui/screens/results_screen.dart';
 
 import 'test_support/memory_profile_store.dart';
 import 'test_support/memory_store.dart';
@@ -90,6 +91,38 @@ void main() {
       expect(profiles.profile.playerId, 'test-player');
     },
   );
+
+  testWidgets('صفحهٔ نتایج با پایان نشست به صفحهٔ اصلی بازمی‌گردد', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1080, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await controller.bootstrap();
+    final created = await tester.runAsync(() => controller.createGame());
+    expect(created, isTrue);
+
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      GameScope(
+        controller: controller,
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          home: const Scaffold(body: Center(child: Text('صفحهٔ اصلی آزمون'))),
+        ),
+      ),
+    );
+    navigatorKey.currentState!.push<void>(
+      MaterialPageRoute<void>(builder: (_) => const ResultsScreen()),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ResultsScreen), findsOneWidget);
+
+    await tester.runAsync(() => controller.finishGame());
+    await tester.pumpAndSettle();
+
+    expect(find.text('صفحهٔ اصلی آزمون'), findsOneWidget);
+    expect(find.byType(ResultsScreen), findsNothing);
+  });
 
   testWidgets('اعتبارسنجی طول نام نمایشی', (tester) async {
     expect(validateDisplayName(''), isNotNull);

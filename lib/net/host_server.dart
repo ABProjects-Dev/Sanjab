@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import '../domain/answer_rules.dart';
 import 'line_channel.dart';
 import 'protocol.dart';
 
@@ -304,7 +305,10 @@ class HostNetwork {
         final category = message.payload['c'];
         final text = message.payload['t'];
         if (round is! int || category is! int || text is! String) return;
-        if (text.length > 80) return; // پاسخ غیرمنطقی
+        if (!isAnswerWithinLimit(text)) {
+          _sendAnswerLengthError(channel);
+          return;
+        }
         callbacks.onAnswer?.call(playerId, round, category, text);
       case MsgType.stop:
         final round = message.payload['r'];
@@ -315,12 +319,18 @@ class HostNetwork {
         final answers = message.payload['a'];
         if (round is! int || answers is! Map<String, dynamic>) return;
         final parsed = <int, String>{};
+        var rejectedLongAnswer = false;
         for (final entry in answers.entries) {
           final id = int.tryParse(entry.key);
           final value = entry.value;
-          if (id == null || value is! String || value.length > 80) continue;
+          if (id == null || value is! String) continue;
+          if (!isAnswerWithinLimit(value)) {
+            rejectedLongAnswer = true;
+            continue;
+          }
           parsed[id] = value;
         }
+        if (rejectedLongAnswer) _sendAnswerLengthError(channel);
         callbacks.onSnapshot?.call(playerId, round, parsed);
       case MsgType.ping:
         channel.send(MsgType.pong, {
@@ -340,6 +350,13 @@ class HostNetwork {
         // پیام‌هایی که فقط میزبان می‌فرستد؛ از بازیکن پذیرفته نمی‌شوند.
         return;
     }
+  }
+
+  void _sendAnswerLengthError(LineChannel channel) {
+    channel.send(MsgType.error, {
+      'reason':
+          'پاسخ بیشتر از ۸۰ نویسه است و ثبت نشد؛ لطفاً آن را کوتاه‌تر کنید.',
+    });
   }
 
   /// ارسال وضعیت شخصی‌سازی‌شده به یک بازیکن.

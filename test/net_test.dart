@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sanjab/domain/answer_rules.dart';
 import 'package:sanjab/net/game_client.dart';
 import 'package:sanjab/net/host_server.dart';
 import 'package:sanjab/net/protocol.dart';
@@ -365,6 +366,48 @@ void main() {
       expect(host.answers.single, 'u1|1|2|تهران');
       expect(host.stops.single, 'u1|1');
       expect(host.snapshots.single, 'u1|1|2');
+      await client.close();
+      await host.network.stop();
+    });
+
+    test('محدودیت ۸۰ نویسه برای پاسخ و Snapshot با پیام روشن اعمال می‌شود', () async {
+      final host = RecordedHost();
+      final port = await host.start();
+      final client = GameClient(
+        hostAddress: '127.0.0.1',
+        port: port,
+        gameId: 'g1',
+        token: 'ABC123',
+        playerId: 'u1',
+        displayName: 'سارا',
+        autoReconnect: false,
+      );
+      final errors = <String>[];
+      client.messages.listen((message) {
+        if (message.type == MsgType.error) {
+          errors.add(message.payload['reason'] as String);
+        }
+      });
+      expect(await client.connect(), isTrue);
+
+      final oversized = '🇩🇪' * (kMaxAnswerLength + 1);
+      expect(answerCharacterCount(oversized), kMaxAnswerLength + 1);
+      expect(client.sendAnswer(1, 2, oversized), isTrue);
+      expect(await waitUntil(() => errors.isNotEmpty), isTrue);
+      expect(errors.first, contains('۸۰ نویسه'));
+      expect(host.answers, isEmpty, reason: 'پاسخ نامعتبر نباید ثبت شود');
+
+      final valid = '🇩🇪' * kMaxAnswerLength;
+      expect(isAnswerWithinLimit(valid), isTrue);
+      expect(client.sendAnswer(1, 2, valid), isTrue);
+      expect(await waitUntil(() => host.answers.isNotEmpty), isTrue);
+
+      expect(client.sendSnapshot(1, {0: 'پاسخ درست', 1: oversized}), isTrue);
+      expect(await waitUntil(() => host.snapshots.isNotEmpty), isTrue);
+      expect(host.snapshots.single, 'u1|1|1');
+      expect(await waitUntil(() => errors.length >= 2), isTrue);
+      expect(errors.last, contains('۸۰ نویسه'));
+
       await client.close();
       await host.network.stop();
     });

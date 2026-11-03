@@ -13,8 +13,20 @@
 /// می‌شوند تا قاعده در همهٔ لایه‌ها یکسان باشد.
 library;
 
+import 'package:characters/characters.dart';
+
 /// حداقل تعداد کاراکتر معتبر لازم در هر فیلد پاسخ تا دکمهٔ «استپ» فعال شود.
 const int kStopMinValidChars = 2;
+
+/// Maximum number of user-perceived characters accepted in an answer.
+const int kMaxAnswerLength = 80;
+
+/// Return the number of grapheme clusters shown to a user.
+int answerCharacterCount(String text) => text.characters.length;
+
+/// Whether the answer fits the shared UI and host-server length limit.
+bool isAnswerWithinLimit(String text) =>
+    answerCharacterCount(text) <= kMaxAnswerLength;
 
 /// الگوی کاراکترهای غیرقابل مشاهده/فاصله‌ای که در شمارش معتبر نیستند:
 ///  * U+0000..U+0020  کاراکترهای کنترلی و فاصلهٔ معمولی

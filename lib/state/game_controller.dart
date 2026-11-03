@@ -971,6 +971,10 @@ class GameController extends ChangeNotifier {
 
   /// ثبت پاسخ (میزبان: مستقیم، بازیکن: ارسال به میزبان + به‌روزرسانی محلی).
   void setAnswer(int categoryId, String text) {
+    if (!isAnswerWithinLimit(text)) {
+      _setError('پاسخ حداکثر می‌تواند ۸۰ نویسه داشته باشد.');
+      return;
+    }
     final round = _session.currentRound;
     if (round == null) return;
     if (_session.phase != GamePhase.playing) return;
