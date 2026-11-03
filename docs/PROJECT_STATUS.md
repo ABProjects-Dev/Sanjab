@@ -1,45 +1,33 @@
 # Project Status
 
-**As of:** 2026-11-03
-**Active source branch:** `arena/c87aff83-sanjab`
-**Latest published release:** 1.0.1 (`versionCode` 7)
-**Release candidate on this branch:** 1.0.2 (`versionCode` 8), not yet published.
+**As of:** 2026-11-04
+**Active source branch:** `arena/da68caee-sanjab`
+**Latest published release:** 1.0.2 (`versionCode` 8)
+**Release candidate:** 1.1.0 (`versionCode` 9), pending PR checks and signed APK publication.
 
 ## Summary
 
-The active change set addresses BUG-01 through BUG-08 in [Bug Report](BUG_REPORT.md), including the clarified distinction between explicit room exit and temporary network loss. A dedicated protocol message handles explicit exit; transient disconnections keep roster membership. An offline client still cannot learn about host completion until it reconnects, and the UI now presents that state as unverified rather than terminal.
+The current source includes the changes merged in PR #16: single-player game start, accessible color-coded player names in a single horizontal row, room menus and host QR access across game phases, improved host/player room exit and resume behavior, and the reconnect fix preventing a player from being marked stopped during active play.
 
 ## Verification status
 
 | Check | Result |
 | --- | --- |
-| Local `flutter test`, `flutter analyze`, Android build | **Not run:** Flutter and Dart SDK executables are not installed in this environment |
-| New regression tests | Added for retry cancellation, explicit leave, transient disconnect/reconnect, roster semantics and persistence compatibility; **not yet executed** |
-| GitHub Actions / PR CI | **Pending** for the current change set |
-| Physical two-device Wi-Fi/hotspot and lifecycle checks | **Not run**; required where noted in the Bug Report and Test Plan |
+| Local Flutter tests, analysis, Android build | **Not run:** Flutter and Dart SDK executables are not installed in this environment |
+| CI for the merged gameplay changes | **Passed:** Flutter tests, Dart analysis, and Android debug APK build in GitHub Actions |
+| CI for the 1.1.0 version-bump PR | **Pending** |
+| Signed production APK for 1.1.0 | **Pending** release workflow |
+| Physical two-device Wi-Fi/hotspot and lifecycle checks | **Not run** |
 
-A previous CI run on a different source baseline is not evidence for this patch. Merge is contingent on passing checks for the current PR.
+## Release posture
 
-## Remediation summary
-
-- Failed initial joins no longer keep a hidden reconnect loop; client cleanup and rejected handshakes are covered by regression tests.
-- Home create/resume flows return safely when their widget is disposed.
-- The invalid per-interface discovery fallback was removed; limited broadcast plus QR/manual join remain.
-- Offline player rooms are shown as unverified until the host can be contacted.
-- Guide/About copy matches current local-network multiplayer and no-letter rules.
-- Protocol documentation matches version 4, which adds the explicit-leave message.
-- Lifecycle flush failures are observed and logged; completion remains best effort because Flutter lifecycle callbacks are synchronous.
-- Explicit leave decrements active roster membership; transient disconnect does not. Mid-game exit retains history and scores while excluding the player from later participation.
-
-## Security and release posture
-
-- Local-network protocol has no TLS. Join tokens are bearer credentials; do not port-forward the host or use untrusted networks.
-- Android release 1.0.1 is published; 1.0.2+8 is the current release candidate pending PR checks and signed release workflow.
+- The app version is being advanced to `1.1.0+9`; the Android `versionName` and `versionCode` are kept in sync with `pubspec.yaml`.
+- The 1.0.2 APK's SHA-256 sidecar has not been independently checked. Do not describe the 1.0.2 checksum as independently verified.
+- The 1.1.0 release workflow must verify the APK signature against the configured production keystore and attach the APK and its SHA-256 sidecar to the GitHub Release.
 - No network penetration test, physical-device network matrix, or force-stop durability test has been performed.
 
-## Next steps
+## Remaining verification
 
-1. Run the complete Flutter tests, static analysis and Android debug build in CI.
-2. Fix any failures and rerun checks before considering merge.
-3. Verify discovery, explicit leave/reconnect, official finish while a client is offline, and lifecycle persistence on physical Android devices.
-4. Keep the release version unchanged until a separately reviewed release is prepared.
+1. Pass Flutter tests, Dart analysis, and Android debug APK build for the 1.1.0 version-bump PR.
+2. Publish the signed APK through the Android release workflow and verify its reported signing certificate matches the configured release key.
+3. Test discovery, reconnect/explicit leave, host completion while a client is offline, and lifecycle persistence on physical Android devices.

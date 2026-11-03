@@ -2,11 +2,7 @@
 
 ## Current inventory
 
-Static count from the active branch `arena/c87aff83-sanjab`:
-
-- `test/`: 155 `test` / `testWidgets` declarations across 13 Dart files.
-- `integration_test/`: one device integration test (`app_flow_test.dart`).
-- Total: 156 declarations. This is a textual declaration count, not a count of successful executions or unique assertions.
+The active release-preparation branch is `arena/da68caee-sanjab`. The `test/` directory contains domain, network, controller, persistence, and widget suites; `integration_test/` contains one Android-device host-flow test (`app_flow_test.dart`). Declaration counts are intentionally omitted because they can drift independently of executed test results.
 
 The unit/widget test files cover:
 
@@ -29,7 +25,7 @@ The integration test `integration_test/app_flow_test.dart` exercises first-run n
 
 ## Run commands
 
-Use a clean checkout with the project's supported Flutter stable toolchain. Preserve `pubspec.lock`; after any command, inspect `git status`. Flutter and Dart are unavailable in the current editing environment, so these commands have not yet been run locally for the active branch.
+Use a clean checkout with the project's supported Flutter stable toolchain. Preserve `pubspec.lock`; after any command, inspect `git status`. Flutter and Dart are unavailable in the current editing environment, so commands cannot be run locally here.
 
 ```bash
 flutter pub get
@@ -44,7 +40,7 @@ Device integration (requires an Android device/emulator):
 flutter test integration_test/app_flow_test.dart -d <DEVICE_ID>
 ```
 
-The GitHub Actions `Flutter checks` workflow runs Flutter tests, Dart analysis, and Android debug APK build. No result is available yet for this branch; a passing run on the current PR is required before merge. Any prior baseline run is not evidence for these changes. CI is not physical-LAN verification.
+The GitHub Actions `Flutter checks` workflow runs Flutter tests, Dart analysis, and Android debug APK build. These checks passed for the merged gameplay PR; checks for the 1.1.0 version-bump PR are pending. CI is not physical-LAN verification.
 
 ## Additional regression scenarios recommended
 
@@ -78,5 +74,5 @@ The GitHub Actions `Flutter checks` workflow runs Flutter tests, Dart analysis, 
 ## Coverage gaps
 
 - No automated full match across two physical devices or real Wi-Fi/hotspot broadcast test is present.
-- Regression tests have been added for initial retry cancellation, explicit leave vs transient disconnect/reconnect, roster/history behavior, and legacy serialization. They have not yet been executed; widget disposal/lifecycle and physical discovery/session-completion scenarios still need verification.
+- Regression tests cover initial retry cancellation, explicit leave vs transient disconnect/reconnect, roster/history behavior, legacy serialization, room resume, and player status. The merged gameplay suite passed in CI; widget disposal/lifecycle and physical discovery/session-completion scenarios still need device verification.
 - A passing test suite does not prove security properties, Android lifecycle durability, arbitrary network behavior, or release compatibility on all supported devices.

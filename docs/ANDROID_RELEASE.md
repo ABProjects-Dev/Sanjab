@@ -2,15 +2,15 @@
 
 ## Current release
 
-Version `1.0.1` (`versionCode` 7) is the current Sanjab release. Its changes improve initial lobby-state delivery and make final snapshots retry until acknowledged, including after a reconnect.
+Version `1.0.2` (`versionCode` 8) is the current published Sanjab release. The 1.1.0 (`versionCode` 9) candidate adds solo play, color-coded player status, additional room controls, and safer room resume behavior.
 
-The signed APK and SHA-256 checksum are attached to the GitHub Release after the Android release workflow completes:
+The signed APK and release-generated SHA-256 sidecar for 1.0.2 are attached to its GitHub Release:
 
-- [Sanjab-1.0.1.apk](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.0.1/Sanjab-1.0.1.apk)
-- [Sanjab-1.0.1.apk.sha256](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.0.1/Sanjab-1.0.1.apk.sha256)
-- [GitHub Release 1.0.1](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1)
+- [Sanjab-1.0.2.apk](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.0.2/Sanjab-1.0.2.apk)
+- [Sanjab-1.0.2.apk.sha256](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.0.2/Sanjab-1.0.2.apk.sha256)
+- [GitHub Release 1.0.2](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.2)
 
-The previous stable release, [Sanjab 1.0.0](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0), remains available.
+The 1.0.2 checksum sidecar has not been independently verified; do not describe that checksum as independently verified. Earlier releases, [Sanjab 1.0.1](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1) and [Sanjab 1.0.0](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0), remain available.
 
 ## Required GitHub Actions secrets
 
@@ -27,7 +27,7 @@ Keep the original keystore and all passwords outside the repository. The workflo
 
 1. Confirm that the intended version tag exists, points to the intended source, and has a GitHub Release.
 2. Open **Actions → Android release → Run workflow** on the `main` branch.
-3. Enter the existing tag (for example, `1.0.1`). The workflow verifies that the tag matches the version in `pubspec.yaml`.
+3. Enter the existing tag (for example, `1.1.0`). The workflow verifies that the tag matches the version in `pubspec.yaml`.
 4. Wait for dependency resolution, the Android release build, and APK certificate verification to finish.
 5. Confirm that `Sanjab-<tag>.apk` and `Sanjab-<tag>.apk.sha256` are attached to the GitHub Release.
 

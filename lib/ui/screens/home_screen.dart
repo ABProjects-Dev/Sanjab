@@ -357,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 18),
             Center(
               child: Text(
-                'نسخهٔ ${faNum('1.0.2')} — بدون اینترنت و بدون سرور بیرونی',
+                'نسخهٔ ${faNum('1.1.0')} — بدون اینترنت و بدون سرور بیرونی',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),

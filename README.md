@@ -1,24 +1,24 @@
 # Sanjab
 
-Sanjab is a Persian-language, category-based word game for multiple Android phones connected to the same local Wi-Fi network or phone hotspot. One phone hosts the authoritative game session; other phones join over the LAN. A public Internet connection or remote game server is not required.
+Sanjab is a Persian-language, category-based word game for Android. It supports solo play and multiplayer over a shared local Wi-Fi network or phone hotspot. In multiplayer, one phone hosts the authoritative game session and others join over the LAN; a public Internet connection or remote game server is not required.
 
 ## Release and source status
 
 | Item | Value |
 | --- | --- |
-| Latest published release | `1.0.1` |
-| Checked-in app version | `1.0.2+8` (`versionCode` 8) — release candidate |
+| Latest published release | `1.0.2` |
+| Checked-in app version | `1.1.0+9` (`versionCode` 9) — release candidate |
 | Android package | `com.sanjab.game` |
 | Minimum Android | API 24 (Android 7.0) |
 | UI | Persian, right-to-left, dark theme, portrait, Vazirmatn |
 | Network | Local IPv4 TCP/UDP; no cloud backend |
 
-The repository source now identifies the unreleased 1.0.2 release candidate (`versionCode` 8) in `CHANGELOG.md`. Publishing the signed APK is pending PR checks and the Android release workflow. See [Project Status](docs/PROJECT_STATUS.md).
+The repository source now identifies the 1.1.0 release candidate (`versionCode` 9) in `CHANGELOG.md`. Publishing the signed APK is pending PR checks and the Android release workflow. See [Project Status](docs/PROJECT_STATUS.md).
 
 ## Features
 
 - Host/join over a shared Wi-Fi network or hotspot, with LAN discovery, six-character join token, QR code, or manual address entry.
-- 13 categories, fixed seven-minute rounds, no letter-selection step, host-authoritative timer/judging/scoring.
+- 13 categories, fixed seven-minute rounds, no letter-selection step, solo starts, and host-authoritative timer/judging/scoring for multiplayer.
 - Answer input capped at 80 user-perceived grapheme clusters; Stop requires every active category field to contain at least two valid characters.
 - Player reconnect, final-answer snapshot acknowledgment/retry, and persistent host/player room records.
 - Local profile, score totals, saved-room resume, local technical logs, and Android screen-awake behavior during play.
@@ -48,7 +48,7 @@ flutter test
 flutter build apk --debug
 ```
 
-The checked-in test tree currently contains 155 `test`/`testWidgets` declarations plus one integration test declaration (static count, not a run result). The integration test covers host setup on one device, not a complete two-phone match. Current branch CI is pending; merge requires passing tests, analysis, and Android debug build. Physical-device LAN behavior still needs verification.
+The merged gameplay changes passed the Flutter test suite, Dart analysis, and Android debug APK build in GitHub Actions. The 1.1.0 version-bump PR must pass those checks before it is merged. The integration test covers host setup on one device, not a complete two-phone match; physical-device LAN behavior still needs verification.
 
 The Gradle wrapper scripts are not tracked; the release workflow generates them on its runner. See [Android Release Builds](docs/ANDROID_RELEASE.md) for signed APK publication and checksum verification.
 

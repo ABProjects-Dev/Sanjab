@@ -1,8 +1,8 @@
 # Bug Report and Remediation Status
 
-**Review date:** 2026-11-03
+**Review date:** 2026-11-04
 **Source baseline:** `3e699a4e6ff2c4d0ec1c9f96a7de1c49d70514d8`
-**Status:** Remediation is implemented on the active Arena branch. Flutter/Dart are not installed in the editing environment, so the new and existing test suites have not yet been executed locally. CI and device-specific verification remain required before merge.
+**Status:** The gameplay remediations are merged in PR #16 and passed Flutter tests, Dart analysis, and an Android debug build in CI. Local SDKs are unavailable; physical-device verification remains outstanding.
 
 ## BUG-01 — Failed initial join could continue reconnecting in the background
 
@@ -38,7 +38,7 @@
 
 ## Verification still required
 
-- Run `flutter test`, `flutter analyze`, and the Android debug build in CI.
+- The merged gameplay changes passed Flutter tests, Dart analysis, and the Android debug build in CI; rerun them for the 1.1.0 version-bump PR before release.
 - Exercise discovery and full gameplay on physical Android devices across Wi-Fi and hotspot configurations.
 - Verify lifecycle persistence under backgrounding and process termination; no claim of guaranteed completion on force-stop is made.
 

@@ -2,6 +2,29 @@
 
 Notable changes to Sanjab are recorded here. Version numbers follow Semantic Versioning; Android build numbers increase monotonically.
 
+## [1.1.0] - 2026-11-04
+
+### Added
+
+- Allow a game to start with a single player.
+- Show player status through accessible, color-coded names in a single horizontally scrollable row.
+- Add room menus to judging and results, including host QR access and explicit room-exit actions.
+
+### Improved
+
+- Preserve multiplayer room state when returning home and resuming, with separate host-close and player-exit actions.
+- Keep player names, room controls, and Back behavior consistent across game phases.
+- Scale the unchanged squirrel artwork inside the launcher and splash assets to add visual padding.
+
+### Fixed
+
+- Prevent a reconnect during active play from sending a final-answer snapshot and marking the player stopped.
+- Defer home navigation after system Back to avoid navigation during the pop callback.
+
+### Verification
+
+- Flutter tests, Dart analysis, and Android debug APK build pass in GitHub Actions.
+
 ## [1.0.2] - 2026-11-03
 
 ### Added

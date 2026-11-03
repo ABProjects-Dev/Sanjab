@@ -1,25 +1,25 @@
 # Project Overview
 
-**Updated:** 2026-11-03
-**Active source branch:** `arena/c87aff83-sanjab` (unreleased changes)
-**Latest published release:** Sanjab 1.0.1 (`versionCode` 7)
-**Current release candidate:** Sanjab 1.0.2 (`versionCode` 8), pending publication
+**Updated:** 2026-11-04
+**Active source branch:** `arena/da68caee-sanjab` (1.1.0 release preparation)
+**Latest published release:** Sanjab 1.0.2 (`versionCode` 8)
+**Current release candidate:** Sanjab 1.1.0 (`versionCode` 9), pending publication
 
 ## Product
 
-Sanjab is a Persian-language, category-based word game for two or more Android phones on the same Wi-Fi network or phone hotspot. One phone hosts the session and is authoritative for admission, round timing, game state, judging, and scoring. Other phones join over the local network. No cloud account, public game server, or Internet connection is required for a match.
+Sanjab is a Persian-language, category-based word game for Android that supports solo play and multiplayer over the same Wi-Fi network or phone hotspot. In multiplayer, one phone hosts the session and is authoritative for admission, round timing, game state, judging, and scoring; other phones join over the local network. No cloud account, public game server, or Internet connection is required.
 
 The app is built with Flutter and Dart. It presents a right-to-left Persian UI with the bundled Vazirmatn font and a dark, portrait-oriented design. The native Android layer is small: Kotlin implements the platform channel used to keep the display awake during active game phases.
 
 ## Current source and release status
 
-The repository's checked-in source includes the 1.0.2 release candidate (`pubspec.yaml` `1.0.2+8`) and its release notes are in `CHANGELOG.md`. The latest published APK remains 1.0.1 until the 1.0.2 tag and signed workflow complete. The source includes saved-room persistence, answer-length enforcement, network framing limits, snapshot acknowledgment/retry, explicit leave, and remote session-end navigation. See [Features](FEATURES.md) and [Project Status](PROJECT_STATUS.md).
+The repository's checked-in source includes the 1.1.0 release candidate (`pubspec.yaml` `1.1.0+9`) and its release notes are in `CHANGELOG.md`. The latest published APK is 1.0.2; publishing the 1.1.0 signed APK is pending PR checks and the Android release workflow. The source includes single-player starts, saved-room persistence, answer-length enforcement, network framing limits, snapshot acknowledgment/retry, explicit leave, resumed-room navigation, and color-coded player status. See [Features](FEATURES.md) and [Project Status](PROJECT_STATUS.md).
 
 | Item | Current source |
 | --- | --- |
 | Package | `com.sanjab.game` |
 | Minimum Android API | 24 (Android 7.0) |
-| Android version | `1.0.2` / version code `8` candidate |
+| Android version | `1.1.0` / version code `9` candidate |
 | Flutter app UI | Persian, RTL, dark theme, portrait |
 | Match transport | IPv4 TCP and UDP on the local network |
 | Backend | None |
@@ -33,7 +33,7 @@ The effective Android compile/target SDK values are supplied by Flutter Gradle d
 1. A player creates or edits the device-local profile name.
 2. A host creates a session, shares a six-character join token or QR code, and may configure active categories/open joining in the lobby.
 3. Other players discover the host, scan the QR code, or enter LAN address and token manually.
-4. The host can start once at least two player records are in the lobby roster; the current start gate does not separately require each listed player to be connected. Players enter answers on their own phones.
+4. The host can start with at least one active player in the lobby roster. Players enter answers on their own phones.
 5. The host closes the round by timer, stop threshold, or host action; clients deliver final answer snapshots; the host judges and finalizes scores.
 6. Players can reconnect or resume persisted rooms. The host can start another round or officially finish the session.
 
@@ -64,7 +64,7 @@ The domain layer is Flutter-independent and unit-testable. The production compos
 
 The network is intentionally local-only, not an Internet-facing service. TCP/UDP traffic is not TLS-encrypted, and a QR/open-join beacon carries a bearer join token. Use a trusted local network and do not share those credentials publicly. This is a security boundary/limitation, not a claim that the app has been penetration-tested.
 
-The active unreleased branch implements the source fixes for BUG-01 through BUG-08, with new regression tests. Flutter/Dart tests, analysis, and Android build have not yet run for this branch because the SDK is unavailable locally; merge is contingent on passing PR CI. Physical-device verification remains outstanding. See [Bug Report](BUG_REPORT.md) and [Project Status](PROJECT_STATUS.md).
+The merged gameplay changes have passed Flutter tests, Dart analysis, and an Android debug build in GitHub Actions. Local checks remain unavailable because the editing environment has no Flutter/Dart SDK, and physical-device verification remains outstanding. The 1.1.0 version-bump PR is pending CI. See [Bug Report](BUG_REPORT.md) and [Project Status](PROJECT_STATUS.md).
 
 ## Build and verification
 
