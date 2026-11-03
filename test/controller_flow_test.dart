@@ -2,9 +2,13 @@
 /// لوکال‌هاست با سوکت TCP واقعی؛ از ساخت بازی تا داوری و نتایج.
 library;
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sanjab/domain/models.dart';
 import 'package:sanjab/domain/profile.dart';
+import 'package:sanjab/net/protocol.dart';
 import 'package:sanjab/state/game_controller.dart';
 
 import 'test_support/memory_profile_store.dart';
@@ -105,6 +109,11 @@ void main() {
       await waitUntil(() => player.session.players.length == 3),
       isTrue,
       reason: 'وضعیت میزبان باید به بازیکن برسد',
+    );
+    expect(
+      await waitUntil(() => player2.session.players.length == 3),
+      isTrue,
+      reason: 'بازیکن تازه‌وارد باید وضعیت اولیهٔ لابی را دریافت کند',
     );
 
     // نسخهٔ ۱.۰.۰: دست بدون هیچ کلمه یا حرفی و بدون هیچ پیش‌نیاز متنی شروع می‌شود.
@@ -223,6 +232,98 @@ void main() {
       isTrue,
     );
     expect((host.remainingMs / 1000).round(), 420);
+  });
+
+  test('دریافت تکراری Snapshot دوباره تأیید می‌شود اما پاسخ عوض نمی‌شود', () async {
+    expect(await host.createGame(activeCategoryIds: [0]), isTrue);
+    final socket = await Socket.connect('127.0.0.1', host.hostPort);
+    final received = <NetMessage>[];
+    final subscription = socket
+        .cast<List<int>>()
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
+          try {
+            received.add(NetMessage.parse(line));
+          } on ProtocolException {
+            // Ignore malformed data in the test listener.
+          }
+        });
+
+    socket.add(
+      utf8.encode(
+        NetMessage(
+          type: MsgType.hello,
+          id: 'raw-hello',
+          seq: 1,
+          payload: {
+            'gid': host.gameId,
+            'token': host.joinToken,
+            'pid': 'raw-player',
+            'name': 'بازیکن خام',
+          },
+        ).encode(),
+      ),
+    );
+    await socket.flush();
+    expect(
+      await waitUntil(
+        () => received.any((message) => message.type == MsgType.helloAck),
+      ),
+      isTrue,
+    );
+    expect(await waitUntil(() => host.session.players.length == 2), isTrue);
+
+    host.startGame();
+    host.forceEndRound();
+    expect(await waitUntil(() => host.session.phase == GamePhase.collecting), isTrue);
+
+    Future<void> sendSnapshot(int sequence, String answer) async {
+      socket.add(
+        utf8.encode(
+          NetMessage(
+            type: MsgType.snapshot,
+            id: 'raw-snapshot-$sequence',
+            seq: sequence,
+            payload: {
+              'r': 1,
+              'a': {'0': answer},
+            },
+          ).encode(),
+        ),
+      );
+      await socket.flush();
+    }
+
+    await sendSnapshot(2, 'تهران');
+    expect(
+      await waitUntil(
+        () =>
+            received
+                .where((message) => message.type == MsgType.snapshotAck)
+                .length ==
+            1,
+      ),
+      isTrue,
+    );
+    await sendSnapshot(3, 'مشهد');
+    expect(
+      await waitUntil(
+        () =>
+            received
+                .where((message) => message.type == MsgType.snapshotAck)
+                .length ==
+            2,
+      ),
+      isTrue,
+    );
+    expect(
+      host.session.currentRound!.answerOf('raw-player', 0)!.text,
+      'تهران',
+    );
+
+    await subscription.cancel();
+    socket.destroy();
   });
 
   test('بازیکن با کد نادرست وارد نمی‌شود', () async {

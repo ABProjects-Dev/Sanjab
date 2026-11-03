@@ -49,7 +49,7 @@ flutter build apk --debug
 
 اسکریپت‌های Gradle Wrapper (`gradlew` و `gradlew.bat`) در مخزن نگه‌داری نمی‌شوند؛ اگر ساخت محلی به‌دلیل نبود wrapper متوقف شد، workflow انتشار آن‌ها را در runner تولید می‌کند. ساخت انتشار امضاشده از مسیر GitHub Actions انجام می‌شود.
 
-در حال حاضر `test/` شامل ۱۲۶ اعلان `test`/`testWidgets` است و یک آزمون دستگاه در `integration_test/` وجود دارد. آزمون دستگاه مسیر میزبانی را می‌سنجد؛ بازی کامل دوگوشی را شبیه‌سازی نمی‌کند.
+در حال حاضر `test/` شامل ۱۳۱ اعلان `test`/`testWidgets` است و یک آزمون دستگاه در `integration_test/` وجود دارد. آزمون دستگاه مسیر میزبانی را می‌سنجد؛ بازی کامل دوگوشی را شبیه‌سازی نمی‌کند.
 
 برای ساخت APK امضاشدهٔ انتشار، از گردش‌کار **Android release** در GitHub Actions استفاده کنید. گردش‌کار کلید را از GitHub Actions secrets می‌گیرد، امضای APK را با گواهی کلید بررسی می‌کند و APK و SHA-256 را به Release اضافه می‌کند. راهنما: [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md).
 

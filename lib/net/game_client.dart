@@ -60,8 +60,13 @@ class GameClient {
   String? _lastError;
   int _attempt = 0;
   Timer? _retryTimer;
+  Timer? _snapshotRetryTimer;
+  int? _pendingSnapshotRound;
+  Map<int, String>? _pendingSnapshotAnswers;
   bool _closedByUser = false;
   bool _helloReceived = false;
+
+  static const Duration _snapshotRetryInterval = Duration(seconds: 2);
 
   /// پیام‌های رسیده از میزبان.
   Stream<NetMessage> get messages => _incoming.stream;
@@ -109,6 +114,7 @@ class GameClient {
             _guard.reset();
             if (!ready.isCompleted) ready.complete(true);
             if (!_incoming.isClosed) _incoming.add(message);
+            _sendPendingSnapshot();
             return;
           }
           if (message.type == MsgType.helloReject) {
@@ -123,6 +129,9 @@ class GameClient {
         }
         if (!_deduper.accept(message.id)) return;
         if (message.type != MsgType.ping && !_guard.accept(message.seq)) return;
+        if (message.type == MsgType.snapshotAck) {
+          _handleSnapshotAck(message);
+        }
         if (!_incoming.isClosed) _incoming.add(message);
       });
 
@@ -189,18 +198,56 @@ class GameClient {
   bool sendStop(int roundIndex) =>
       _channel?.send(MsgType.stop, {'r': roundIndex}) ?? false;
 
-  /// ارسال Snapshot نهایی پاسخ‌ها.
-  bool sendSnapshot(int roundIndex, Map<int, String> answers) =>
-      _channel?.send(MsgType.snapshot, {
-        'r': roundIndex,
-        'a': answers.map((k, v) => MapEntry(k.toString(), v)),
-      }) ??
-      false;
+  /// Send a final-answer snapshot and retry it until the host acknowledges it.
+  bool sendSnapshot(int roundIndex, Map<int, String> answers) {
+    if (_closedByUser) return false;
+    _pendingSnapshotRound = roundIndex;
+    _pendingSnapshotAnswers = Map<int, String>.unmodifiable(answers);
+    _sendPendingSnapshot();
+    _snapshotRetryTimer ??= Timer.periodic(
+      _snapshotRetryInterval,
+      (_) => _sendPendingSnapshot(),
+    );
+    return true;
+  }
+
+  void _sendPendingSnapshot() {
+    final roundIndex = _pendingSnapshotRound;
+    final answers = _pendingSnapshotAnswers;
+    final channel = _channel;
+    if (roundIndex == null || answers == null || !isConnected) return;
+    channel?.send(MsgType.snapshot, {
+      'r': roundIndex,
+      'a': answers.map((key, value) => MapEntry(key.toString(), value)),
+    });
+  }
+
+  void _handleSnapshotAck(NetMessage message) {
+    final roundIndex = message.payload['r'];
+    if (message.payload['received'] != true ||
+        roundIndex is! int ||
+        roundIndex != _pendingSnapshotRound) {
+      return;
+    }
+    discardPendingSnapshot();
+  }
+
+  /// Stop retrying a snapshot that is no longer relevant to the current round.
+  void discardPendingSnapshot() {
+    _snapshotRetryTimer?.cancel();
+    _snapshotRetryTimer = null;
+    _pendingSnapshotRound = null;
+    _pendingSnapshotAnswers = null;
+  }
 
   /// بستن اتصال (بدون تلاش مجدد).
   Future<void> close() async {
     _closedByUser = true;
     _retryTimer?.cancel();
+    _snapshotRetryTimer?.cancel();
+    _snapshotRetryTimer = null;
+    _pendingSnapshotRound = null;
+    _pendingSnapshotAnswers = null;
     await _channel?.close();
     _channel = null;
     _setState(ClientConnectionState.disconnected);

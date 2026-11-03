@@ -105,10 +105,11 @@ If more than one answer is confirmed in a category, the unique-answer bonus is n
 These findings are code-derived and have not all been reproduced on a device or under fault injection:
 
 - The host rejects answer strings longer than 80 Dart string characters, but the UI does not cap input at that length; an overlength answer can be silently dropped.
-- The 256 KiB protocol cap is checked after `LineSplitter` has assembled a line, so a peer that sends without a newline can grow a receive buffer before the check runs. The host also retains pending-socket callbacks until the server stops, so repeated pending/rejected connections can accumulate entries.
-- The host broadcasts the lobby state from its `onHello` callback before `HostNetwork` registers the new channel. A newly joined player may not receive initial lobby state until a later host update.
-- Reconnect cleanup can remove the replacement channel when the old socket's completion callback runs; it does not check channel identity.
-- Player final snapshots are marked sent when queued rather than when acknowledged and are not retried on a same-round reconnect.
+- The 256 KiB protocol cap is checked after `LineSplitter` has assembled a line, so a peer that sends without a newline can grow a receive buffer before the check runs. The host still has no global pending-socket limit.
+- The join path now broadcasts state only after `HostNetwork` registers the accepted channel and sends `helloAck`.
+- Reconnect message and completion handlers now verify channel identity; an old socket cannot process messages as or remove its replacement.
+- Final snapshots are retained and retried until the host acknowledges the matching round. Reconnects resend pending snapshots, and the host repeats acknowledgments for already-applied duplicates without changing the stored answers.
+- Regression tests cover initial-state delivery, channel replacement, snapshot retry/acknowledgment, and duplicate snapshot acknowledgment. They have not been executed in this workspace because Flutter/Dart are unavailable.
 - Save scheduling permits a new asynchronous save while a previous save is still writing to the same temporary path. Host answer edits trigger frequent session saves; concurrent writes may conflict and need serialization.
 - A failed initial join can leave the client's automatic reconnect loop active while the join screen remains on the failure state.
 - A player receiving official session end while on the results screen may remain on that route; the results listener only handles transition to a new playing phase.
@@ -116,9 +117,9 @@ These findings are code-derived and have not all been reproduced on a device or 
 
 ## Verification requirements
 
-The repository contains 126 `test`/`testWidgets` declarations under `test/` and one device integration test under `integration_test/`. The integration test covers the host setup path; it does not simulate a two-phone network game.
+The repository contains 131 `test`/`testWidgets` declarations under `test/` and one device integration test under `integration_test/`. The integration test covers the host setup path; it does not simulate a two-phone network game.
 
-The GitHub Actions Flutter checks completed successfully for the merged project state in [run 41540382070](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41540382070), including analysis, tests and a debug APK build. The signed Android `1.0.0` release build and certificate verification completed successfully in [run 41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107). Neither run verifies a full game on two physical phones or all Wi-Fi/hotspot combinations. Flutter tests and analysis were not re-run locally during this documentation update.
+The recorded GitHub Actions Flutter checks succeeded before the current network changes in [run 41540382070](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41540382070), including analysis, tests and a debug APK build. The signed Android `1.0.0` release build and certificate verification succeeded in [run 41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107). Neither run validates these new changes, a full two-phone game, or all Wi-Fi/hotspot combinations. Regression tests were added, but Flutter/Dart are unavailable in this workspace, so tests, analysis and builds could not be run here.
 
 ## Current metadata, release and documentation notes
 

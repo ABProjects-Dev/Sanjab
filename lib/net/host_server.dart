@@ -46,6 +46,7 @@ class HelloDecision {
 class HostCallbacks {
   const HostCallbacks({
     this.onHello,
+    this.onConnected,
     this.onAnswer,
     this.onStop,
     this.onSnapshot,
@@ -54,6 +55,10 @@ class HostCallbacks {
   });
 
   final Future<HelloDecision> Function(HelloRequest request)? onHello;
+
+  /// Called after an accepted player's channel is registered and helloAck sent.
+  final void Function(HelloRequest request)? onConnected;
+
   final void Function(
     String playerId,
     int roundIndex,
@@ -149,16 +154,21 @@ class HostNetwork {
         unawaited(_handleHello(channel, message, key));
         return;
       }
-      _handleMessage(boundPlayerId!, channel, message);
+      final playerId = boundPlayerId!;
+      if (identical(_channels[playerId], channel)) {
+        _handleMessage(playerId, channel, message);
+      }
     });
 
     channel.done.then((_) {
       _pendingHandshake.remove(key);
-      if (boundPlayerId != null) {
-        final wasBound = _channels.remove(boundPlayerId);
-        _dedupers.remove(boundPlayerId);
-        _guards.remove(boundPlayerId);
-        if (wasBound != null) callbacks.onDisconnected?.call(boundPlayerId!);
+      _pendingSockets.remove(key);
+      final playerId = boundPlayerId;
+      if (playerId != null && identical(_channels[playerId], channel)) {
+        _channels.remove(playerId);
+        _dedupers.remove(playerId);
+        _guards.remove(playerId);
+        callbacks.onDisconnected?.call(playerId);
       }
     });
 
@@ -223,17 +233,25 @@ class HostNetwork {
       await channel.close();
       return;
     }
-
-    // جای‌گزینی اتصال قبلی همان بازیکن (اتصال مجدد).
-    final previous = _channels.remove(request.playerId);
-    if (previous != null && !previous.isClosed) {
-      unawaited(previous.close());
+    if (channel.isClosed) {
+      if (!_channels.containsKey(request.playerId)) {
+        callbacks.onDisconnected?.call(request.playerId);
+      }
+      return;
     }
+
+    // Register the replacement before closing the old channel. Its completion
+    // callback must not remove this newer channel.
+    final previous = _channels[request.playerId];
     _channels[request.playerId] = channel;
     _dedupers[request.playerId] = MessageDeduper();
     _guards[request.playerId] = SequenceGuard();
-    _pendingSockets[key]?.call(request.playerId);
+    _pendingSockets.remove(key)?.call(request.playerId);
     _pendingHandshake.remove(key);
+
+    if (previous != null && !previous.isClosed) {
+      unawaited(previous.close());
+    }
 
     channel.send(MsgType.helloAck, {
       'pid': request.playerId,
@@ -241,6 +259,8 @@ class HostNetwork {
       'resumed': decision.resumed,
       'serverNow': DateTime.now().millisecondsSinceEpoch,
     });
+    // The app can now broadcast initial state to this registered channel.
+    callbacks.onConnected?.call(request);
   }
 
   void _handleMessage(
@@ -324,7 +344,12 @@ class HostNetwork {
   /// قطع اتصال یک بازیکن (اخراج یا پایان نشست).
   Future<void> disconnect(String playerId) async {
     final channel = _channels.remove(playerId);
-    if (channel != null) await channel.close();
+    if (channel != null) {
+      _dedupers.remove(playerId);
+      _guards.remove(playerId);
+      callbacks.onDisconnected?.call(playerId);
+      await channel.close();
+    }
   }
 
   /// خاموش‌کردن سرور و بستن همهٔ اتصال‌ها.

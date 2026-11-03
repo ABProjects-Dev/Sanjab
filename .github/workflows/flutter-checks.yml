@@ -12,9 +12,89 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: flutter-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
-  verify:
-    name: Analyze, test, and build Android debug APK
+  test:
+    name: Flutter tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+
+      - name: Run Flutter tests
+        shell: bash
+        run: |
+          set +e
+          report_file="$RUNNER_TEMP/flutter-test-report.jsonl"
+          flutter test --no-pub --concurrency=2 --reporter=github --file-reporter="json:$report_file"
+          test_status=$?
+          python3 - "$report_file" "$test_status" <<'PY'
+          import json
+          import sys
+
+          report_path, status = sys.argv[1], int(sys.argv[2])
+          test_names = {}
+          errors = {}
+          failures = []
+          try:
+              with open(report_path, encoding="utf-8") as report:
+                  for line in report:
+                      try:
+                          event = json.loads(line)
+                      except json.JSONDecodeError:
+                          continue
+                      if not isinstance(event, dict):
+                          continue
+                      kind = event.get("type", event.get("event"))
+                      params = event.get("params")
+                      if not isinstance(params, dict):
+                          params = event
+                      if kind == "testStart":
+                          test = params.get("test")
+                          if isinstance(test, dict):
+                              test_id = str(test.get("id", ""))
+                              test_names[test_id] = " ".join(
+                                  str(part) for part in (test.get("url"), test.get("name")) if part
+                              )
+                      elif kind == "error":
+                          test_id = str(params.get("testID", ""))
+                          errors[test_id] = "\n".join(
+                              part for part in (str(params.get("error", "")), str(params.get("stackTrace", ""))) if part
+                          )
+                      elif kind == "testDone" and params.get("result") in ("failure", "error"):
+                          failures.append(str(params.get("testID", "")))
+          except Exception as error:
+              print(f"::warning title=Flutter report parser::{error}")
+
+          if not failures and errors:
+              failures.extend(errors)
+          if status and failures:
+              for test_id in failures:
+                  name = test_names.get(test_id, f"test id {test_id}")
+                  detail = errors.get(test_id, "").splitlines()[:6]
+                  message = f"{name}: {' | '.join(detail)}" if detail else name
+                  message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error title=Flutter test failed::{message}")
+          elif status:
+              print("::error title=Flutter tests failed::See the Flutter test output above.")
+          PY
+          exit "$test_status"
+
+  android:
+    name: Analyze and build Android debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -55,42 +135,42 @@ jobs:
       - name: Analyze Dart code
         id: analyze
         if: ${{ steps.dependencies.outcome == 'success' }}
-        continue-on-error: true
-        run: flutter analyze --no-pub
+        shell: bash
+        run: |
+          set +e
+          log_file="$RUNNER_TEMP/flutter-analyze.log"
+          flutter analyze --no-pub > "$log_file" 2>&1
+          analyze_status=$?
+          cat "$log_file"
+          python3 - "$log_file" "$analyze_status" <<'PY'
+          import re
+          import sys
 
-      - name: Run Flutter tests
-        id: tests
-        if: ${{ steps.dependencies.outcome == 'success' }}
-        continue-on-error: true
-        run: flutter test --no-pub
+          log_path, status = sys.argv[1], int(sys.argv[2])
+          diagnostics = []
+          with open(log_path, encoding="utf-8") as log:
+              for line in log:
+                  if re.match(r"\s*error\s+•", line):
+                      diagnostics.append(line.strip())
+          for diagnostic in diagnostics:
+              message = diagnostic.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Dart analysis::{message}")
+          if status and not diagnostics:
+              print("::error title=Dart analysis failed::See the analyzer output above.")
+          PY
+          exit "$analyze_status"
 
       - name: Build Android debug APK
         id: build
-        if: ${{ steps.dependencies.outcome == 'success' }}
-        continue-on-error: true
+        if: ${{ always() && steps.dependencies.outcome == 'success' }}
         run: flutter build apk --debug --no-pub
 
       - name: Upload debug APK artifact
         id: artifact
-        if: ${{ steps.build.outcome == 'success' }}
+        if: ${{ always() && steps.build.outcome == 'success' }}
         uses: actions/upload-artifact@v7.0.2
         with:
           name: sanjab-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 7
-
-      - name: Fail if any verification step failed
-        if: ${{ always() }}
-        env:
-          DEPENDENCIES: ${{ steps.dependencies.outcome }}
-          ANALYZE: ${{ steps.analyze.outcome }}
-          TESTS: ${{ steps.tests.outcome }}
-          BUILD: ${{ steps.build.outcome }}
-          ARTIFACT: ${{ steps.artifact.outcome }}
-        run: |
-          printf 'Dependencies: %s\nAnalyze: %s\nTests: %s\nDebug APK: %s\nArtifact: %s\n' \
-            "$DEPENDENCIES" "$ANALYZE" "$TESTS" "$BUILD" "$ARTIFACT"
-          test "$DEPENDENCIES" = success && test "$ANALYZE" = success && \
-            test "$TESTS" = success && test "$BUILD" = success && \
-            test "$ARTIFACT" = success
