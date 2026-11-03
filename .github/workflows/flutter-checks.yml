@@ -39,7 +39,7 @@ jobs:
         run: |
           set +e
           report_file="$RUNNER_TEMP/flutter-test-report.jsonl"
-          flutter test --no-pub --reporter=github --file-reporter="json:$report_file"
+          flutter test --no-pub --concurrency=2 --reporter=github --file-reporter="json:$report_file"
           test_status=$?
           python3 - "$report_file" "$test_status" <<'PY'
           import json
