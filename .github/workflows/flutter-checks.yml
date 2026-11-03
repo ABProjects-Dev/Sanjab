@@ -62,7 +62,49 @@ jobs:
         id: tests
         if: ${{ steps.dependencies.outcome == 'success' }}
         continue-on-error: true
-        run: flutter test --no-pub
+        run: |
+          set +e
+          log_file="$RUNNER_TEMP/flutter-test-events.jsonl"
+          flutter test --no-pub --reporter=json > "$log_file" 2>&1
+          test_status=$?
+          cat "$log_file"
+          python3 - "$log_file" <<'PY'
+          import json
+          import sys
+
+          path = sys.argv[1]
+          names = {}
+          errors = {}
+          failures = []
+          for line in open(path, encoding="utf-8"):
+              try:
+                  event = json.loads(line)
+              except json.JSONDecodeError:
+                  continue
+              kind = event.get("event", event.get("type"))
+              params = event.get("params")
+              if params is None:
+                  params = event.get(kind, event)
+              if kind == "testStart":
+                  test = params.get("test", params)
+                  test_id = str(test.get("id", params.get("testID", "")))
+                  names[test_id] = f"{test.get('url', '')} {test.get('name', '')}".strip()
+              elif kind == "error":
+                  test_id = str(params.get("testID", params.get("id", "")))
+                  errors[test_id] = params.get("error", "")
+              elif kind == "testDone" and params.get("result") == "failure":
+                  test_id = str(params.get("testID", params.get("id", "")))
+                  failures.append(test_id)
+
+          for test_id in failures:
+              name = names.get(test_id, f"test id {test_id}")
+              detail = errors.get(test_id, "").splitlines()
+              message = f"{name}: {detail[0]}" if detail else name
+              print(f"::error title=Flutter test failed::{message}")
+          if not failures and test_status != 0:
+              print("::error title=Flutter tests failed::See the test reporter output above.")
+          PY
+          exit "$test_status"
 
       - name: Build Android debug APK
         id: build
