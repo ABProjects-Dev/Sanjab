@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: flutter-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Flutter tests
@@ -67,7 +71,9 @@ jobs:
                               )
                       elif kind == "error":
                           test_id = str(params.get("testID", ""))
-                          errors[test_id] = str(params.get("error", ""))
+                          errors[test_id] = "\n".join(
+                              part for part in (str(params.get("error", "")), str(params.get("stackTrace", ""))) if part
+                          )
                       elif kind == "testDone" and params.get("result") in ("failure", "error"):
                           failures.append(str(params.get("testID", "")))
           except Exception as error:
@@ -78,8 +84,8 @@ jobs:
           if status and failures:
               for test_id in failures:
                   name = test_names.get(test_id, f"test id {test_id}")
-                  detail = errors.get(test_id, "").splitlines()
-                  message = f"{name}: {detail[0]}" if detail else name
+                  detail = errors.get(test_id, "").splitlines()[:6]
+                  message = f"{name}: {' | '.join(detail)}" if detail else name
                   message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
                   print(f"::error title=Flutter test failed::{message}")
           elif status:
