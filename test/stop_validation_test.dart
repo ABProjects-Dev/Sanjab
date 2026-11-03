@@ -528,7 +528,10 @@ void main() {
         tester.widget<TextField>(fields.first).maxLengthEnforcement,
         MaxLengthEnforcement.enforced,
       );
-      expect(tester.widget<TextField>(fields.first).decoration.counterText, '');
+      expect(
+        tester.widget<TextField>(fields.first).decoration?.counterText ?? '',
+        '',
+      );
       expect(find.text('حداکثر ۸۰ نویسه'), findsNothing);
 
       await tester.enterText(fields.at(0), 'آب');
