@@ -25,7 +25,7 @@ integration_test/            Device integration test for the hosting path
 docs/                        Project documentation
 ```
 
-There are no iOS, web, desktop, or CI workflow directories in the checked-in project tree at the time of this analysis.
+GitHub Actions workflows are checked in under `.github/workflows/` for Flutter checks and Android release builds. No iOS, web, or desktop platform scaffold is checked in.
 
 ## Runtime composition
 
@@ -92,19 +92,26 @@ The UI includes home, profile, host lobby, join/QR scanner, play, judging, resul
 - After a round ends, the host collects final snapshots, judges non-empty answers and computes scores. Only the host can judge/finalize.
 - Scores are 0 for empty/rejected, 5 for duplicate, 10 for a normal confirmed answer, 15 for the sole confirmed answer when another answer in that category is marked duplicate, and 20 for the sole confirmed answer when other entries are empty/rejected. The special 15/20 score replaces, rather than adds to, 10.
 
-## Important implementation observations
+## Current implementation findings and verification
 
-The version metadata findings below reflect the version update in this change; the other items are current observations from source inspection:
+The following are source-level observations; network race conditions and UI lifecycle findings have not been reproduced on physical devices.
 
-1. **Saved-room persistence is not wired into the app composition.** `main.dart` omits `RoomRepository`, so `GameController` uses its in-memory default. Prioritize this before promising player room recovery after process restart.
-2. **The app version is now `1.0.0+6`.** The home/about screens display `1.0.0`, and package/Android build metadata use version name `1.0.0` and version code 6. The UI literals are still duplicated rather than derived from package metadata, so they can drift in a future update.
-3. **Protocol comments are stale.** `protocol.dart`'s file comment describes an envelope version 2, while `kProtocolVersion` in `models.dart` is 3 and is the value used by serialization.
-4. **Historical documentation files are absent.** Before this update, the README linked to a `documentation/` tree that was not in the repository. Its documentation section now links to this `docs/` set; the historical release/signing reports were not recreated because no authoritative copies were present.
-5. **Release signing/build behavior was not executed here.** Android configuration reads signing values from Gradle properties or environment variables and otherwise selects debug signing for the release build path. Verify the intended signing behavior on a configured build machine before distributing a release.
+1. **Saved-room persistence is not wired into the app composition.** `main.dart` omits `RoomRepository`, so `GameController` uses its `MemoryRoomStore` default. Host-session recovery is separately backed by `SessionRepository`, but player-side saved-room records do not reliably survive a process restart.
+2. **The app version is `1.0.0+6`.** The home/about screens display `1.0.0`, matching `pubspec.yaml` and Android `versionName`; Android `versionCode` is 6. The UI literals are duplicated and may drift in a future update.
+3. **Protocol comments are stale.** `protocol.dart`'s file comment describes envelope version 2, while runtime serialization uses `kProtocolVersion = 3` from `models.dart`.
+4. **Initial state delivery is ordered before host channel registration.** `_handleHello` broadcasts state before `HostNetwork` inserts the new client's channel. A newly joined player may therefore see stale or incomplete lobby state until a later host update.
+5. **Reconnect cleanup is not channel-identity-safe.** The completion callback for a replaced socket removes the player ID from the channel map without confirming that the map still points to that old socket. A reconnect race can remove the replacement channel.
+6. **Final snapshots are marked sent before acknowledgment.** The player controller sets `_snapshotSent` when the local send call succeeds and does not reset it for a reconnect to the same round. A disconnect before host receipt can leave the host waiting for a snapshot that is not retried.
+7. **TCP line-size protection is applied after line splitting.** `LineChannel` uses `LineSplitter` before `NetMessage.parse` enforces its cap, so a peer that withholds a newline can cause a large temporary buffer. This is a local-network resource-exhaustion risk. The pending-socket callback map is also retained until server shutdown rather than cleaned up per connection.
+8. **File saves are not serialized.** `_scheduleSave` clears its scheduling flag before the asynchronous write completes, while `SessionRepository` reuses a single temporary filename. Rapid host input or a lifecycle flush can overlap writes; a queued/serialized writer and concurrent-save test are advisable.
+9. **The release is published and verified.** GitHub Release `1.0.0` contains a signed APK and SHA-256 file. The successful workflow run is [41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107). The release workflow omits the test-only `integration_test` dependency from the runner's temporary production dependency resolution, passes the keystore path to Gradle, and verifies the APK certificate before upload.
+10. **The CI workflow is present.** Flutter checks succeeded for the merged project state in run [41540382070](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41540382070). This does not replace two-device or physical-network verification.
+11. **Target SDK is Flutter-derived.** `targetSdk` and `compileSdk` come from Flutter Gradle defaults and are not explicitly pinned in the app Gradle file.
 
 ## Architectural constraints
 
-- The LAN protocol is not encrypted with TLS. The join token is an access credential; QR data includes it, and open-join discovery can announce it on the local network. Treat the Wi-Fi/hotspot as a trusted network and do not expose the token publicly.
+- The LAN protocol is not encrypted with TLS. The join token is a bearer credential; QR data includes it, and open-join discovery can announce it on the local network. Treat the Wi-Fi/hotspot as a trusted network and do not expose the token publicly.
 - The host is authoritative, but player answer fields are mirrored locally for responsiveness and reconciled through host state updates.
+- The TCP host drops answer strings longer than 80 Dart string characters, but the current answer fields do not enforce the same limit. Longer player answers can be silently absent from host state and final snapshots.
 - There is no permanent score/history backend; finishing a game removes active session data.
-- `targetSdk` and `compileSdk` are taken from Flutter Gradle defaults in the app Gradle file; they are not explicitly pinned there, despite the README's stated target SDK.
+- User-facing guide/settings copy contains stale statements about random letters, stop semantics, offline use, and single-device play; these should be kept aligned with current behavior.
