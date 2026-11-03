@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sanjab/domain/answer_rules.dart';
 import 'package:sanjab/domain/game_session.dart';

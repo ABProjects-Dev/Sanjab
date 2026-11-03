@@ -4,6 +4,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MaxLengthEnforcement;
 
 import '../../core/app_theme.dart';
 import '../../core/persian.dart';
