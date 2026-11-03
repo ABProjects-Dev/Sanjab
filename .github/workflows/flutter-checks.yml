@@ -13,8 +13,28 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Analyze, test, and build Android debug APK
+  test:
+    name: Flutter tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+
+      - name: Run Flutter tests
+        run: flutter test --no-pub --reporter=github
+
+  android:
+    name: Analyze and build Android debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -58,94 +78,9 @@ jobs:
         continue-on-error: true
         run: flutter analyze --no-pub
 
-      - name: Run Flutter tests
-        id: tests
-        if: ${{ steps.dependencies.outcome == 'success' }}
-        continue-on-error: true
-        run: |
-          set +e
-          log_file="$RUNNER_TEMP/flutter-test-events.jsonl"
-          flutter test --no-pub --reporter=json > "$log_file" 2>&1
-          test_status=$?
-          cat "$log_file"
-          python3 - "$log_file" "$test_status" <<'PY'
-          import json
-          import os
-          import re
-          import sys
-
-          path = sys.argv[1]
-          test_status = int(sys.argv[2])
-          names = {}
-          errors = {}
-          failures = []
-          for line in open(path, encoding="utf-8"):
-              try:
-                  event = json.loads(line)
-              except json.JSONDecodeError:
-                  continue
-              kind = event.get("event", event.get("type"))
-              params = event.get("params")
-              if params is None:
-                  for event_name in ("testStart", "error", "testDone"):
-                      if event_name in event:
-                          kind = event_name
-                          params = event[event_name]
-                          break
-              if params is None:
-                  params = event
-              if kind == "testStart":
-                  test = params.get("test", params)
-                  test_id = str(test.get("id", params.get("testID", "")))
-                  names[test_id] = f"{test.get('url', '')} {test.get('name', '')}".strip()
-              elif kind == "error":
-                  test_id = str(params.get("testID", params.get("id", "")))
-                  errors[test_id] = params.get("error", "")
-              elif kind == "testDone" and params.get("result") in ("failure", "error"):
-                  test_id = str(params.get("testID", params.get("id", "")))
-                  failures.append(test_id)
-
-          if not failures and errors:
-              failures.extend(errors)
-          for test_id in failures:
-              name = names.get(test_id, f"test id {test_id}")
-              detail = errors.get(test_id, "").splitlines()
-              message = f"{name}: {detail[0]}" if detail else name
-              print(f"::error title=Flutter test failed::{message}")
-          if not failures and test_status != 0:
-              print("::error title=Flutter tests failed::See the test reporter output above.")
-
-          summaries = []
-          for test_id in failures:
-              name = names.get(test_id, f"test id {test_id}")
-              detail = errors.get(test_id, "").splitlines()
-              summaries.append(f"{name} {detail[0]}" if detail else name)
-          summary = "; ".join(summaries) if summaries else ("passed" if test_status == 0 else "failure-not-parsed")
-          summary = re.sub(r"[^A-Za-z0-9._-]+", "_", summary)[:120]
-          with open(os.path.join(os.environ["RUNNER_TEMP"], "flutter-test-summary.txt"), "w", encoding="utf-8") as output:
-              output.write(summary)
-          PY
-          exit "$test_status"
-
-      - name: Prepare Flutter test report label
-        id: test_report
-        if: ${{ always() && steps.dependencies.outcome == 'success' }}
-        run: |
-          summary="$(cat "$RUNNER_TEMP/flutter-test-summary.txt" 2>/dev/null || echo report-unavailable)"
-          printf 'failure_summary=%s\n' "$summary" >> "$GITHUB_OUTPUT"
-
-      - name: Upload Flutter test report
-        if: ${{ always() && steps.dependencies.outcome == 'success' }}
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: flutter-test-events-${{ steps.test_report.outputs.failure_summary }}
-          path: ${{ runner.temp }}/flutter-test-events.jsonl
-          if-no-files-found: ignore
-          retention-days: 7
-
       - name: Build Android debug APK
         id: build
-        if: ${{ steps.dependencies.outcome == 'success' }}
+        if: ${{ always() && steps.dependencies.outcome == 'success' }}
         continue-on-error: true
         run: flutter build apk --debug --no-pub
 
@@ -159,17 +94,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Fail if any verification step failed
+      - name: Fail if analysis or build failed
         if: ${{ always() }}
         env:
           DEPENDENCIES: ${{ steps.dependencies.outcome }}
           ANALYZE: ${{ steps.analyze.outcome }}
-          TESTS: ${{ steps.tests.outcome }}
           BUILD: ${{ steps.build.outcome }}
           ARTIFACT: ${{ steps.artifact.outcome }}
         run: |
-          printf 'Dependencies: %s\nAnalyze: %s\nTests: %s\nDebug APK: %s\nArtifact: %s\n' \
-            "$DEPENDENCIES" "$ANALYZE" "$TESTS" "$BUILD" "$ARTIFACT"
+          printf 'Dependencies: %s\nAnalyze: %s\nDebug APK: %s\nArtifact: %s\n' \
+            "$DEPENDENCIES" "$ANALYZE" "$BUILD" "$ARTIFACT"
           test "$DEPENDENCIES" = success && test "$ANALYZE" = success && \
-            test "$TESTS" = success && test "$BUILD" = success && \
-            test "$ARTIFACT" = success
+            test "$BUILD" = success && test "$ARTIFACT" = success
