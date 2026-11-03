@@ -4,7 +4,12 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show MaxLengthEnforcement;
+import 'package:flutter/services.dart'
+    show
+        LengthLimitingTextInputFormatter,
+        MaxLengthEnforcement,
+        TextEditingValue,
+        TextInputFormatter;
 
 import '../../core/app_theme.dart';
 import '../../core/persian.dart';
@@ -27,6 +32,8 @@ class PlayScreen extends StatefulWidget {
 class _PlayScreenState extends State<PlayScreen> {
   final Map<int, TextEditingController> _controllers =
       <int, TextEditingController>{};
+  final Map<int, _AnswerLengthFormatter> _answerFormatters =
+      <int, _AnswerLengthFormatter>{};
   bool _navigating = false;
   String? _lastErrorShown;
   GameController? _listening;
@@ -59,6 +66,26 @@ class _PlayScreenState extends State<PlayScreen> {
       categoryId,
       () => TextEditingController(text: controller.myAnswer(categoryId)),
     );
+  }
+
+  _AnswerLengthFormatter _answerFormatterFor(int categoryId) {
+    return _answerFormatters.putIfAbsent(
+      categoryId,
+      () => _AnswerLengthFormatter(_showAnswerLengthNotice),
+    );
+  }
+
+  void _showAnswerLengthNotice() {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('متن طولانی است؛ حداکثر ۸۰ نویسه مجاز است.'),
+        ),
+      );
   }
 
   void _onGameChanged() {
@@ -173,7 +200,7 @@ class _PlayScreenState extends State<PlayScreen> {
     return ExitGuard(
       child: Scaffold(
         appBar: AppBar(
-          leading: const HomeIconButton(),
+          automaticallyImplyLeading: false,
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -197,34 +224,44 @@ class _PlayScreenState extends State<PlayScreen> {
                 child: _ConnectionPill(controller: controller),
               ),
             ),
-            if (controller.isHost)
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded),
-                onSelected: (value) async {
-                  switch (value) {
-                    case 'pause':
-                      phase == GamePhase.paused
-                          ? controller.resumeGame()
-                          : controller.pauseGame();
-                    case 'end':
-                      final ok = await confirmDialog(
-                        context,
-                        title: 'پایان دست',
-                        message: 'دست برای همهٔ بازیکنان تمام شود و به مرحلهٔ دریافت پاسخ‌ها برود؟',
-                        confirmLabel: 'پایان دست',
-                      );
-                      if (ok) controller.forceEndRound();
-                    case 'qr':
-                      await _showQrDialog();
-                    case 'leave':
-                      await confirmLeaveRoom(
-                        context,
-                        roomName: controller.gameName,
-                        isHostRole: true,
-                      );
-                  }
-                },
-                itemBuilder: (context) => [
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded),
+              tooltip: 'گزینه‌های بازی',
+              onSelected: (value) async {
+                switch (value) {
+                  case 'pause':
+                    phase == GamePhase.paused
+                        ? controller.resumeGame()
+                        : controller.pauseGame();
+                  case 'end':
+                    final ok = await confirmDialog(
+                      context,
+                      title: 'پایان دست',
+                      message:
+                          'دست برای همهٔ بازیکنان تمام شود و به مرحلهٔ دریافت پاسخ‌ها برود؟',
+                      confirmLabel: 'پایان دست',
+                    );
+                    if (ok) controller.forceEndRound();
+                  case 'qr':
+                    await _showQrDialog();
+                  case 'leave':
+                    await confirmLeaveRoom(
+                      context,
+                      roomName: controller.gameName,
+                      isHostRole: controller.isHost,
+                    );
+                }
+              },
+              itemBuilder: (context) {
+                if (!controller.isHost) {
+                  return const [
+                    PopupMenuItem(
+                      value: 'leave',
+                      child: Text('خروج از اتاق'),
+                    ),
+                  ];
+                }
+                return [
                   PopupMenuItem(
                     value: 'pause',
                     child: Text(
@@ -238,10 +275,11 @@ class _PlayScreenState extends State<PlayScreen> {
                   ),
                   const PopupMenuItem(
                     value: 'leave',
-                    child: Text('خروج از اتاق'),
+                    child: Text('بستن اتاق'),
                   ),
-                ],
-              ),
+                ];
+              },
+            ),
           ],
         ),
         body: SafeArea(
@@ -297,9 +335,12 @@ class _PlayScreenState extends State<PlayScreen> {
                                   maxLength: kMaxAnswerLength,
                                   maxLengthEnforcement:
                                       MaxLengthEnforcement.enforced,
-                                  decoration: InputDecoration(
+                                  inputFormatters: <TextInputFormatter>[
+                                    _answerFormatterFor(category.id),
+                                  ],
+                                  decoration: const InputDecoration(
                                     hintText: 'پاسخ خود را بنویسید',
-                                    helperText: 'حداکثر ۸۰ نویسه',
+                                    counterText: '',
                                     isDense: true,
                                   ),
                                   onChanged: (value) =>
@@ -466,26 +507,26 @@ class _PlayersStrip extends StatelessWidget {
   final GameController controller;
 
   /// برچسب وضعیت یک بازیکن بر اساس فاز بازی و اتصال.
-  (String, Color) _statusOf(BuildContext context, Player player) {
+  (String, Color) _statusOf(Player player) {
     final session = controller.session;
     final connected = session.isConnected(player.id);
     final submission = controller.submissionOf(player.id);
     final phase = session.phase;
 
     if (session.hasPlayerLeft(player.id)) {
-      return ('از بازی خارج شد', AppColors.textMuted);
+      return ('از بازی خارج شد', AppColors.rejected);
     }
     if (!connected) {
-      return ('قطع ارتباط', AppColors.rejected);
+      return ('قطع ارتباط', AppColors.textMuted);
     }
     if (phase == GamePhase.judging || phase == GamePhase.roundResults) {
       return ('منتظر نتیجه', AppColors.warning);
     }
     return switch (submission) {
-      SubmissionState.received => ('دریافت شد', AppColors.confirmed),
-      SubmissionState.stopped => ('استپ کرده', AppColors.duplicate),
-      SubmissionState.typing => ('در حال بازی', AppColors.textSecondary),
-      SubmissionState.offline => ('قطع ارتباط', AppColors.rejected),
+      SubmissionState.received => ('دریافت شد', AppColors.timer),
+      SubmissionState.stopped => ('استپ کرده', AppColors.confirmed),
+      SubmissionState.typing => ('در حال بازی', AppColors.textPrimary),
+      SubmissionState.offline => ('قطع ارتباط', AppColors.textMuted),
     };
   }
 
@@ -494,34 +535,46 @@ class _PlayersStrip extends StatelessWidget {
     final session = controller.session;
     final children = <Widget>[];
     for (final player in session.players) {
-      final isMe = player.id == controller.myPlayerId;
-      final (label, color) = _statusOf(context, player);
-      final hostBadge = player.isHost ? '  • میزبان' : '';
+      final (status, color) = _statusOf(player);
       children.add(
         Padding(
-          padding: const EdgeInsets.only(right: 6, bottom: 6),
-          child: PillLabel(
-            text: '${player.name}$hostBadge  •  $label',
-            color: isMe ? AppColors.primary : color,
-            icon: isMe ? Icons.person_rounded : null,
+          padding: const EdgeInsetsDirectional.only(end: 8),
+          child: Semantics(
+            label: '${player.name}، $status',
+            child: ExcludeSemantics(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: color.withValues(alpha: 0.55)),
+                ),
+                child: Text(
+                  player.name,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       );
     }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      child: Row(
-        children: [
-          const SizedBox(width: 4),
-          Expanded(
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              alignment: WrapAlignment.start,
-              children: children,
-            ),
-          ),
-        ],
+
+    return SizedBox(
+      height: 44,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: children),
+        ),
       ),
     );
   }
@@ -595,6 +648,38 @@ class _CollectingView extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _AnswerLengthFormatter extends TextInputFormatter {
+  _AnswerLengthFormatter(this.onLimitReached);
+
+  final VoidCallback onLimitReached;
+  final LengthLimitingTextInputFormatter _limiter =
+      LengthLimitingTextInputFormatter(
+        kMaxAnswerLength,
+        maxLengthEnforcement: MaxLengthEnforcement.enforced,
+      );
+  bool _hasNotifiedForCurrentOverflow = false;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (answerCharacterCount(newValue.text) <= kMaxAnswerLength) {
+      _hasNotifiedForCurrentOverflow = false;
+      return newValue;
+    }
+
+    if (!_hasNotifiedForCurrentOverflow) {
+      _hasNotifiedForCurrentOverflow = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => onLimitReached());
+    }
+
+    // Keep up to the allowed grapheme count (also when pasting), while the
+    // notification explains why the extra text was not accepted.
+    return _limiter.formatEditUpdate(oldValue, newValue);
   }
 }
 

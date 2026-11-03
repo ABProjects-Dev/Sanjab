@@ -1,8 +1,8 @@
 /// نگهبان دکمهٔ Back گوشی و ابزار مشترک «بازگشت به صفحه اصلی».
 ///
-/// نسخهٔ ۱.۰.۰: در تمام صفحات داخلی، بازگشت به معنی **خروج از اتاق نیست**؛
-/// جلسه ادامه می‌یابد، اطلاعات حفظ می‌شود و کاربر می‌تواند با «ادامه بازی»
-/// برگردد. خروج صریح از اتاق عملیات جداگانه‌ای با تأیید کاربر است.
+/// بازگشت به صفحهٔ اصلی، اتاق را برای ادامه نگه می‌دارد؛ اما اگر میزبان
+/// تنها عضو باقی‌مانده باشد، اتاق خودکار بسته می‌شود. خروج صریح همچنان از
+/// گزینهٔ «بستن اتاق» یا «خروج از اتاق» در منو در دسترس است.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import '../../state/game_scope.dart';
 import 'common.dart';
 
-/// دکمهٔ بازگشت گوشی در صفحه‌های بازی: بازگشت به صفحهٔ اصلی (نه خروج).
+/// دکمهٔ بازگشت گوشی؛ رفتار اتاق را بر اساس حضور اعضای دیگر تعیین می‌کند.
 class ExitGuard extends StatelessWidget {
   const ExitGuard({super.key, required this.child});
 
@@ -29,7 +29,7 @@ class ExitGuard extends StatelessWidget {
   }
 }
 
-/// بازگشت به صفحهٔ اصلی بدون پایان‌دادن جلسه و بدون خروج از اتاق.
+/// بازگشت به صفحهٔ اصلی؛ میزبان تنها، اتاق را خودکار می‌بندد.
 Future<void> goToHomeScreen(BuildContext context) async {
   final controller = GameScope.read(context);
   await controller.backToHome();
@@ -37,8 +37,8 @@ Future<void> goToHomeScreen(BuildContext context) async {
   Navigator.of(context).popUntil((route) => route.isFirst);
 }
 
-/// خروج صریح از اتاق (با تأیید) — تفاوت اصلی آن با بازگشت به صفحهٔ اصلی:
-/// رکورد اتاق از دستگاه حذف می‌شود و «ادامه بازی» دیگر وجود ندارد.
+/// خروج صریح از اتاق (با تأیید): میزبان اتاق را می‌بندد و جلسه برای همه
+/// پایان می‌یابد؛ بازیکن فقط از عضویت خودش خارج می‌شود.
 Future<void> confirmLeaveRoom(
   BuildContext context, {
   String? roomName,
@@ -47,9 +47,9 @@ Future<void> confirmLeaveRoom(
   final controller = GameScope.read(context);
   final ok = await confirmDialog(
     context,
-    title: 'خروج از اتاق',
+    title: isHostRole ? 'بستن اتاق' : 'خروج از اتاق',
     message: isHostRole
-        ? 'با خروج شما از اتاق، بازی برای همهٔ بازیکنان پایان می‌یابد و '
+        ? 'با بستن اتاق، بازی برای همهٔ بازیکنان پایان می‌یابد و '
               'اطلاعات اتاق از این دستگاه حذف می‌شود. ادامه می‌دهید؟'
         : !controller.amIConnected
         ? 'این دستگاه آفلاین است؛ میزبان اکنون از خروج شما باخبر نمی‌شود و '
@@ -57,26 +57,12 @@ Future<void> confirmLeaveRoom(
               'محلی اتاق را حذف می‌کند. برای اعلام خروج به میزبان، ابتدا وصل شوید.'
         : 'از اتاق «${roomName ?? controller.gameName}» خارج می‌شوید؟ '
               'برای ورود دوباره باید از میزبان بخواهید شما را دوباره وصل کند. '
-              'توجه کنید که بازگشت به صفحهٔ اصلی به معنی خروج از اتاق نیست.',
-    confirmLabel: 'خروج از اتاق',
+              'با بازگشت به صفحهٔ اصلی، اتاق در صورت حضور بازیکنان دیگر حفظ می‌شود.',
+    confirmLabel: isHostRole ? 'بستن اتاق' : 'خروج از اتاق',
     destructive: true,
   );
   if (!ok) return;
   await controller.leaveRoom();
   if (!context.mounted) return;
   Navigator.of(context).popUntil((route) => route.isFirst);
-}
-
-/// دکمهٔ استاندارد «بازگشت به صفحهٔ اصلی» برای نوار بالای صفحات داخلی.
-class HomeIconButton extends StatelessWidget {
-  const HomeIconButton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.home_rounded),
-      tooltip: 'بازگشت به صفحه اصلی',
-      onPressed: () => goToHomeScreen(context),
-    );
-  }
 }

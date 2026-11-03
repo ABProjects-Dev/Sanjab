@@ -14,6 +14,7 @@ import '../../domain/scoring.dart';
 import '../../state/game_controller.dart';
 import '../../state/game_scope.dart';
 import '../widgets/common.dart';
+import '../widgets/connection_qr_dialog.dart';
 import '../widgets/exit_guard.dart';
 import 'results_screen.dart';
 
@@ -81,12 +82,45 @@ class _JudgingScreenState extends State<JudgingScreen> {
     }
   }
 
+  Widget _roomMenu(GameController controller) {
+    final isHost = controller.isHost;
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert_rounded),
+      tooltip: 'گزینه‌های اتاق',
+      onSelected: (value) async {
+        if (value == 'qr') {
+          await showConnectionQrDialog(context, controller);
+        } else if (value == 'leave') {
+          await confirmLeaveRoom(
+            context,
+            roomName: controller.gameName,
+            isHostRole: isHost,
+          );
+        }
+      },
+      itemBuilder: (_) => [
+        if (isHost)
+          const PopupMenuItem(
+            value: 'qr',
+            child: Text('نمایش QR اتصال'),
+          ),
+        PopupMenuItem(
+          value: 'leave',
+          child: Text(isHost ? 'بستن اتاق' : 'خروج از اتاق'),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = GameScope.of(context);
     if (!controller.isHost) {
       return Scaffold(
-        appBar: AppBar(title: const Text('داوری')),
+        appBar: AppBar(
+          title: const Text('داوری'),
+          actions: [_roomMenu(controller)],
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -106,7 +140,7 @@ class _JudgingScreenState extends State<JudgingScreen> {
     return ExitGuard(
       child: Scaffold(
         appBar: AppBar(
-          leading: const HomeIconButton(),
+          automaticallyImplyLeading: false,
           title: Text('داوری دست ${faNum(round?.index ?? 0)}'),
           actions: [
             Center(
@@ -122,6 +156,7 @@ class _JudgingScreenState extends State<JudgingScreen> {
                 ),
               ),
             ),
+            _roomMenu(controller),
           ],
         ),
         body: SafeArea(

@@ -8,12 +8,9 @@ source_image="$root/assets/images/app_icon_1024.png"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-# Keep the source image and squirrel artwork unchanged; zoom the complete image
-# so the original illustration occupies about 70% of the square frame.
-convert "$source_image" \
-  -filter Lanczos -resize 1172x1172! \
-  -gravity center -crop 1024x1024+0+0 +repage \
-  "$root/assets/images/app_icon_display.png"
+# Use the original framed artwork without zooming or cropping. The squirrel
+# remains centered with the original dark background visible as a margin.
+cp "$source_image" "$root/assets/images/app_icon_display.png"
 
 # Extract the existing orange line art as a transparent Android foreground.
 # The soft threshold keeps antialiased edges while excluding the dark backdrop.
@@ -37,7 +34,9 @@ for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
   cp "$folder/ic_launcher.png" "$folder/ic_launcher_round.png"
 
   foreground_size=$((size * 9 / 4))
-  mark_size=$((foreground_size * 66 / 100))
+  # Android's adaptive-icon safe zone is about 66% of the full foreground
+  # canvas. Keep the squirrel at 70% of that zone to leave a clear margin.
+  mark_size=$((foreground_size * 46 / 100))
   convert "$tmp_dir/squirrel.png" -resize "x${mark_size}" \
     -gravity center -background none -extent "${foreground_size}x${foreground_size}" \
     "$folder/ic_launcher_foreground.png"

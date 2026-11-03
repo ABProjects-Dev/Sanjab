@@ -1,5 +1,5 @@
-/// آزمون‌های رابط کاربری نسخهٔ ۱.۰.۰: QR روی پس‌زمینهٔ سفید، دکمهٔ یکسان
-/// «بازگشت به صفحهٔ اصلی»، بخش «ادامه بازی» در صفحهٔ اصلی و بررسی ایستا برای
+/// آزمون‌های رابط کاربری نسخهٔ ۱.۰.۰: QR روی پس‌زمینهٔ سفید، برگشت سیستمی،
+/// بخش «ادامه بازی» در صفحهٔ اصلی و بررسی ایستا برای
 /// حذف کامل قابلیت تعیین کلمه و دکمهٔ خروج از بازی.
 library;
 
@@ -126,25 +126,46 @@ void main() {
     expect(find.text('ادامه بازی'), findsNothing);
   });
 
-  testWidgets('دکمهٔ «بازگشت به صفحهٔ اصلی» رفتار یکسانی دارد', (tester) async {
+  testWidgets('دکمهٔ برگشت سیستم از صفحهٔ داخلی به صفحهٔ اصلی برمی‌گردد', (
+    tester,
+  ) async {
     final controller = buildController(id: 'p1', name: 'مینا');
     addTearDown(() async {
       await controller.closeSession(silent: true);
       controller.dispose();
     });
     await controller.bootstrap();
+    final navigatorKey = GlobalKey<NavigatorState>();
     await tester.pumpWidget(
       GameScope(
         controller: controller,
         child: MaterialApp(
-          home: Scaffold(appBar: AppBar(leading: const HomeIconButton())),
+          navigatorKey: navigatorKey,
+          home: Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () => navigatorKey.currentState!.push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ExitGuard(
+                      child: Scaffold(body: Text('صفحهٔ بازی آزمون')),
+                    ),
+                  ),
+                ),
+                child: const Text('رفتن به بازی'),
+              ),
+            ),
+          ),
         ),
       ),
     );
-    await tester.pump();
-    expect(find.byTooltip('بازگشت به صفحه اصلی'), findsOneWidget);
-    await tester.tap(find.byTooltip('بازگشت به صفحه اصلی'));
-    await tester.pump();
+    await tester.tap(find.text('رفتن به بازی'));
+    await tester.pumpAndSettle();
+    expect(find.text('صفحهٔ بازی آزمون'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.text('رفتن به بازی'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -222,8 +243,8 @@ void main() {
         );
         expect(
           content.contains('HomeIconButton'),
-          isTrue,
-          reason: '$screen باید دکمهٔ «بازگشت به صفحهٔ اصلی» داشته باشد',
+          isFalse,
+          reason: '$screen نباید آیکون خانه داشته باشد',
         );
       }
     });

@@ -100,13 +100,37 @@ void main() {
   });
 
   group('شروع دست', () {
-    test('با کمتر از دو بازیکن شروع نمی‌شود', () {
+    test('بدون بازیکن شروع نمی‌شود', () {
       final session = GameSession.fresh();
-      session.addPlayer('تنها');
+      expect(session.canStartGame, isFalse);
       expect(
         () => session.startNewRound(nowMs: 1000),
         throwsA(isA<GameRuleException>()),
       );
+    });
+
+    test('میزبان تنها می‌تواند شروع کند، استپ بزند و به داوری برسد', () {
+      final session = newSession(players: 1);
+      expect(session.canStartGame, isTrue);
+
+      final round = session.startNewRound(nowMs: 1000);
+      expect(round.activePlayerIdsAtStart, {'h1'});
+      expect(round.stopThreshold, 1);
+      fillAllAnswers(session, 'h1');
+
+      expect(session.requestStop('h1', nowMs: 2000), isTrue);
+      expect(session.phase, GamePhase.collecting);
+
+      final snapshot = {
+        for (final categoryId in session.config.activeCategoryIds)
+          categoryId: round.answerOf('h1', categoryId)!.text,
+      };
+      expect(
+        session.applySnapshot('h1', snapshot, roundIndex: round.index),
+        isTrue,
+      );
+      expect(session.tryStartJudging(), isTrue);
+      expect(session.phase, GamePhase.judging);
     });
 
     test('مدت دست ثابت ۷ دقیقه است', () {

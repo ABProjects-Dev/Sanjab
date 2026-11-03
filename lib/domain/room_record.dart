@@ -92,9 +92,8 @@ class RoomRecord {
 
   bool get isHost => role == GameRole.host;
 
-  /// قابل ادامه است؟
-  bool get resumable =>
-      !ended && phase != GamePhase.lobby && phase != GamePhase.finished;
+  /// قابل ادامه است؟ لابی هم تا وقتی رسماً تمام نشده قابل بازیابی است.
+  bool get resumable => !ended && phase != GamePhase.finished;
 
   /// کلید یکتای رکورد؛ برای هر بازیکن در هر اتاق فقط یک رکورد وجود دارد.
   String get key => '$gameId|$myPlayerId';

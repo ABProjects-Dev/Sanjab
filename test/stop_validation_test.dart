@@ -449,15 +449,62 @@ void main() {
       expect(find.textContaining('حداقل ۲ حرف'), findsOneWidget);
     });
 
-    testWidgets('ورودی و Paste پس از ۸۰ نویسهٔ قابل‌مشاهده محدود می‌شوند', (
+    testWidgets('فهرست بازیکنان فقط نام‌ها را در یک ردیف افقی نشان می‌دهد', (
+      tester,
+    ) async {
+      await pumpPlayScreen(tester);
+
+      expect(find.text('سارا'), findsOneWidget);
+      expect(find.text('مینا'), findsWidgets);
+      expect(find.text('در حال بازی'), findsNothing);
+      expect(find.text('استپ کرده'), findsNothing);
+      expect(find.text('قطع ارتباط'), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SingleChildScrollView &&
+              widget.scrollDirection == Axis.horizontal,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('بازیکن از منوی سه‌نقطهٔ صفحهٔ بازی گزینهٔ خروج دارد', (
+      tester,
+    ) async {
+      await pumpPlayScreen(tester);
+      expect(find.byIcon(Icons.more_vert_rounded), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.text('خروج از اتاق'), findsOneWidget);
+      expect(find.text('بستن اتاق'), findsNothing);
+      expect(find.text('پایان دست'), findsNothing);
+    });
+
+    testWidgets('ورودی و Paste به ۸۰ نویسه محدود و از تلاش اضافه مطلع می‌شوند', (
       tester,
     ) async {
       await pumpPlayScreen(tester);
       final field = find.byType(TextField).first;
+      await tester.enterText(field, 'ا' * kMaxAnswerLength);
+      await tester.pump();
+      expect(answerCharacterCount(controller.myAnswer(0)), kMaxAnswerLength);
+      expect(
+        find.text('متن طولانی است؛ حداکثر ۸۰ نویسه مجاز است.'),
+        findsNothing,
+      );
+
       await tester.enterText(field, 'ا' * (kMaxAnswerLength + 1));
+      await tester.pump();
       await tester.pump();
       expect(answerCharacterCount(controller.myAnswer(0)), kMaxAnswerLength);
       expect(controller.lastError, isNull);
+      expect(
+        find.text('متن طولانی است؛ حداکثر ۸۰ نویسه مجاز است.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('رد پاسخ بلند پیام قابل‌مشاهده نشان می‌دهد', (tester) async {
@@ -481,7 +528,8 @@ void main() {
         tester.widget<TextField>(fields.first).maxLengthEnforcement,
         MaxLengthEnforcement.enforced,
       );
-      expect(find.text('حداکثر ۸۰ نویسه'), findsNWidgets(2));
+      expect(tester.widget<TextField>(fields.first).decoration.counterText, '');
+      expect(find.text('حداکثر ۸۰ نویسه'), findsNothing);
 
       await tester.enterText(fields.at(0), 'آب');
       await tester.enterText(fields.at(1), 'پ');

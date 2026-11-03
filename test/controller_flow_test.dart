@@ -66,6 +66,28 @@ void main() {
     player2.dispose();
   });
 
+  test('بازی تک‌نفره از شروع تا استپ و داوری کامل می‌شود', () async {
+    expect(await host.createGame(), isTrue);
+    expect(host.session.activePlayerCount, 1);
+
+    host.startGame();
+    expect(host.session.phase, GamePhase.playing);
+    for (final category in host.activeCategories) {
+      host.setAnswer(category.id, 'آب');
+    }
+    expect(host.iCanStop, isTrue);
+
+    await host.requestStop();
+    expect(host.session.phase, GamePhase.judging);
+    expect(host.session.allSnapshotsReceived, isTrue);
+
+    for (final category in host.activeCategories) {
+      host.setJudgement('h1', category.id, JudgementStatus.confirmed);
+    }
+    host.finalizeJudging();
+    expect(host.session.phase, GamePhase.roundResults);
+  });
+
   test('جریان کامل بازی سه‌نفره: اتصال، دست، استپ، داوری و نتایج', () async {
     // نسخهٔ ۱.۰.۰: دکمهٔ استپ زمانی فعال می‌شود که همهٔ فیلدهای پاسخ
     // بازیکن حداقل دو کاراکتر داشته باشند؛ برای آزمون‌پذیر ماندن این جریان،
