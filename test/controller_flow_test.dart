@@ -251,17 +251,19 @@ void main() {
         });
 
     socket.add(
-      NetMessage(
-        type: MsgType.hello,
-        id: 'raw-hello',
-        seq: 1,
-        payload: {
-          'gid': host.gameId,
-          'token': host.joinToken,
-          'pid': 'raw-player',
-          'name': 'بازیکن خام',
-        },
-      ).encode(),
+      utf8.encode(
+        NetMessage(
+          type: MsgType.hello,
+          id: 'raw-hello',
+          seq: 1,
+          payload: {
+            'gid': host.gameId,
+            'token': host.joinToken,
+            'pid': 'raw-player',
+            'name': 'بازیکن خام',
+          },
+        ).encode(),
+      ),
     );
     await socket.flush();
     expect(
@@ -278,15 +280,17 @@ void main() {
 
     Future<void> sendSnapshot(int sequence, String answer) async {
       socket.add(
-        NetMessage(
-          type: MsgType.snapshot,
-          id: 'raw-snapshot-$sequence',
-          seq: sequence,
-          payload: {
-            'r': 1,
-            'a': {'0': answer},
-          },
-        ).encode(),
+        utf8.encode(
+          NetMessage(
+            type: MsgType.snapshot,
+            id: 'raw-snapshot-$sequence',
+            seq: sequence,
+            payload: {
+              'r': 1,
+              'a': {'0': answer},
+            },
+          ).encode(),
+        ),
       );
       await socket.flush();
     }
