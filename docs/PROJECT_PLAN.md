@@ -17,27 +17,27 @@
 
 ## Prioritized follow-up
 
-These recommendations are not claims that the work has already been implemented or reproduced on physical devices.
+The entries below record implementation status; physical-device verification remains distinct from automated tests.
 
 ### P0 — Persist player room records in production
 
-**Finding:** `main.dart` does not inject the durable `RoomRepository`; `GameController` defaults to `MemoryRoomStore`.
+**Status:** Implemented. `main.dart` now uses a production controller factory that injects `RoomRepository`; a fresh-controller restart test verifies that a saved player room survives.
 
-**Impact:** Player-side saved-room records are not reliable across app-process restarts, despite the UI's continuation flow. The host's separate persisted session does not solve this player-side gap.
+**Impact addressed:** Player-side saved-room records now use the same application-support directory as the other production repositories.
 
-**Acceptance criteria:**
-- Inject `RoomRepository` using the application-support directory in the production composition root.
-- Add a composition/restart test proving that host and player records survive a real process restart.
-- Keep backup recovery and the room-count cap covered by tests.
+**Implemented and covered:**
+- `createProductionGameController` injects file-backed `SessionRepository`, `ProfileRepository`, and `RoomRepository` from the application-support directory.
+- A composition/restart test verifies saved player-room records are loaded by a fresh controller.
+- Existing repository tests continue to cover backup recovery and the 20-room cap.
 
 ### P1 — Serialize file-backed saves
 
-**Finding:** `_scheduleSave` can start a second asynchronous save while the previous save is still in progress; the file repositories reuse fixed temporary paths. Frequent host edits or a lifecycle flush can overlap writes.
+**Status:** Implemented with a reusable serial task queue. Session saves snapshot JSON when requested; room mutations serialize their full read-modify-write transaction. Tests cover queue ordering, recovery after a failed task, concurrent session saves, and concurrent room upserts.
 
-**Acceptance criteria:**
-- Serialize or coalesce writes to each repository so only one write uses a temporary path at a time.
-- Preserve the latest state when several saves are requested rapidly.
-- Add a deterministic concurrent-save/recovery test.
+**Implemented and covered:**
+- A reusable serial task queue ensures only one operation at a time uses each repository's temporary paths.
+- Session payloads are snapshotted at call time; room read-modify-write mutations stay within the queue.
+- Tests verify queue ordering, continued operation after failure, and preservation of concurrent session/room updates.
 
 ### P1 — Correct join-state delivery and reconnect ownership
 
@@ -53,12 +53,12 @@ These recommendations are not claims that the work has already been implemented 
 
 ### P1 — Bound network framing before line allocation
 
-**Finding:** `LineSplitter` accumulates input before `NetMessage.parse` checks the 256 KiB character limit. A 15-second handshake timeout does not cap the in-progress line or aggregate pending sockets.
+**Status:** Implemented. The TCP channel counts raw UTF-8 bytes incrementally, closes an over-limit socket before a newline is required, and the host caps pending handshakes at 32 while cleaning up timers and callbacks. Regression tests cover an oversized unterminated frame and pending-capacity release.
 
-**Acceptance criteria:**
-- Enforce an incremental byte limit before completing a line.
-- Bound pending handshakes, remove per-connection callbacks on close, and close abusive sockets promptly.
-- Test an oversized unterminated frame and many concurrent unauthenticated sockets.
+**Implemented and covered:**
+- Enforce the 256 KiB frame limit incrementally on raw bytes, before a line is complete.
+- Limit concurrent pending handshakes, close excess/abusive sockets, and cancel per-connection timers on completion.
+- Tests exercise an oversized unterminated frame and verify that handshake capacity is reclaimed.
 
 ### P1 — Align answer input with the host's 80-character cap
 

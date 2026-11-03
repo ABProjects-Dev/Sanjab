@@ -11,11 +11,9 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app.dart';
+import 'app_controller_factory.dart';
 import 'core/app_logger.dart';
 import 'core/app_theme.dart';
-import 'data/profile_repository.dart';
-import 'data/session_repository.dart';
-import 'state/game_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,10 +57,7 @@ Future<void> main() async {
   }
   AppLogger.instance.init(dataDir);
 
-  final controller = GameController(
-    store: SessionRepository(dataDir),
-    profileRepo: ProfileRepository(dataDir),
-  );
+  final controller = createProductionGameController(dataDir);
   await controller.bootstrap();
 
   runApp(SanjabApp(controller: controller));

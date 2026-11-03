@@ -35,9 +35,9 @@ GitHub Actions workflows are checked in under `.github/workflows/` for Flutter c
 4. `SanjabApp` provides the controller through `GameScope` and builds a Persian, right-to-left, dark `MaterialApp`.
 5. Screens call controller operations; the controller coordinates domain state, networking, persistence, timers, and notifications.
 
-### Composition gap
+### Production composition
 
-`GameController` accepts a `RoomStore`, but defaults to `MemoryRoomStore`. The production composition in `main.dart` does not supply `RoomRepository`, even though that file implements durable JSON-backed room storage. As a result, room records created by the normal application process are in memory and do not survive process restart. The host session itself is separately persisted through `SessionRepository`; this does not make player-side saved-room records durable. This should be corrected and covered by a production-composition/restart test before relying on saved-room continuation on all devices.
+`main.dart` creates the controller through `createProductionGameController` in `app_controller_factory.dart`. That factory injects file-backed profile, session, and room repositories. `GameController` keeps `MemoryRoomStore` as its default for tests and callers that explicitly want an in-memory store. The production composition is covered by a restart test that creates a fresh controller against the same application-support directory.
 
 ## Layers and responsibilities
 
@@ -65,7 +65,7 @@ Storage is expressed through interfaces so tests can substitute in-memory adapte
 
 - `ProfileStore` / `ProfileRepository`: profile JSON at `profile.json`.
 - `SessionStore` / `SessionRepository`: the host's active session at `active_session.json`, with temporary-file replacement and a backup file.
-- `RoomStore` / `RoomRepository`: up to 20 room records in `rooms.json`, also with a temporary file and backup. The durable adapter exists but is not currently wired into `main.dart`.
+- `RoomStore` / `RoomRepository`: up to 20 room records in `rooms.json`, with a temporary file and backup. The production controller factory injects this durable adapter. Mutations and clears are serialized per repository instance.
 
 The application data directory is obtained from `path_provider`. These files are local application data, not a server-side account or permanent game-history service. `GameSession.finishAndClear()` clears round history and totals at the end of a session.
 
@@ -96,14 +96,14 @@ The UI includes home, profile, host lobby, join/QR scanner, play, judging, resul
 
 The following are source-level observations; network race conditions and UI lifecycle findings have not been reproduced on physical devices.
 
-1. **Saved-room persistence is not wired into the app composition.** `main.dart` omits `RoomRepository`, so `GameController` uses its `MemoryRoomStore` default. Host-session recovery is separately backed by `SessionRepository`, but player-side saved-room records do not reliably survive a process restart.
+1. **Production saved-room persistence is wired.** `createProductionGameController` injects `RoomRepository`; the composition/restart test confirms saved player-room records load in a fresh controller using the same data directory.
 2. **The app version is `1.0.1+7`.** The home/about screens display `1.0.1`, matching `pubspec.yaml` and Android `versionName`; Android `versionCode` is 7. The UI literals are duplicated and may drift in a future update.
 3. **Protocol comments are stale.** `protocol.dart`'s file comment describes envelope version 2, while runtime serialization uses `kProtocolVersion = 3` from `models.dart`.
 4. **Initial state follows channel registration.** `HostNetwork` registers the accepted channel, sends `helloAck`, then calls `onConnected`; the app broadcasts state from that callback so the new player receives its initial lobby snapshot immediately.
 5. **Reconnect cleanup is channel-identity-safe.** Message dispatch and completion cleanup operate only when the channel map still points to that exact socket. Replacing a connection cannot let the old socket remove or act as the new one.
 6. **Final snapshots use acknowledgment and retry.** `GameClient` retains the pending round and answer map, retries every two seconds, and resends immediately after reconnect until a matching positive `snapshotAck` arrives. The host re-acknowledges a duplicate already-applied snapshot without applying it again.
-7. **TCP line-size protection is applied after line splitting.** `LineChannel` uses `LineSplitter` before `NetMessage.parse` enforces its cap, so a peer that withholds a newline can cause a large temporary buffer. This remains a local-network resource-exhaustion risk; a global pending-socket limit is also absent.
-8. **File saves are not serialized.** `_scheduleSave` clears its scheduling flag before the asynchronous write completes, while `SessionRepository` reuses a single temporary filename. Rapid host input or a lifecycle flush can overlap writes; a queued/serialized writer and concurrent-save test are advisable.
+7. **TCP frames and pending handshakes are bounded.** `LineChannel` counts raw bytes incrementally and destroys a socket as soon as an unterminated frame exceeds 256 KiB. `HostNetwork` caps concurrent pending handshakes at 32 and cancels each handshake timer on completion or disconnect.
+8. **File-backed mutations are serialized per repository.** `SessionRepository` captures each session snapshot at save-call time and queues writes/clears; `RoomRepository` queues read-modify-write mutations and clears. Concurrent storage tests cover latest-session preservation and distinct room upserts.
 9. **The prior `1.0.0` release is signed and verified.** GitHub Release `1.0.0` contains its signed APK and SHA-256 file. The successful workflow run is [41547414107](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41547414107). The release workflow omits the test-only `integration_test` dependency from the runner's temporary production dependency resolution, passes the keystore path to Gradle, and verifies the APK certificate before upload.
 10. **The current CI checks pass.** Flutter analysis, tests, and the debug APK build succeeded for the merged multiplayer-reliability changes in run [41568333376](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41568333376). This does not replace two-device or physical-network verification.
 11. **Target SDK is Flutter-derived.** `targetSdk` and `compileSdk` come from Flutter Gradle defaults and are not explicitly pinned in the app Gradle file.

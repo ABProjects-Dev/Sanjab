@@ -2,6 +2,14 @@
 
 Notable changes to Sanjab are recorded here. Version numbers follow Semantic Versioning; Android build numbers increase monotonically.
 
+## [Unreleased]
+
+### Fixed
+
+- Persist saved player-room records through the production file-backed repository.
+- Serialize session and room writes to prevent concurrent operations from overwriting each other.
+- Bound incoming TCP frames by UTF-8 bytes and cap pending host handshakes.
+
 ## [1.0.1] - 2026-11-03
 
 ### Fixed

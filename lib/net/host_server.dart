@@ -77,6 +77,9 @@ class HostCallbacks {
   final void Function(String playerId)? onPing;
 }
 
+/// Maximum simultaneous sockets waiting for a valid hello handshake.
+const int kMaxPendingHandshakes = 32;
+
 /// سرور شبکهٔ میزبان.
 class HostNetwork {
   HostNetwork({
@@ -84,18 +87,23 @@ class HostNetwork {
     required this.token,
     required this.callbacks,
     this.preferredPort = 0,
-  });
+    this.maxPendingHandshakes = kMaxPendingHandshakes,
+  }) : assert(maxPendingHandshakes > 0);
 
   final String gameId;
   final String token;
   final HostCallbacks callbacks;
   final int preferredPort;
+  final int maxPendingHandshakes;
 
   ServerSocket? _server;
   final Map<String, LineChannel> _channels = <String, LineChannel>{};
   final Map<String, MessageDeduper> _dedupers = <String, MessageDeduper>{};
   final Map<String, SequenceGuard> _guards = <String, SequenceGuard>{};
   final Set<String> _pendingHandshake = <String>{};
+  final Map<String, LineChannel> _pendingChannels = <String, LineChannel>{};
+  final Map<String, Timer> _pendingTimers = <String, Timer>{};
+  int _pendingSequence = 0;
 
   /// شمارندهٔ اتصال‌های ناموفق (برای نمایش/گزارش).
   int rejectedConnections = 0;
@@ -106,6 +114,9 @@ class HostNetwork {
 
   /// تعداد بازیکنان متصل.
   int get connectedCount => _channels.length;
+
+  /// Number of sockets currently waiting for a valid hello handshake.
+  int get pendingHandshakeCount => _pendingHandshake.length;
 
   Set<String> get connectedPlayerIds => _channels.keys.toSet();
 
@@ -134,10 +145,17 @@ class HostNetwork {
   }
 
   void _onSocket(Socket socket) {
+    if (_pendingHandshake.length >= maxPendingHandshakes) {
+      rejectedConnections += 1;
+      socket.destroy();
+      return;
+    }
+
     socket.setOption(SocketOption.tcpNoDelay, true);
     final channel = LineChannel(socket, label: 'pending');
-    final key = 'pending-${DateTime.now().microsecondsSinceEpoch}';
+    final key = 'pending-${++_pendingSequence}';
     _pendingHandshake.add(key);
+    _pendingChannels[key] = channel;
     String? boundPlayerId;
 
     channel.messages.listen((message) {
@@ -161,8 +179,10 @@ class HostNetwork {
     });
 
     channel.done.then((_) {
+      _pendingTimers.remove(key)?.cancel();
       _pendingHandshake.remove(key);
       _pendingSockets.remove(key);
+      _pendingChannels.remove(key);
       final playerId = boundPlayerId;
       if (playerId != null && identical(_channels[playerId], channel)) {
         _channels.remove(playerId);
@@ -173,9 +193,9 @@ class HostNetwork {
     });
 
     // فرصت کوتاه برای handshake.
-    Timer(const Duration(seconds: 15), () {
+    _pendingTimers[key] = Timer(const Duration(seconds: 15), () {
       if (boundPlayerId == null && !channel.isClosed) {
-        channel.close();
+        unawaited(channel.close());
       }
     });
 
@@ -248,6 +268,8 @@ class HostNetwork {
     _guards[request.playerId] = SequenceGuard();
     _pendingSockets.remove(key)?.call(request.playerId);
     _pendingHandshake.remove(key);
+    _pendingChannels.remove(key);
+    _pendingTimers.remove(key)?.cancel();
 
     if (previous != null && !previous.isClosed) {
       unawaited(previous.close());
@@ -354,14 +376,25 @@ class HostNetwork {
 
   /// خاموش‌کردن سرور و بستن همهٔ اتصال‌ها.
   Future<void> stop() async {
+    final server = _server;
+    _server = null;
+    await server?.close();
+
     for (final channel in _channels.values.toList()) {
       await channel.close();
     }
+    for (final timer in _pendingTimers.values) {
+      timer.cancel();
+    }
+    for (final channel in _pendingChannels.values.toList()) {
+      await channel.close();
+    }
+    _pendingTimers.clear();
+    _pendingChannels.clear();
+    _pendingHandshake.clear();
     _channels.clear();
     _dedupers.clear();
     _guards.clear();
     _pendingSockets.clear();
-    await _server?.close();
-    _server = null;
   }
 }
