@@ -48,7 +48,7 @@ flutter test
 flutter build apk --debug
 ```
 
-The checked-in test tree contains 144 `test`/`testWidgets` declarations plus one integration test declaration (static count, not a run result). The integration test covers host setup on one device, not a complete two-phone match. GitHub Actions run [41651598932](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41651598932) passed tests, analysis, and Android debug build on the reviewed source baseline. Physical-device LAN behavior still needs verification.
+The checked-in test tree currently contains 155 `test`/`testWidgets` declarations plus one integration test declaration (static count, not a run result). The integration test covers host setup on one device, not a complete two-phone match. Current branch CI is pending; merge requires passing tests, analysis, and Android debug build. Physical-device LAN behavior still needs verification.
 
 The Gradle wrapper scripts are not tracked; the release workflow generates them on its runner. See [Android Release Builds](docs/ANDROID_RELEASE.md) for signed APK publication and checksum verification.
 

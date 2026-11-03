@@ -1,65 +1,44 @@
 # Project Status
 
 **As of:** 2026-11-03
-**Reviewed source baseline:** `f6fb21168b138c02b523ffa0526a5a253caf8d4a`
-**Published release:** 1.0.1 (`versionCode` 7)
+**Active source branch:** `arena/0af07290-sanjab`
+**Published release:** 1.0.1 (`versionCode` 7); current branch changes are unreleased.
 
 ## Summary
 
-Sanjab is a functional Android/Flutter local-network multiplayer game. The current source includes the recent persistence, protocol framing, answer-length, snapshot retry, and results-routing changes. The published GitHub Release remains 1.0.1; the source still reports `1.0.1+7`, and later changes are unreleased.
+The active change set addresses BUG-01 through BUG-08 in [Bug Report](BUG_REPORT.md), including the clarified distinction between explicit room exit and temporary network loss. A dedicated protocol message handles explicit exit; transient disconnections keep roster membership. An offline client still cannot learn about host completion until it reconnects, and the UI now presents that state as unverified rather than terminal.
 
-This status is based on source/configuration and recorded CI metadata. No physical-device LAN run was performed in this review. No local tests/analyzer/build were run because Dart and Flutter SDK executables are absent from the environment.
+## Verification status
 
-## Verification record
+| Check | Result |
+| --- | --- |
+| Local `flutter test`, `flutter analyze`, Android build | **Not run:** Flutter and Dart SDK executables are not installed in this environment |
+| New regression tests | Added for retry cancellation, explicit leave, transient disconnect/reconnect, roster semantics and persistence compatibility; **not yet executed** |
+| GitHub Actions / PR CI | **Pending** for the current change set |
+| Physical two-device Wi-Fi/hotspot and lifecycle checks | **Not run**; required where noted in the Bug Report and Test Plan |
 
-| Check | Result | Evidence / scope |
-| --- | --- | --- |
-| GitHub Actions Flutter checks | **Passed** | Run [41651598932](https://github.com/behrouzxp-dev/Sanjab/actions/runs/41651598932), completed 2026-11-03 on the exact reviewed baseline SHA; workflow includes tests, analysis and Android debug APK build |
-| Local `flutter test` / `flutter analyze` / build | **Not run** | `flutter` and `dart` are not installed in the review environment |
-| Static test inventory | **Counted** | 144 declarations in `test/` + one integration declaration; this count is not a test result |
-| Two-device LAN gameplay | **Not verified in this review** | Existing integration test is single-device host setup; see [Test Plan](TEST_PLAN.md) |
-| Physical Android lifecycle/network matrix | **Not run** | Required for device-specific discovery, reconnect, and persistence findings |
+A previous CI run on a different source baseline is not evidence for this patch. Merge is contingent on passing checks for the current PR.
 
-## Confirmed completed source work
+## Remediation summary
 
-- Production controller composition injects a file-backed `RoomRepository`; host and player room data can be stored and resumed.
-- Session and room repository writes are serialized within each repository instance; bounded TCP framing and pending-handshake limits are present.
-- Answer maximum is enforced as 80 grapheme clusters; Stop minimum validation is shared across UI/domain/host.
-- Final answer snapshots use positive acknowledgments, retry, reconnect resend, and duplicate-safe acknowledgment.
-- Results UI listens for authoritative session end/reset and returns to the home route.
-- Android release 1.0.1 is published and its release workflow validates APK signing.
-
-These statements describe source and release metadata; “completed” does not mean every path was independently reproduced during this documentation review.
-
-## Open findings
-
-The detailed evidence, severity and retest instructions are in [Bug Report](BUG_REPORT.md):
-
-1. **Medium:** initial join failure may leave automatic reconnect active while the join route reports failure (BUG-01).
-2. **Medium:** HomeScreen calls `setState` after an unmounted check on create/resume paths (BUG-02).
-3. **Medium:** interface-specific host-discovery fallback targets local interface addresses rather than broadcast addresses (BUG-03).
-4. **Medium:** an offline player's saved room may outlive official host completion (BUG-04).
-5. **Low:** guide/About text is stale or contradictory (BUG-05).
-6. **Low:** protocol source comment says v2 while runtime is v3 (BUG-06).
-7. **Low / needs device verification:** lifecycle flush is not awaited (BUG-07).
-8. **Low / requirement clarification:** lobby start eligibility counts roster entries, not live connections (BUG-08).
-
-No executable fixes were made because this task allows documentation-only changes.
+- Failed initial joins no longer keep a hidden reconnect loop; client cleanup and rejected handshakes are covered by regression tests.
+- Home create/resume flows return safely when their widget is disposed.
+- The invalid per-interface discovery fallback was removed; limited broadcast plus QR/manual join remain.
+- Offline player rooms are shown as unverified until the host can be contacted.
+- Guide/About copy matches current local-network multiplayer and no-letter rules.
+- Protocol documentation matches version 4, which adds the explicit-leave message.
+- Lifecycle flush failures are observed and logged; completion remains best effort because Flutter lifecycle callbacks are synchronous.
+- Explicit leave decrements active roster membership; transient disconnect does not. Mid-game exit retains history and scores while excluding the player from later participation.
 
 ## Security and release posture
 
-- Local-network-only protocol; no TLS. Join token is a bearer credential; QR/open-join discovery can expose it on the LAN.
-- Do not expose the host through port forwarding or untrusted networks.
-- Android minimum API is 24. Compile/target SDK values are inherited from Flutter Gradle defaults rather than pinned.
-- Release signing secrets are consumed by the GitHub Actions release workflow; never store them in source or public documentation.
+- Local-network protocol has no TLS. Join tokens are bearer credentials; do not port-forward the host or use untrusted networks.
+- Android release 1.0.1 is published; this patch has not been released.
+- No network penetration test, physical-device network matrix, or force-stop durability test has been performed.
 
-## Recommended next steps
+## Next steps
 
-1. Address BUG-01 and BUG-02 with focused lifecycle/retry regression tests.
-2. Correct/test per-interface UDP broadcast and validate discovery on actual Wi-Fi/hotspot devices.
-3. Decide and implement offline-client completion semantics; test stale room behavior.
-4. Update in-app guide/About copy and protocol version comment.
-5. Test lifecycle persistence and run a complete two-device network matrix before the next release.
-6. Decide whether to pin supported Flutter/Android toolchain and SDK targets before cutting a new release.
-
-See [Project Plan](PROJECT_PLAN.md) for prioritized acceptance criteria and [Android Release Builds](ANDROID_RELEASE.md) for release procedure.
+1. Run the complete Flutter tests, static analysis and Android debug build in CI.
+2. Fix any failures and rerun checks before considering merge.
+3. Verify discovery, explicit leave/reconnect, official finish while a client is offline, and lifecycle persistence on physical Android devices.
+4. Keep the release version unchanged until a separately reviewed release is prepared.

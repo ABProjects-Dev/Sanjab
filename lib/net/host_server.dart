@@ -50,6 +50,7 @@ class HostCallbacks {
     this.onConnected,
     this.onAnswer,
     this.onStop,
+    this.onLeave,
     this.onSnapshot,
     this.onDisconnected,
     this.onPing,
@@ -68,6 +69,7 @@ class HostCallbacks {
   )?
   onAnswer;
   final void Function(String playerId, int roundIndex)? onStop;
+  final void Function(String playerId)? onLeave;
   final void Function(
     String playerId,
     int roundIndex,
@@ -314,6 +316,9 @@ class HostNetwork {
         final round = message.payload['r'];
         if (round is! int) return;
         callbacks.onStop?.call(playerId, round);
+      case MsgType.leave:
+        callbacks.onLeave?.call(playerId);
+        unawaited(disconnect(playerId));
       case MsgType.snapshot:
         final round = message.payload['r'];
         final answers = message.payload['a'];

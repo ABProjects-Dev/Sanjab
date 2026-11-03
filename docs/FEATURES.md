@@ -1,6 +1,6 @@
 # Features and Limitations
 
-Status reflects the source at baseline `f6fb21168b138c02b523ffa0526a5a253caf8d4a`, reviewed 2026-11-03. “Implemented” means present in source; it does not imply a physical-device test was performed in this review.
+Status reflects the active unreleased branch `arena/0af07290-sanjab` as of 2026-11-03. “Implemented” means present in source; it does not imply a physical-device test has passed.
 
 ## Implemented
 
@@ -19,7 +19,7 @@ Status reflects the source at baseline `f6fb21168b138c02b523ffa0526a5a253caf8d4a
 ### Local multiplayer and resilience
 
 - IPv4 TCP host/client communication, newline-delimited JSON messages, UDP LAN discovery, QR join, and manual address/token entry.
-- Host-authoritative session state; new admissions in the lobby; existing players can reconnect by stable player ID.
+- Host-authoritative session state; new admissions in the lobby; existing players can reconnect by stable player ID. Explicit room exit is a distinct protocol action; transient socket loss preserves membership, while explicit exit removes the player from active participation.
 - Acknowledged/retried final answer snapshots, including resend after reconnect and idempotent acknowledgment of duplicates.
 - Bounded TCP frames (256 KiB) and at most 32 pending host handshakes, with a 15-second handshake deadline.
 - Preferred TCP port 50501 with an OS-assigned fallback; UDP discovery port 50507.
@@ -42,6 +42,10 @@ Status reflects the source at baseline `f6fb21168b138c02b523ffa0526a5a253caf8d4a
 - Effective compile/target SDK values are Flutter Gradle defaults rather than explicitly pinned project values.
 - The published 1.0.1 APK predates some current-source fixes. The repository version remains 1.0.1+7; follow-up source changes are unreleased.
 
-## Known inconsistencies / defects
+## Current limitations and verification gaps
 
-The in-app guide still tells users that a random letter is selected, despite the current no-letter rules. Settings' About dialog describes the multiplayer app as a one-device game and says “entirely offline” without clarifying that LAN networking is used. The interface-specific discovery fallback targets each local interface address instead of its broadcast address. Other prioritized items are listed in [Bug Report](BUG_REPORT.md).
+- Flutter/Dart checks for the current branch are pending because the local editing environment has no SDK. Merge is contingent on passing PR CI.
+- Automatic discovery uses limited broadcast only; some networks may block it, so QR/manual joining remain necessary fallbacks.
+- An offline player cannot receive host session completion; the saved room remains explicitly unverified until authoritative host contact.
+- Flutter lifecycle callbacks cannot be awaited by the OS; a lifecycle-triggered flush is best effort and not guaranteed to finish before abrupt process termination.
+- No complete two-device Wi-Fi/hotspot matrix, lifecycle force-stop test, or network security assessment has been performed. See [Bug Report](BUG_REPORT.md) and [Test Plan](TEST_PLAN.md).

@@ -51,6 +51,7 @@ class GameSession {
     List<RoundRecord>? rounds,
     Map<String, int>? totals,
     Set<String>? connectedPlayerIds,
+    Set<String>? leftPlayerIds,
     this.phase = GamePhase.lobby,
     this.playerSeq = 0,
     this.gameId = '',
@@ -60,7 +61,8 @@ class GameSession {
   }) : players = players ?? <Player>[],
        rounds = rounds ?? <RoundRecord>[],
        totals = totals ?? <String, int>{},
-       connectedPlayerIds = connectedPlayerIds ?? <String>{};
+       connectedPlayerIds = connectedPlayerIds ?? <String>{},
+       leftPlayerIds = leftPlayerIds ?? <String>{};
 
   /// نسخهٔ ساختار ذخیره‌سازی (۲ = ساختار چندنفرهٔ ۱.۰.۰).
   static const int schemaVersion = 2;
@@ -81,6 +83,15 @@ class GameSession {
 
   /// بازیکنانی که هم‌اکنون به میزبان متصل‌اند.
   final Set<String> connectedPlayerIds;
+
+  /// بازیکنانی که صریحاً از نشست خارج شده‌اند (با قطع اتصال اشتباه نشود).
+  final Set<String> leftPlayerIds;
+
+  /// بازیکنانی که هنوز عضو نشست‌اند؛ قطع اتصال عضویت را تغییر نمی‌دهد.
+  int get activePlayerCount =>
+      players.where((player) => !leftPlayerIds.contains(player.id)).length;
+
+  bool hasPlayerLeft(String playerId) => leftPlayerIds.contains(playerId);
 
   GamePhase phase;
 
@@ -153,6 +164,7 @@ class GameSession {
     }
     players.removeWhere((p) => p.id == playerId);
     connectedPlayerIds.remove(playerId);
+    leftPlayerIds.remove(playerId);
     totals.remove(playerId);
     for (final round in rounds) {
       round.answers.removeWhere((_, a) => a.playerId == playerId);
@@ -160,6 +172,33 @@ class GameSession {
       round.stoppedPlayerIds.remove(playerId);
       round.receivedSnapshotPlayerIds.remove(playerId);
     }
+  }
+
+  /// ثبت خروج صریح بازیکن. قطع اتصال معمولی نباید این متد را فراخوانی کند.
+  ///
+  /// در لابی رکورد حذف می‌شود. پس از شروع، تاریخچه و مجموع امتیاز حفظ می‌شوند،
+  /// اما بازیکن از شمارش اعضا/حد نصاب دست جاری و دست‌های بعدی کنار می‌رود.
+  bool markPlayerLeft(String playerId) {
+    if (playerId == hostPlayerId || playerById(playerId) == null) return false;
+    if (phase == GamePhase.finished) return false;
+    if (phase == GamePhase.lobby) {
+      removePlayer(playerId);
+      return true;
+    }
+    if (!leftPlayerIds.add(playerId)) return false;
+    connectedPlayerIds.remove(playerId);
+    final round = currentRound;
+    if (round != null &&
+        (phase == GamePhase.playing ||
+            phase == GamePhase.paused ||
+            phase == GamePhase.collecting)) {
+      round.activePlayerIdsAtStart.remove(playerId);
+      round.stoppedPlayerIds.remove(playerId);
+      if (phase == GamePhase.collecting) {
+        round.receivedSnapshotPlayerIds.add(playerId);
+      }
+    }
+    return true;
   }
 
   /// تغییر نام نمایشی بازیکن (هویت او تغییر نمی‌کند).
@@ -188,7 +227,7 @@ class GameSession {
 
   /// به‌روزرسانی وضعیت اتصال یک بازیکن.
   void setConnected(String playerId, bool connected) {
-    if (connected) {
+    if (connected && !leftPlayerIds.contains(playerId)) {
       connectedPlayerIds.add(playerId);
     } else {
       connectedPlayerIds.remove(playerId);
@@ -199,7 +238,7 @@ class GameSession {
 
   /// آیا بازی می‌تواند شروع شود؟
   bool get canStartGame =>
-      phase == GamePhase.lobby && players.length >= minPlayers;
+      phase == GamePhase.lobby && activePlayerCount >= minPlayers;
 
   /// بازیکن با شناسه.
   Player? playerById(String id) {
@@ -234,7 +273,7 @@ class GameSession {
     required int nowMs,
     List<int>? activeCategoryIds,
   }) {
-    if (players.length < minPlayers) {
+    if (activePlayerCount < minPlayers) {
       throw GameRuleException('برای شروع بازی حداقل دو بازیکن لازم است.');
     }
     final previous = currentRound;
@@ -252,9 +291,11 @@ class GameSession {
       index: index,
       startedAtEpochMs: nowMs,
       endEpochMs: nowMs + kRoundDurationMs,
-      activePlayerIdsAtStart: Set<String>.from(connectedPlayerIds),
+      activePlayerIdsAtStart: connectedPlayerIds
+          .where((playerId) => !leftPlayerIds.contains(playerId))
+          .toSet(),
     );
-    for (final player in players) {
+    for (final player in players.where((p) => !leftPlayerIds.contains(p.id))) {
       for (final categoryId in config.activeCategoryIds) {
         round.answers[AnswerEntry.keyOf(
           index,
@@ -322,6 +363,7 @@ class GameSession {
   bool setAnswer(String playerId, int categoryId, String text) {
     final round = currentRound;
     if (round == null || phase != GamePhase.playing) return false;
+    if (leftPlayerIds.contains(playerId)) return false;
     if (!isAnswerWithinLimit(text)) return false;
     if (round.stoppedPlayerIds.contains(playerId)) return false;
     if (playerById(playerId) == null) return false;
@@ -355,7 +397,9 @@ class GameSession {
     final round = currentRound;
     if (round == null) return false;
     if (phase != GamePhase.playing && phase != GamePhase.paused) return false;
-    if (playerById(playerId) == null) return false;
+    if (playerById(playerId) == null || leftPlayerIds.contains(playerId)) {
+      return false;
+    }
     final categoryIds = config.activeCategoryIds;
     if (categoryIds.isEmpty) return false;
     for (final categoryId in categoryIds) {
@@ -450,7 +494,9 @@ class GameSession {
   }) {
     final round = currentRound;
     if (round == null || round.index != roundIndex) return false;
-    if (playerById(playerId) == null) return false;
+    if (playerById(playerId) == null || leftPlayerIds.contains(playerId)) {
+      return false;
+    }
     if (round.receivedSnapshotPlayerIds.contains(playerId)) return false;
     if (answers.values.any((text) => !isAnswerWithinLimit(text))) return false;
     for (final entry in answers.entries) {
@@ -488,7 +534,11 @@ class GameSession {
     if (round == null) return const <String>[];
     return players
         .map((p) => p.id)
-        .where((id) => !round.receivedSnapshotPlayerIds.contains(id))
+        .where(
+          (id) =>
+              !leftPlayerIds.contains(id) &&
+              !round.receivedSnapshotPlayerIds.contains(id),
+        )
         .toList(growable: false);
   }
 
@@ -601,6 +651,7 @@ class GameSession {
   /// پایان کامل بازی؛ داده‌های موقت پاک می‌شوند (تاریخچهٔ دائمی نگه داشته نمی‌شود).
   void finishAndClear() {
     rounds.clear();
+    leftPlayerIds.clear();
     totals.clear();
     for (final p in players) {
       totals[p.id] = 0;
@@ -620,6 +671,7 @@ class GameSession {
     'saved': savedAtEpochMs,
     'players': players.map((p) => p.toJson()).toList(growable: false),
     'conn': connectedPlayerIds.toList(),
+    'left': leftPlayerIds.toList(),
     'config': config.toJson(),
     'rounds': rounds.map((r) => r.toJson()).toList(growable: false),
     'totals': totals,
@@ -648,6 +700,9 @@ class GameSession {
       connectedPlayerIds: ((json['conn'] as List<dynamic>?) ?? const [])
           .map((e) => e as String)
           .toSet(),
+      leftPlayerIds: ((json['left'] as List<dynamic>?) ?? const [])
+          .map((e) => e as String)
+          .toSet(),
       phase: GamePhase.values.firstWhere(
         (p) => p.name == json['phase'],
         orElse: () => GamePhase.lobby,
@@ -660,6 +715,12 @@ class GameSession {
     );
     // اعتبارسنجی: بازیکنان و پاسخ‌ها باید منسجم باشند.
     session.players.removeWhere((p) => p.id.isEmpty || p.name.trim().isEmpty);
+    session.leftPlayerIds.removeWhere(
+      (id) =>
+          session.playerById(id) == null ||
+          id == session.hostPlayerId,
+    );
+    session.connectedPlayerIds.removeAll(session.leftPlayerIds);
     for (final round in session.rounds) {
       round.answers.removeWhere(
         (_, a) => session.playerById(a.playerId) == null,

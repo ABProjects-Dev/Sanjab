@@ -472,6 +472,9 @@ class _PlayersStrip extends StatelessWidget {
     final submission = controller.submissionOf(player.id);
     final phase = session.phase;
 
+    if (session.hasPlayerLeft(player.id)) {
+      return ('از بازی خارج شد', AppColors.textMuted);
+    }
     if (!connected) {
       return ('قطع ارتباط', AppColors.rejected);
     }

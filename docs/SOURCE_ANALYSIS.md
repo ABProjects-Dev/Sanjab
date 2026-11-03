@@ -2,7 +2,7 @@
 
 **Review date:** 2026-11-03
 **Reviewed source baseline:** `f6fb21168b138c02b523ffa0526a5a`
-**Method:** static source, configuration, test, documentation, and CI review. No executable files were changed. No local tests/builds were run because Flutter and Dart SDK executables are absent in the review environment.
+**Method:** static source, configuration, test, documentation, and CI review of the pre-remediation baseline. This is a historical snapshot: defect findings below refer to that baseline, not the active branch. See [Bug Report](BUG_REPORT.md), [Project Status](PROJECT_STATUS.md), and [Architecture](ARCHITECTURE.md) for current remediation status. No local tests/builds were run because Flutter and Dart SDK executables are absent in the review environment.
 
 ## System shape
 

@@ -6,7 +6,7 @@
 library;
 
 /// شناسهٔ نسخهٔ پروتکل شبکه. با تغییر ساختار پیام‌ها افزایش می‌یابد.
-const int kProtocolVersion = 3;
+const int kProtocolVersion = 4;
 
 /// مدت ثابت هر دست: ۷ دقیقه = ۴۲۰ ثانیه (بند ۶ سند نسخه ۱.۰.۰).
 const int kRoundDurationSeconds = 420;

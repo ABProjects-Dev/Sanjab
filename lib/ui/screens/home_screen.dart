@@ -41,10 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     setState(() => _busy = true);
     final ok = await controller.createGame();
-    if (!mounted) {
-      setState(() => _busy = false);
-      return;
-    }
+    if (!mounted) return;
     setState(() => _busy = false);
     if (!ok) {
       final error = controller.lastError;
@@ -74,10 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final controller = GameScope.read(context);
     setState(() => _busy = true);
     final ok = await controller.resumeRoom(room);
-    if (!mounted) {
-      setState(() => _busy = false);
-      return;
-    }
+    if (!mounted) return;
     setState(() => _busy = false);
     if (!ok) {
       final error = controller.lastError;
@@ -101,11 +95,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final ok = await confirmDialog(
       context,
       title: 'خروج از اتاق',
-      message:
-          'از اتاق «${room.roomName}» خارج می‌شوید؟ اطلاعات این اتاق از این '
-          'دستگاه حذف می‌شود و برای بازگشت باید دوباره عضو شوید. '
-          '(بازگشت به صفحهٔ اصلی به معنی خروج از اتاق نیست.)',
-      confirmLabel: 'خروج از اتاق',
+      message: !room.isHost && room.linkStatus == RoomLinkStatus.offline
+          ? 'این دستگاه آفلاین است؛ میزبان از این اقدام باخبر نمی‌شود و ممکن '
+                'است شما را همچنان در شمارش نگه دارد. ادامه فقط اتاق ذخیره‌شده '
+                'را از این دستگاه حذف می‌کند. برای اعلام خروج، ابتدا دوباره وصل شوید.'
+          : 'از اتاق «${room.roomName}» خارج می‌شوید؟ اطلاعات این اتاق از این '
+                'دستگاه حذف می‌شود و برای بازگشت باید دوباره عضو شوید. '
+                '(بازگشت به صفحهٔ اصلی به معنی خروج از اتاق نیست.)',
+      confirmLabel: !room.isHost && room.linkStatus == RoomLinkStatus.offline
+          ? 'حذف از این دستگاه'
+          : 'خروج از اتاق',
       destructive: true,
     );
     if (!ok) return;
@@ -246,6 +245,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                 '$status • ${_roomPhaseLabel(room)}',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
+                              if (!room.isHost &&
+                                  room.linkStatus == RoomLinkStatus.offline) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  'میزبان فعلاً در دسترس نیست؛ از این دستگاه نمی‌توان '
+                                  'فهمید بازی پایان یافته یا فقط اتصال قطع است. برای '
+                                  'بررسی دوباره تلاش کنید یا اتاق را دستی حذف کنید.',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: AppColors.warning),
+                                ),
+                              ],
                               const SizedBox(height: 8),
                               FilledButton.icon(
                                 onPressed: _busy

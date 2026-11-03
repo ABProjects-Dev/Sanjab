@@ -200,20 +200,9 @@ Future<List<DiscoveredHost>> discoverHosts({
     try {
       socket.send(probe, InternetAddress('255.255.255.255'), kDiscoveryPort);
     } catch (_) {}
-    // ارسال به آدرس Broadcast هر رابط شبکه (برای شبکه‌هایی که 255.255.255.255 را رد می‌کنند).
-    try {
-      final interfaces = await NetworkInterface.list(
-        type: InternetAddressType.IPv4,
-        includeLoopback: false,
-      );
-      for (final iface in interfaces) {
-        for (final address in iface.addresses) {
-          try {
-            socket.send(probe, address, kDiscoveryPort);
-          } catch (_) {}
-        }
-      }
-    } catch (_) {}
+    // Dart exposes interface addresses but not IPv4 subnet masks, so a correct
+    // per-interface directed-broadcast address cannot be derived here. Keep the
+    // limited-broadcast probe above; QR/manual join remains the reliable fallback.
     await Future<void>.delayed(timeout);
   } catch (_) {
     // در صورت خطا فهرست خالی برمی‌گردد و ورود دستی پیشنهاد می‌شود.
