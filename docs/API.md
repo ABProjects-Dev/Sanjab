@@ -45,7 +45,7 @@ The sender starts sequence numbers at 1. The receiver ignores duplicate message 
 
 1. An unauthenticated client must send `hello` first. A pending handshake is closed after 15 seconds.
 2. The host validates the game ID, token, player ID and the app-level admission decision.
-3. On success the host registers/replaces the player's active channel and sends `helloAck`; otherwise it sends `helloReject` and closes the channel.
+3. On success the host registers/replaces the player's active channel, sends `helloAck`, and then notifies the app so it can broadcast the current state to the newly registered client. Otherwise it sends `helloReject` and closes the channel.
 
 | Type | Direction | Payload |
 | --- | --- | --- |
@@ -63,12 +63,14 @@ The host accepts an existing player ID as a reconnection. A new player is reject
 | `answer` | Client → host | `r`: round index integer; `c`: category ID integer; `t`: answer text string. Host currently drops answer strings longer than 80 Dart string characters and validates phase/player/category in the domain. |
 | `stop` | Client → host | `r`: round index integer. Host independently validates eligibility and duplicate stop state. |
 | `snapshot` | Client → host | `r`: round index integer; `a`: object mapping category-ID strings to answer strings. Host ignores invalid category keys and values longer than 80 characters. |
-| `snapshotAck` | Host → player | `r`: round index; `received`: boolean. Sent when a player's snapshot is applied. |
+| `snapshotAck` | Host → player | `r`: round index; `received`: boolean. Sent when a player's snapshot is applied; a duplicate retransmission for an already-received snapshot in the same round is acknowledged again without reapplying it. |
 | `results` | Host → client (supported by client parser/handler) | Client applies this payload using the same authoritative-state handler as `state`. No current host send site for `results` was found; host round updates use `state`. |
 | `sessionEnded` | Host → all connected players | `reason`: string; `gameId`: game ID. Clients detach and remove the saved room. |
 | `error` | Host → player | `reason`: user-facing error string. |
 | `ping` | Either direction (supported) | Empty/application-defined object. Host replies with `pong` and `serverNow`; protocol handler ignores ping sequence ordering. |
 | `pong` | Either direction (supported) | Host response includes `serverNow`; currently no periodic client ping sender was found in the application flow. |
+
+The client retains its final snapshot and retries it every two seconds until it receives a `snapshotAck` with `received: true` for the same round. A reconnect resends the pending snapshot immediately. The host treats same-round duplicates idempotently and repeats the acknowledgment, allowing recovery when the original acknowledgment was lost.
 
 Host-side messages such as `state`, `snapshotAck`, `results`, `sessionEnded` and `error` are not accepted as client commands after handshake.
 
@@ -144,9 +146,9 @@ The host UI encodes this JSON object for QR joining:
 
 ## Implementation caveats from static review
 
-- Because the size check runs after line splitting, a peer that sends a long unterminated TCP line may consume memory until the socket is closed. The 15-second handshake timeout does not impose an incremental line-length cap or a global pending-socket limit. The host also retains pending-socket callback entries until server shutdown, rather than removing them when each socket closes.
+- Because the size check runs after line splitting, a peer that sends a long unterminated TCP line may consume memory until the socket is closed. The 15-second handshake timeout does not impose an incremental line-length cap or a global pending-socket limit.
 - Host answer and snapshot values longer than 80 Dart string characters are silently dropped. The current play-screen text fields do not enforce that same limit, so an overlength answer can appear locally but be absent on the host.
-- The host invokes its state broadcast during the hello callback before registering the joining socket. The new client can miss that initial state until a later host update.
-- On reconnect, an old socket's completion callback removes a player channel without confirming it is still the current socket. Final snapshot send state is also not acknowledgment-based, so a lost snapshot may not be retried after reconnect.
+- Initial state is now broadcast by the app callback after the host registers the accepted channel. Completion and message handlers for a replaced socket check channel identity so they cannot remove or operate on the replacement.
+- Final snapshots are retried every two seconds until a matching acknowledgment arrives; reconnects resend pending snapshots, and the host re-acknowledges an already-applied same-round snapshot. These code paths have regression tests, but they still need execution in CI and physical-device verification.
 
 These are source-review findings; they have not all been reproduced with network fault injection.

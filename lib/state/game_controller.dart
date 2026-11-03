@@ -99,8 +99,10 @@ class GameController extends ChangeNotifier {
   /// اختلاف ساعت دستگاه با میزبان (برای زمان‌سنج همگام).
   int _clockOffsetMs = 0;
 
-  /// جلوگیری از ارسال چندبارهٔ Snapshot توسط بازیکن.
-  bool _snapshotSent = false;
+  /// Snapshot is complete only after the matching host acknowledgment arrives.
+  bool _snapshotAcknowledged = false;
+  bool _snapshotRequested = false;
+  int? _snapshotRoundIndex;
 
   bool _ready = false;
   bool foundSavedGame = false;
@@ -374,6 +376,10 @@ class GameController extends ChangeNotifier {
   Future<bool> _startHostServices() async {
     HostCallbacks callbacks() => HostCallbacks(
       onHello: _handleHello,
+      onConnected: (_) {
+        _broadcastState();
+        _touch();
+      },
       onAnswer: _handleRemoteAnswer,
       onStop: _handleRemoteStop,
       onSnapshot: _handleRemoteSnapshot,
@@ -503,8 +509,6 @@ class GameController extends ChangeNotifier {
       // اتصال مجدد بازیکن قبلی: پاسخ‌های قبلی حفظ می‌شوند.
       _session.setConnected(request.playerId, true);
       _session.renamePlayer(request.playerId, request.displayName);
-      _broadcastState();
-      _touch();
       return const HelloDecision.accept(resumed: true);
     }
     try {
@@ -514,8 +518,6 @@ class GameController extends ChangeNotifier {
     }
     AppLogger.instance.log('net', 'player joined');
     _beacon?.updatePlayerCount(_session.players.length);
-    _broadcastState();
-    _touch();
     return const HelloDecision.accept();
   }
 
@@ -563,18 +565,26 @@ class GameController extends ChangeNotifier {
     int roundIndex,
     Map<int, String> answers,
   ) {
+    final round = _session.currentRound;
+    final alreadyReceived =
+        round != null &&
+        round.index == roundIndex &&
+        round.receivedSnapshotPlayerIds.contains(playerId);
     final applied = _session.applySnapshot(
       playerId,
       answers,
       roundIndex: roundIndex,
     );
-    if (applied) {
+    if (applied || alreadyReceived) {
+      // A retransmission may arrive after the first acknowledgment was lost.
+      // Re-acknowledge it without applying the snapshot twice.
       _hostNet?.sendTo(playerId, MsgType.snapshotAck, {
         'r': roundIndex,
         'received': true,
       });
-      AppLogger.instance.log('net', 'snapshot received');
     }
+    if (!applied) return;
+    AppLogger.instance.log('net', 'snapshot received');
     _session.tryStartJudging();
     _broadcastState();
     _touch();
@@ -639,7 +649,7 @@ class GameController extends ChangeNotifier {
     _role = GameRole.player;
     _netStatus = NetStatus.reconnecting;
     _clockOffsetMs = 0;
-    _snapshotSent = false;
+    _resetSnapshotTracking();
     _session = GameSession.fresh(
       nowMs: nowMs(),
       gameId: gameId,
@@ -684,6 +694,9 @@ class GameController extends ChangeNotifier {
         ClientConnectionState.disconnected => NetStatus.disconnected,
         ClientConnectionState.idle => NetStatus.offline,
       };
+      if (state == ClientConnectionState.connected && isPlayer) {
+        _maybeSendSnapshot();
+      }
       if (state == ClientConnectionState.disconnected && isPlayer) {
         _scheduleSave();
       }
@@ -730,8 +743,14 @@ class GameController extends ChangeNotifier {
       case MsgType.results:
         _applyAuthoritativeState(message.payload);
       case MsgType.snapshotAck:
-        _snapshotSent = true;
-        _setNotice('پاسخ‌های شما به میزبان رسید.');
+        final roundIndex = message.payload['r'];
+        if (message.payload['received'] == true &&
+            roundIndex is int &&
+            roundIndex == _snapshotRoundIndex) {
+          _snapshotAcknowledged = true;
+          _snapshotRequested = true;
+          _setNotice('پاسخ‌های شما به میزبان رسید.');
+        }
       case MsgType.sessionEnded:
         final reason =
             message.payload['reason'] as String? ??
@@ -900,7 +919,7 @@ class GameController extends ChangeNotifier {
   void _ensureRound(int roundIndex) {
     final current = _session.currentRound;
     if (current != null && current.index == roundIndex) return;
-    _snapshotSent = false;
+    _resetSnapshotTracking();
     _session.rounds.add(
       RoundRecord(
         index: roundIndex,
@@ -927,7 +946,7 @@ class GameController extends ChangeNotifier {
       _setError(e.message);
       return;
     }
-    _snapshotSent = false;
+    _resetSnapshotTracking();
     _broadcastState();
     _syncTicker();
     _syncScreenAwake();
@@ -943,7 +962,7 @@ class GameController extends ChangeNotifier {
       _setError(e.message);
       return;
     }
-    _snapshotSent = false;
+    _resetSnapshotTracking();
     _broadcastState();
     _syncTicker();
     _syncScreenAwake();
@@ -1057,7 +1076,9 @@ class GameController extends ChangeNotifier {
         _ownAnswers(_session),
         roundIndex: round.index,
       );
-      _snapshotSent = true;
+      _snapshotAcknowledged = true;
+      _snapshotRequested = true;
+      _snapshotRoundIndex = round.index;
       _session.tryStartJudging();
       _broadcastState();
     } else {
@@ -1078,14 +1099,29 @@ class GameController extends ChangeNotifier {
     return result;
   }
 
+  void _resetSnapshotTracking() {
+    _client?.discardPendingSnapshot();
+    _snapshotAcknowledged = false;
+    _snapshotRequested = false;
+    _snapshotRoundIndex = null;
+  }
+
   void _maybeSendSnapshot() {
     if (isHost) return;
     final round = _session.currentRound;
     if (round == null) return;
-    if (_snapshotSent) return;
-    if (_client == null || !_client!.isConnected) return;
-    final ok = _client!.sendSnapshot(round.index, _ownAnswers(_session));
-    if (ok) _snapshotSent = true;
+    if (_snapshotRoundIndex != round.index) {
+      _resetSnapshotTracking();
+      _snapshotRoundIndex = round.index;
+    }
+    if (_snapshotAcknowledged || _snapshotRequested) return;
+    final client = _client;
+    if (client == null || !client.isConnected) return;
+    // GameClient retains and retries the payload until a matching snapshotAck.
+    _snapshotRequested = client.sendSnapshot(
+      round.index,
+      _ownAnswers(_session),
+    );
   }
 
   // ---------------------------------------------------------------- داوری
@@ -1225,7 +1261,7 @@ class GameController extends ChangeNotifier {
     _hostAddress = '';
     _hostName = '';
     _localAddresses = const <String>[];
-    _snapshotSent = false;
+    _resetSnapshotTracking();
     _clockOffsetMs = 0;
     _session = GameSession.fresh(nowMs: nowMs());
   }
@@ -1375,7 +1411,7 @@ class GameController extends ChangeNotifier {
         _profile.displayName;
     _hostAddress = '';
     _sessionFinished = false;
-    _snapshotSent = false;
+    _resetSnapshotTracking();
     _clockOffsetMs = 0;
 
     // بازیابی زمان‌سنج از زمان باقی‌ماندهٔ ذخیره‌شده.
@@ -1423,7 +1459,7 @@ class GameController extends ChangeNotifier {
     _hostPort = room.port;
     _netStatus = NetStatus.reconnecting;
     _clockOffsetMs = 0;
-    _snapshotSent = false;
+    _resetSnapshotTracking();
     _sessionFinished = false;
     if (snapshot != null) {
       try {

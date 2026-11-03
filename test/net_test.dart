@@ -25,7 +25,10 @@ Future<bool> waitUntil(
 }
 
 class RecordedHost {
-  RecordedHost() {
+  RecordedHost({
+    this.sendInitialState = false,
+    this.ackAfterSnapshotCount,
+  }) {
     network = HostNetwork(
       gameId: 'g1',
       token: 'ABC123',
@@ -37,18 +40,44 @@ class RecordedHost {
           }
           return HelloDecision.accept(resumed: request.playerId == 'resume-me');
         },
+        onConnected: (request) {
+          if (network.connectedPlayerIds.contains(request.playerId)) {
+            registeredOnConnectCallbacks.add(request.playerId);
+          }
+          if (sendInitialState) {
+            network.sendState(request.playerId, {
+              'phase': 'lobby',
+              'initial': true,
+            });
+          }
+        },
         onAnswer: (playerId, round, category, text) =>
             answers.add('$playerId|$round|$category|$text'),
         onStop: (playerId, round) => stops.add('$playerId|$round'),
-        onSnapshot: (playerId, round, answersMap) =>
-            snapshots.add('$playerId|$round|${answersMap.length}'),
+        onSnapshot: (playerId, round, answersMap) {
+          snapshots.add('$playerId|$round|${answersMap.length}');
+          final ackAfter = ackAfterSnapshotCount;
+          final playerAttempts = snapshots
+              .where((snapshot) => snapshot.startsWith('$playerId|'))
+              .length;
+          if (ackAfter != null && playerAttempts >= ackAfter) {
+            network.sendTo(playerId, MsgType.snapshotAck, {
+              'r': round,
+              'received': true,
+            });
+          }
+        },
         onDisconnected: (playerId) => disconnects.add(playerId),
       ),
     );
   }
 
+  final bool sendInitialState;
+  final int? ackAfterSnapshotCount;
+
   late final HostNetwork network;
   final List<HelloRequest> hellos = <HelloRequest>[];
+  final List<String> registeredOnConnectCallbacks = <String>[];
   final List<String> answers = <String>[];
   final List<String> stops = <String>[];
   final List<String> snapshots = <String>[];
@@ -164,6 +193,34 @@ void main() {
   });
 
   group('تبادل پیام', () {
+    test('وضعیت اولیه پس از ثبت کانال به بازیکن می‌رسد', () async {
+      final host = RecordedHost(sendInitialState: true);
+      final port = await host.start();
+      final client = GameClient(
+        hostAddress: '127.0.0.1',
+        port: port,
+        gameId: 'g1',
+        token: 'ABC123',
+        playerId: 'initial-state-player',
+        displayName: 'سارا',
+        autoReconnect: false,
+      );
+      final states = <Map<String, dynamic>>[];
+      client.messages.listen((message) {
+        if (message.type == MsgType.state) states.add(message.payload);
+      });
+
+      expect(await client.connect(), isTrue);
+      expect(
+        await waitUntil(() => states.any((state) => state['initial'] == true)),
+        isTrue,
+      );
+      expect(host.registeredOnConnectCallbacks, ['initial-state-player']);
+      expect(host.network.connectedPlayerIds, contains('initial-state-player'));
+      await client.close();
+      await host.network.stop();
+    });
+
     test('وضعیت میزبان به بازیکن می‌رسد', () async {
       final host = RecordedHost();
       final port = await host.start();
@@ -221,6 +278,45 @@ void main() {
       expect(host.answers.single, 'u1|1|2|تهران');
       expect(host.stops.single, 'u1|1');
       expect(host.snapshots.single, 'u1|1|2');
+      await client.close();
+      await host.network.stop();
+    });
+
+    test('Snapshot تا تأیید میزبان دوباره فرستاده و سپس متوقف می‌شود', () async {
+      final host = RecordedHost(ackAfterSnapshotCount: 2);
+      final port = await host.start();
+      final client = GameClient(
+        hostAddress: '127.0.0.1',
+        port: port,
+        gameId: 'g1',
+        token: 'ABC123',
+        playerId: 'snapshot-retry-player',
+        displayName: 'سارا',
+        autoReconnect: false,
+      );
+      final acknowledgedRounds = <int>[];
+      client.messages.listen((message) {
+        if (message.type == MsgType.snapshotAck) {
+          acknowledgedRounds.add(message.payload['r'] as int);
+        }
+      });
+      expect(await client.connect(), isTrue);
+
+      expect(client.sendSnapshot(7, {0: 'تهران'}), isTrue);
+      expect(
+        await waitUntil(
+          () => host.snapshots.length >= 2,
+          timeout: const Duration(seconds: 7),
+        ),
+        isTrue,
+      );
+      expect(
+        await waitUntil(() => acknowledgedRounds.contains(7)),
+        isTrue,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 2200));
+      expect(host.snapshots.length, 2);
+
       await client.close();
       await host.network.stop();
     });
@@ -341,6 +437,76 @@ void main() {
   });
 
   group('قطع و اتصال مجدد', () {
+    test('Snapshot معلق پس از اتصال مجدد دوباره ارسال می‌شود', () async {
+      final host = RecordedHost(ackAfterSnapshotCount: 2);
+      final port = await host.start();
+      final client = GameClient(
+        hostAddress: '127.0.0.1',
+        port: port,
+        gameId: 'g1',
+        token: 'ABC123',
+        playerId: 'snapshot-reconnect-player',
+        displayName: 'سارا',
+      );
+      final acknowledgedRounds = <int>[];
+      client.messages.listen((message) {
+        if (message.type == MsgType.snapshotAck) {
+          acknowledgedRounds.add(message.payload['r'] as int);
+        }
+      });
+      expect(await client.connect(), isTrue);
+      expect(client.sendSnapshot(8, {0: 'تهران'}), isTrue);
+      expect(await waitUntil(() => host.snapshots.length == 1), isTrue);
+
+      await host.network.disconnect('snapshot-reconnect-player');
+      expect(
+        await waitUntil(
+          () => acknowledgedRounds.contains(8),
+          timeout: const Duration(seconds: 8),
+        ),
+        isTrue,
+      );
+      expect(host.hellos.length, greaterThanOrEqualTo(2));
+      expect(host.snapshots.length, 2);
+
+      await client.close();
+      await host.network.stop();
+    });
+
+    test('بسته‌شدن کانال قدیمی اتصال جایگزین‌شده را حذف نمی‌کند', () async {
+      final host = RecordedHost();
+      final port = await host.start();
+
+      Future<GameClient> connectReplacement() async {
+        final client = GameClient(
+          hostAddress: '127.0.0.1',
+          port: port,
+          gameId: 'g1',
+          token: 'ABC123',
+          playerId: 'replace-me',
+          displayName: 'سارا',
+          autoReconnect: false,
+        );
+        expect(await client.connect(), isTrue);
+        return client;
+      }
+
+      final first = await connectReplacement();
+      expect(await waitUntil(() => host.network.connectedCount == 1), isTrue);
+      final replacement = await connectReplacement();
+      expect(await waitUntil(() => host.hellos.length == 2), isTrue);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(host.network.connectedCount, 1);
+      expect(host.network.connectedPlayerIds, contains('replace-me'));
+      expect(host.disconnects, isEmpty);
+
+      await replacement.close();
+      expect(await waitUntil(() => host.disconnects.contains('replace-me')), isTrue);
+      await first.close();
+      await host.network.stop();
+    });
+
     test('قطع اتصال بازیکن به میزبان اعلام می‌شود', () async {
       final host = RecordedHost();
       final port = await host.start();
