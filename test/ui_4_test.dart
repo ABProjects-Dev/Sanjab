@@ -105,7 +105,7 @@ void main() {
     expect(find.text('ادامه بازی'), findsOneWidget);
     expect(find.text('خروج از اتاق'), findsOneWidget);
     expect(find.textContaining('میزبان: سارا'), findsOneWidget);
-    expect(find.textContaining('نسخهٔ ۱.۰.۲'), findsOneWidget);
+    expect(find.textContaining('نسخهٔ ۱.۱.۰'), findsOneWidget);
   });
 
   testWidgets('اتاق پایان‌یافته در صفحهٔ اصلی «ادامه بازی» ندارد', (tester) async {
