@@ -1,6 +1,6 @@
 # Features and Limitations
 
-Status reflects the active unreleased branch `arena/0af07290-sanjab` as of 2026-11-03. “Implemented” means present in source; it does not imply a physical-device test has passed.
+Status reflects the active unreleased branch `arena/c87aff83-sanjab` as of 2026-11-03. “Implemented” means present in source; it does not imply a physical-device test has passed.
 
 ## Implemented
 
@@ -28,7 +28,7 @@ Status reflects the active unreleased branch `arena/0af07290-sanjab` as of 2026-
 
 ### Build and release
 
-- Android application, minimum API 24; current app version is 1.0.1+7.
+- Android application, minimum API 24; current source candidate is 1.0.2+8, pending publication.
 - GitHub Actions workflow for Flutter tests, analysis, and Android debug APK build.
 - Separate manually dispatched signed Android release workflow with signing-certificate verification and APK/checksum upload.
 
@@ -40,7 +40,7 @@ Status reflects the active unreleased branch `arena/0af07290-sanjab` as of 2026-
 - No application-level encryption of local JSON data was identified. Android app data is sandboxed; manifest backup is disabled, but that is not a substitute for cryptographic protection against a device compromise.
 - No fully automated two-phone end-to-end match is present. The integration test covers one-device host setup only; real-network behavior needs physical-device testing.
 - Effective compile/target SDK values are Flutter Gradle defaults rather than explicitly pinned project values.
-- The published 1.0.1 APK predates some current-source fixes. The repository version remains 1.0.1+7; follow-up source changes are unreleased.
+- The published 1.0.1 APK predates the current-source fixes; 1.0.2+8 is pending CI and signed release verification.
 
 ## Current limitations and verification gaps
 

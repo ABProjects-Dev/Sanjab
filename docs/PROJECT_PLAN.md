@@ -1,8 +1,9 @@
 # Project Plan and Verification
 
 **Updated:** 2026-11-03
-**Active branch:** `arena/0af07290-sanjab`
-**Published release:** 1.0.1 (`versionCode` 7)
+**Active branch:** `arena/c87aff83-sanjab`
+**Latest published release:** 1.0.1 (`versionCode` 7)
+**Release candidate:** 1.0.2 (`versionCode` 8), pending publication
 
 ## Current remediation
 
@@ -28,7 +29,7 @@ BUG-01 through BUG-08 are implemented in the current unreleased branch. The scop
 
 ## Release and maintenance
 
-- Keep the published 1.0.1 release unchanged; the current branch is unreleased.
+- Keep the published 1.0.1 artifact unchanged; publish the 1.0.2+8 candidate only after CI and signed APK verification pass.
 - Update the app version only in a separately reviewed release change.
 - Consider pinning the supported Flutter/Gradle/JDK toolchain and Android SDK targets for reproducibility.
 - Add a full two-device integration environment when practical.

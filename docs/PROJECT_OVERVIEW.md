@@ -1,8 +1,9 @@
 # Project Overview
 
 **Updated:** 2026-11-03
-**Active source branch:** `arena/0af07290-sanjab` (unreleased changes)
-**Current published release:** Sanjab 1.0.1 (`versionCode` 7)
+**Active source branch:** `arena/c87aff83-sanjab` (unreleased changes)
+**Latest published release:** Sanjab 1.0.1 (`versionCode` 7)
+**Current release candidate:** Sanjab 1.0.2 (`versionCode` 8), pending publication
 
 ## Product
 
@@ -12,13 +13,13 @@ The app is built with Flutter and Dart. It presents a right-to-left Persian UI w
 
 ## Current source and release status
 
-The repository's checked-in source is newer than the published 1.0.1 release. Its current `pubspec.yaml` version remains `1.0.1+7`; work after that release is recorded under **Unreleased** in the changelog and has not been assigned a new release version. The source includes durable saved-room persistence for both hosts and players, answer-length enforcement, network framing limits, snapshot acknowledgments/retries, and remote session-end navigation. See [Features](FEATURES.md) and [Project Status](PROJECT_STATUS.md).
+The repository's checked-in source includes the 1.0.2 release candidate (`pubspec.yaml` `1.0.2+8`) and its release notes are in `CHANGELOG.md`. The latest published APK remains 1.0.1 until the 1.0.2 tag and signed workflow complete. The source includes saved-room persistence, answer-length enforcement, network framing limits, snapshot acknowledgment/retry, explicit leave, and remote session-end navigation. See [Features](FEATURES.md) and [Project Status](PROJECT_STATUS.md).
 
 | Item | Current source |
 | --- | --- |
 | Package | `com.sanjab.game` |
 | Minimum Android API | 24 (Android 7.0) |
-| Android version | `1.0.1` / version code `7` |
+| Android version | `1.0.2` / version code `8` candidate |
 | Flutter app UI | Persian, RTL, dark theme, portrait |
 | Match transport | IPv4 TCP and UDP on the local network |
 | Backend | None |
