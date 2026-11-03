@@ -23,7 +23,9 @@ void main() {
     for (final name in names) {
       session.addPlayer(name);
     }
-    session.startNewRound(nowMs: 2000);
+    if (names.length >= GameSession.minPlayers) {
+      session.startNewRound(nowMs: 2000);
+    }
     return session;
   }
 
