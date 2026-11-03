@@ -70,6 +70,8 @@ jobs:
           cat "$log_file"
           python3 - "$log_file" "$test_status" <<'PY'
           import json
+          import os
+          import re
           import sys
 
           path = sys.argv[1]
@@ -112,6 +114,16 @@ jobs:
               print(f"::error title=Flutter test failed::{message}")
           if not failures and test_status != 0:
               print("::error title=Flutter tests failed::See the test reporter output above.")
+
+          summaries = []
+          for test_id in failures:
+              name = names.get(test_id, f"test id {test_id}")
+              detail = errors.get(test_id, "").splitlines()
+              summaries.append(f"{name} {detail[0]}" if detail else name)
+          summary = "; ".join(summaries) if summaries else ("passed" if test_status == 0 else "failure-not-parsed")
+          summary = re.sub(r"[^A-Za-z0-9._-]+", "_", summary)[:120]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"failure_summary={summary}\n")
           PY
           exit "$test_status"
 
@@ -119,7 +131,7 @@ jobs:
         if: ${{ always() && steps.dependencies.outcome == 'success' }}
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: flutter-test-events
+          name: flutter-test-events-${{ steps.tests.outputs.failure_summary }}
           path: ${{ runner.temp }}/flutter-test-events.jsonl
           if-no-files-found: ignore
           retention-days: 7
