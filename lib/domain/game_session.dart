@@ -322,6 +322,7 @@ class GameSession {
   bool setAnswer(String playerId, int categoryId, String text) {
     final round = currentRound;
     if (round == null || phase != GamePhase.playing) return false;
+    if (!isAnswerWithinLimit(text)) return false;
     if (round.stoppedPlayerIds.contains(playerId)) return false;
     if (playerById(playerId) == null) return false;
     final key = AnswerEntry.keyOf(round.index, playerId, categoryId);
@@ -451,6 +452,7 @@ class GameSession {
     if (round == null || round.index != roundIndex) return false;
     if (playerById(playerId) == null) return false;
     if (round.receivedSnapshotPlayerIds.contains(playerId)) return false;
+    if (answers.values.any((text) => !isAnswerWithinLimit(text))) return false;
     for (final entry in answers.entries) {
       final key = AnswerEntry.keyOf(round.index, playerId, entry.key);
       final existing = round.answers[key];

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_theme.dart';
 import '../../core/persian.dart';
+import '../../domain/answer_rules.dart';
 import '../../domain/models.dart';
 import '../../state/game_controller.dart';
 import '../../state/game_scope.dart';
@@ -26,6 +27,7 @@ class _PlayScreenState extends State<PlayScreen> {
   final Map<int, TextEditingController> _controllers =
       <int, TextEditingController>{};
   bool _navigating = false;
+  String? _lastErrorShown;
   GameController? _listening;
 
   @override
@@ -34,6 +36,7 @@ class _PlayScreenState extends State<PlayScreen> {
     final controller = GameScope.read(context);
     if (!identical(_listening, controller)) {
       _listening?.removeListener(_onGameChanged);
+      _lastErrorShown = controller.lastError;
       _listening = controller..addListener(_onGameChanged);
     }
   }
@@ -60,6 +63,16 @@ class _PlayScreenState extends State<PlayScreen> {
   void _onGameChanged() {
     final controller = _listening;
     if (controller == null || _navigating) return;
+    final error = controller.lastError;
+    if (error != null && error != _lastErrorShown) {
+      _lastErrorShown = error;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error)));
+      });
+    }
     final phase = controller.session.phase;
     if (phase == GamePhase.lobby || phase == GamePhase.finished) {
       // بازی به پایان رسمی رسید یا نشست خالی است — بازگشت به صفحه اصلی.
@@ -160,7 +173,22 @@ class _PlayScreenState extends State<PlayScreen> {
       child: Scaffold(
         appBar: AppBar(
           leading: const HomeIconButton(),
-          title: Text(round == null ? 'بازی' : 'دست ${faNum(round.index)}'),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: Image.asset(
+                  'assets/images/app_icon_display.png',
+                  width: 30,
+                  height: 30,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(round == null ? 'بازی' : 'دست ${faNum(round.index)}'),
+            ],
+          ),
           actions: [
             Center(
               child: Padding(
@@ -265,8 +293,12 @@ class _PlayScreenState extends State<PlayScreen> {
                                   ),
                                   enabled: canType,
                                   textInputAction: TextInputAction.next,
+                                  maxLength: kMaxAnswerLength,
+                                  maxLengthEnforcement:
+                                      MaxLengthEnforcement.enforced,
                                   decoration: InputDecoration(
                                     hintText: 'پاسخ خود را بنویسید',
+                                    helperText: 'حداکثر ۸۰ نویسه',
                                     isDense: true,
                                   ),
                                   onChanged: (value) =>

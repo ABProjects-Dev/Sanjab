@@ -92,6 +92,13 @@ void main() {
       expect(normalizeAnswerForStop('  آب\u200c  '), 'آب');
       expect(normalizeAnswerForStop('\u200bتهران\u00a0'), 'تهران');
     });
+
+    test('پاسخ‌ها با همان سقف ۸۰ نویسهٔ قابل‌مشاهده شمرده می‌شوند', () {
+      expect(answerCharacterCount('🇩🇪' * 80), 80);
+      expect(isAnswerWithinLimit('🇩🇪' * 80), isTrue);
+      expect(isAnswerWithinLimit('🇩🇪' * 81), isFalse);
+      expect(kMaxAnswerLength, 80);
+    });
   });
 
   // -------------------------------------------------------------- لایهٔ دامنه
@@ -441,11 +448,39 @@ void main() {
       expect(find.textContaining('حداقل ۲ حرف'), findsOneWidget);
     });
 
+    testWidgets('ورودی و Paste پس از ۸۰ نویسهٔ قابل‌مشاهده محدود می‌شوند', (
+      tester,
+    ) async {
+      await pumpPlayScreen(tester);
+      final field = find.byType(TextField).first;
+      await tester.enterText(field, 'ا' * (kMaxAnswerLength + 1));
+      await tester.pump();
+      expect(answerCharacterCount(controller.myAnswer(0)), kMaxAnswerLength);
+      expect(controller.lastError, isNull);
+    });
+
+    testWidgets('رد پاسخ بلند پیام قابل‌مشاهده نشان می‌دهد', (tester) async {
+      await pumpPlayScreen(tester);
+      controller.setAnswer(0, 'ا' * (kMaxAnswerLength + 1));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('پاسخ حداکثر می‌تواند ۸۰ نویسه داشته باشد.'), findsOneWidget);
+    });
+
     testWidgets('۲۲) با تکمیل همهٔ فیلدها دکمه فعال و با کوتاه شدن غیرفعال '
         'می‌شود', (tester) async {
       await pumpPlayScreen(tester);
       final fields = find.byType(TextField);
       expect(fields, findsNWidgets(2));
+      expect(
+        tester.widget<TextField>(fields.first).maxLength,
+        kMaxAnswerLength,
+      );
+      expect(
+        tester.widget<TextField>(fields.first).maxLengthEnforcement,
+        MaxLengthEnforcement.enforced,
+      );
+      expect(find.text('حداکثر ۸۰ نویسه'), findsNWidgets(2));
 
       await tester.enterText(fields.at(0), 'آب');
       await tester.enterText(fields.at(1), 'پ');

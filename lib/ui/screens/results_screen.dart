@@ -45,9 +45,22 @@ class _ResultsScreenState extends State<ResultsScreen> {
   void _onGameChanged() {
     final controller = _listening;
     if (controller == null || _navigating) return;
+    if (controller.sessionFinished ||
+        controller.session.phase == GamePhase.lobby ||
+        controller.session.phase == GamePhase.finished) {
+      _goHome();
+      return;
+    }
     if (controller.session.phase == GamePhase.playing) {
       _goPlay();
     }
+  }
+
+  void _goHome() {
+    if (_navigating) return;
+    _navigating = true;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    _navigating = false;
   }
 
   Future<void> _goPlay() async {

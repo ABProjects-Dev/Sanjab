@@ -62,18 +62,24 @@ The entries below record implementation status; physical-device verification rem
 
 ### P1 — Align answer input with the host's 80-character cap
 
-**Finding:** The host silently drops answer/snapshot values longer than 80 Dart string characters, but the play-screen fields do not enforce that limit.
+**Status:** Implemented.
 
-**Acceptance criteria:**
-- Apply an explicit UI limit matching the server rule or revise the server rule consistently.
-- Give clear feedback rather than silently losing a player's answer.
-- Test normal typing, paste, and final snapshots at and beyond the boundary.
+**Implemented and covered:**
+- Use a shared 80-grapheme-cluster rule in the play-screen field, controller, domain session, host answer receiver, and final-snapshot receiver.
+- Enforce the limit during typing/paste, show an explicit field hint and length counter, and return a clear host error instead of silently dropping an oversized answer.
+- Network and widget tests cover the exact limit, an over-limit answer, a partially valid final snapshot, and visible player feedback.
 
 ### P1 — Fix results navigation for remotely ended sessions
 
-**Finding:** The player controller resets to lobby after `sessionEnded`, while `ResultsScreen` only handles transition to a new playing round. A player on results may remain on that route.
+**Status:** Implemented.
 
-**Acceptance criteria:** Add a widget/controller navigation test proving that a remotely ended game returns every connected player to the home flow.
+**Implemented and covered:** `ResultsScreen` now returns to the home route when the controller reports a finished session or resets to the lobby. A widget test covers the completion notification while the results route is visible.
+
+### P2 — Align squirrel branding across app icon, splash, and game screens
+
+**Status:** Implemented.
+
+**Implemented:** The source squirrel artwork remains unchanged. Derived launcher and in-app compositions center the squirrel at about 70% of the square frame; the native splash uses the same image and dark teal background, and the same icon now appears on the home and play screens.
 
 ### P2 — Guard async UI lifecycle paths
 
