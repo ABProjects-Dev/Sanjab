@@ -23,6 +23,12 @@ The repository release workflow requires these repository secrets:
 
 Keep the original keystore and all passwords outside the repository. The workflow decodes the keystore into the runner's temporary directory, validates it, and never uploads the keystore or passwords. Do not put secret values in source, documentation, or chat.
 
+## APK size and build configuration
+
+The release artifact is a single universal APK covering all ABIs (`armeabi-v7a`, `arm64-v8a`, `x86_64`); ABI splitting is intentionally not used. The `release` build type runs R8 minify and Android resource shrinking, which requires a machine or CI runner with sufficient memory (see `org.gradle.jvmargs` in `android/gradle.properties`; GitHub Actions runners are sufficient). If a future release build fails on R8 keep-rule errors from a plugin, add minimal rules to `android/app/proguard-rules.pro` rather than disabling minification.
+
+The in-app icon asset is shipped at 384px (it is rendered at small sizes only); the 1024px master remains the source for `tool/generate_brand_assets.sh`. Only the Vazirmatn weights used by the UI (400/600/700) are bundled.
+
 ## Run the release workflow
 
 1. Confirm that the intended version tag exists, points to the intended source, and has a GitHub Release.

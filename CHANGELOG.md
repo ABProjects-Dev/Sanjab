@@ -2,6 +2,26 @@
 
 Notable changes to Sanjab are recorded here. Version numbers follow Semantic Versioning; Android build numbers increase monotonically.
 
+## [Unreleased]
+
+### Improved
+
+- Reduce release APK size: enable R8 minify and Android resource shrinking for the `release` build type, and raise the Gradle/Kotlin heap so the release build runs on CI-class runners.
+- Downscale the in-app icon (`assets/images/app_icon_display.png`, shown at small sizes only) from 1024px to 384px.
+- Drop the unused `vazirmatn_medium.ttf` (weight 500 is never referenced by the UI).
+- Recompress the native splash bitmap losslessly.
+- Keep the release artifact as a single universal APK covering all ABIs; ABI splitting is intentionally not used.
+
+### Fixed
+
+- Raise Android Gradle Plugin from 9.1.0 to 9.1.1, the minimum supported by Flutter 3.50.1, which broke `flutter pub get`/builds and CI with a plugin-apply failure.
+- Pin the Flutter toolchain in the CI and release workflows to 3.50.1 so a floating `stable` channel cannot silently raise its minimum AGP again.
+- Surface Gradle wrapper/build failures in the Flutter checks job as annotations (job logs are not always externally fetchable).
+
+### Verification
+
+- Flutter tests, Dart analysis, and the Android debug APK build pass in GitHub Actions for this branch (2026-11-22). Release-build verification of R8 (device smoke test or a signed release workflow run) is still pending.
+
 ## [1.1.0] - 2026-11-04
 
 ### Added

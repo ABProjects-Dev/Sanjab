@@ -52,6 +52,9 @@ jobs:
         uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
+          # Pin the exact Flutter used to verify this build; floating stable
+          # silently broke CI when Flutter raised its minimum AGP.
+          flutter-version: '3.50.1'
           cache: true
 
       - name: Resolve Flutter release dependencies
@@ -80,7 +83,7 @@ jobs:
           android_sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$android_sdk"
           printf 'flutter.sdk=%s\nsdk.dir=%s\n' "$flutter_root" "$android_sdk" > android/local.properties
-          gradle -p android wrapper --gradle-version 9.3.1 --distribution-type all
+          gradle -p android wrapper --gradle-version 9.3.1 --distribution-type bin
 
       - name: Restore and validate release keystore
         env:
