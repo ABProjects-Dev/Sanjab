@@ -2,8 +2,8 @@ name: sanjab
 description: "سنجاب — Persian category word game (Android, local-network multiplayer)"
 publish_to: 'none'
 
-# نسخهٔ ۱.۱.۰ — VersionCode: 9
-version: 1.1.0+9
+# نسخهٔ ۱.۱.۱ — VersionCode: 10
+version: 1.1.1+10
 
 environment:
   sdk: ^3.13.7

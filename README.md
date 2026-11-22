@@ -6,14 +6,14 @@ Sanjab is a Persian-language, category-based word game for Android. It supports 
 
 | Item | Value |
 | --- | --- |
-| Latest published release | `1.0.2` |
-| Checked-in app version | `1.1.0+9` (`versionCode` 9) — release candidate |
+| Latest published release | `1.1.0` |
+| Checked-in app version | `1.1.1+10` (`versionCode` 10) — release candidate |
 | Android package | `com.sanjab.game` |
 | Minimum Android | API 24 (Android 7.0) |
 | UI | Persian, right-to-left, dark theme, portrait, Vazirmatn |
 | Network | Local IPv4 TCP/UDP; no cloud backend |
 
-The repository source now identifies the 1.1.0 release candidate (`versionCode` 9) in `CHANGELOG.md`. Publishing the signed APK is pending PR checks and the Android release workflow. See [Project Status](docs/PROJECT_STATUS.md).
+The repository source now identifies the 1.1.1 release candidate (`versionCode` 10) in `CHANGELOG.md`. Publishing the signed APK is pending the Android release workflow. See [Project Status](docs/PROJECT_STATUS.md).
 
 ## Features
 
