@@ -29,6 +29,9 @@ jobs:
         uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
+          # Pin the exact Flutter used to verify this build; floating stable
+          # silently broke CI when Flutter raised its minimum AGP.
+          flutter-version: '3.50.1'
           cache: true
 
       - name: Resolve Flutter dependencies
@@ -111,6 +114,9 @@ jobs:
         uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
+          # Pin the exact Flutter used to verify this build; floating stable
+          # silently broke CI when Flutter raised its minimum AGP.
+          flutter-version: '3.50.1'
           cache: true
 
       - name: Resolve Flutter dependencies

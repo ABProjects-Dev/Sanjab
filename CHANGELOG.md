@@ -12,6 +12,12 @@ Notable changes to Sanjab are recorded here. Version numbers follow Semantic Ver
 - Recompress the native splash bitmap losslessly.
 - Keep the release artifact as a single universal APK covering all ABIs; ABI splitting is intentionally not used.
 
+### Fixed
+
+- Raise Android Gradle Plugin from 9.1.0 to 9.1.1, the minimum supported by Flutter 3.50.1, which broke `flutter pub get`/builds and CI with a plugin-apply failure.
+- Pin the Flutter toolchain in the CI and release workflows to 3.50.1 so a floating `stable` channel cannot silently raise its minimum AGP again.
+- Surface Gradle wrapper/build failures in the Flutter checks job as annotations (job logs are not always externally fetchable).
+
 ### Verification
 
 - Not run locally: the Flutter/Android toolchain is unavailable in the development environment. To be verified by GitHub Actions (Flutter checks) for the pull request and by a signed release build before distribution.
