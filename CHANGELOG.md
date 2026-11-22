@@ -20,7 +20,7 @@ Notable changes to Sanjab are recorded here. Version numbers follow Semantic Ver
 
 ### Verification
 
-- Not run locally: the Flutter/Android toolchain is unavailable in the development environment. To be verified by GitHub Actions (Flutter checks) for the pull request and by a signed release build before distribution.
+- Flutter tests, Dart analysis, and the Android debug APK build pass in GitHub Actions for this branch (2026-11-22). Release-build verification of R8 (device smoke test or a signed release workflow run) is still pending.
 
 ## [1.1.0] - 2026-11-04
 
