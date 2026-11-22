@@ -2,7 +2,7 @@
 
 Notable changes to Sanjab are recorded here. Version numbers follow Semantic Versioning; Android build numbers increase monotonically.
 
-## [Unreleased]
+## [1.1.1] - 2026-11-22
 
 ### Improved
 
@@ -20,7 +20,7 @@ Notable changes to Sanjab are recorded here. Version numbers follow Semantic Ver
 
 ### Verification
 
-- Flutter tests, Dart analysis, and the Android debug APK build pass in GitHub Actions for this branch (2026-11-22). Release-build verification of R8 (device smoke test or a signed release workflow run) is still pending.
+- Flutter tests, Dart analysis, and the Android debug APK build pass in GitHub Actions (2026-11-22, PR #19). The 1.1.1 preparation PR re-verified these checks. Release-build verification of R8 (device smoke test or a signed release workflow run) is still pending.
 
 ## [1.1.0] - 2026-11-04
 

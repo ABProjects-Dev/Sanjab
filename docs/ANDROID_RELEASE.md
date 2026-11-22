@@ -2,15 +2,15 @@
 
 ## Current release
 
-Version `1.0.2` (`versionCode` 8) is the current published Sanjab release. The 1.1.0 (`versionCode` 9) candidate adds solo play, color-coded player status, additional room controls, and safer room resume behavior.
+Version `1.1.0` (`versionCode` 9) is the current published Sanjab release. It adds solo play, color-coded player status, additional room controls, and safer room resume behavior. The 1.1.1 (`versionCode` 10) candidate reduces the release APK size (R8 minify and resource shrinking, smaller in-app artwork, unused font removed) and modernizes the CI/Android toolchain.
 
-The signed APK and release-generated SHA-256 sidecar for 1.0.2 are attached to its GitHub Release:
+The signed APK and release-generated SHA-256 sidecar for 1.1.0 are attached to its GitHub Release:
 
-- [Sanjab-1.0.2.apk](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.0.2/Sanjab-1.0.2.apk)
-- [Sanjab-1.0.2.apk.sha256](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.0.2/Sanjab-1.0.2.apk.sha256)
-- [GitHub Release 1.0.2](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.2)
+- [Sanjab-1.1.0.apk](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.1.0/Sanjab-1.1.0.apk)
+- [Sanjab-1.1.0.apk.sha256](https://github.com/behrouzxp-dev/Sanjab/releases/download/1.1.0/Sanjab-1.1.0.apk.sha256)
+- [GitHub Release 1.1.0](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.1.0)
 
-The 1.0.2 checksum sidecar has not been independently verified; do not describe that checksum as independently verified. Earlier releases, [Sanjab 1.0.1](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1) and [Sanjab 1.0.0](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0), remain available.
+The 1.1.0 checksum sidecar has not been independently verified; do not describe that checksum as independently verified. Earlier releases, [Sanjab 1.0.2](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.2), [Sanjab 1.0.1](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.1) and [Sanjab 1.0.0](https://github.com/behrouzxp-dev/Sanjab/releases/tag/1.0.0), remain available.
 
 ## Required GitHub Actions secrets
 
@@ -33,7 +33,7 @@ The in-app icon asset is shipped at 384px (it is rendered at small sizes only); 
 
 1. Confirm that the intended version tag exists, points to the intended source, and has a GitHub Release.
 2. Open **Actions → Android release → Run workflow** on the `main` branch.
-3. Enter the existing tag (for example, `1.1.0`). The workflow verifies that the tag matches the version in `pubspec.yaml`.
+3. Enter the existing tag (for example, `v1.1.1`). The workflow verifies that the tag matches the version in `pubspec.yaml`; a leading `v` in the tag is optional and is ignored for the comparison.
 4. Wait for dependency resolution, the Android release build, and APK certificate verification to finish.
 5. Confirm that `Sanjab-<tag>.apk` and `Sanjab-<tag>.apk.sha256` are attached to the GitHub Release.
 

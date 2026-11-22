@@ -6,7 +6,7 @@ on:
       tag:
         description: Existing GitHub release tag to build and update
         required: true
-        default: 1.1.0
+        default: v1.1.1
         type: string
 
 permissions:
@@ -31,7 +31,8 @@ jobs:
         run: |
           version="$(sed -n 's/^version: *//p' pubspec.yaml | tr -d '\"' | head -n 1)"
           app_version="${version%%+*}"
-          if [[ -z "$app_version" || "$app_version" != "$RELEASE_TAG" ]]; then
+          tag_version="${RELEASE_TAG#v}"
+          if [[ -z "$app_version" || "$app_version" != "$tag_version" ]]; then
             echo "Release tag does not match the version in pubspec.yaml." >&2
             exit 1
           fi
