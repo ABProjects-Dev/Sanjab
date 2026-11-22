@@ -66,10 +66,14 @@ android {
 
     buildTypes {
         release {
-            // R8/minify در این محیط ساخت خاموش است (حافظهٔ محدود)؛ برای انتشار
-            // روی ماشین قوی‌تر می‌توانید isMinifyEnabled را true کنید.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8 minify + resource shrinking are enabled for the release build.
+            // They need a machine/CI runner with sufficient memory; the release
+            // workflow builds on GitHub Actions (see org.gradle.jvmargs in
+            // android/gradle.properties). If a release build reports missing
+            // classes from a plugin, add minimal keep rules to
+            // android/app/proguard-rules.pro instead of disabling minification.
+            isMinifyEnabled = true
+            isShrinkResources = true
             // Never fall back to the debug certificate for a release build.
             signingConfig = signingConfigs.getByName("release")
         }
