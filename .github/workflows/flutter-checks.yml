@@ -139,7 +139,7 @@ jobs:
           printf 'flutter.sdk=%s\nsdk.dir=%s\n' "$flutter_root" "$android_sdk" > android/local.properties
           if ! gradle -p android wrapper --gradle-version 9.3.1 --distribution-type all 2>&1 | tee "$RUNNER_TEMP/gradle-wrapper.log"; then
             status=${PIPESTATUS[0]}
-            tail -c 6000 "$RUNNER_TEMP/gradle-wrapper.log" | tr -d '\r' | while IFS= read -r line; do
+            { grep -iE "what went wrong|execution failed|failed|exception|caused by|unable to|not found|could not|error" "$RUNNER_TEMP/gradle-wrapper.log" | tail -8; echo '--- tail of log ---'; tail -c 1500 "$RUNNER_TEMP/gradle-wrapper.log"; } | tr -d '\r' | while IFS= read -r line; do
               esc=${line//%/%25}
               printf '::error title=Gradle wrapper::%s\n' "$esc"
             done
