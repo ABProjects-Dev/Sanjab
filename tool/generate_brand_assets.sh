@@ -10,7 +10,10 @@ trap 'rm -rf "$tmp_dir"' EXIT
 
 # Use the original framed artwork without zooming or cropping. The squirrel
 # remains centered with the original dark background visible as a margin.
-cp "$source_image" "$root/assets/images/app_icon_display.png"
+# In-app artwork is rendered at a few dozen logical pixels (home and play
+# headers); ship a small 384px icon instead of the 1024px master.
+convert "$source_image" -resize 384x384! -strip -define png:compression-level=9 \
+  "$root/assets/images/app_icon_display.png"
 
 # Extract the existing orange line art as a transparent Android foreground.
 # The soft threshold keeps antialiased edges while excluding the dark backdrop.
@@ -43,5 +46,5 @@ for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
 done
 
 # The native splash uses the same framed icon and the same dark background.
-convert "$root/assets/images/app_icon_display.png" -resize 384x384! \
-  "$root/android/app/src/main/res/drawable-xxhdpi/splash_logo.png"
+convert "$root/assets/images/app_icon_display.png" -strip \
+  -define png:compression-level=9 "$root/android/app/src/main/res/drawable-xxhdpi/splash_logo.png"

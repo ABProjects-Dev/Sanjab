@@ -39,8 +39,6 @@ flutter:
       fonts:
         - asset: assets/fonts/vazirmatn_regular.ttf
           weight: 400
-        - asset: assets/fonts/vazirmatn_medium.ttf
-          weight: 500
         - asset: assets/fonts/vazirmatn_semibold.ttf
           weight: 600
         - asset: assets/fonts/vazirmatn_bold.ttf
