@@ -432,16 +432,14 @@ class HostNetwork {
   /// Stop the server and close every connection.
   /// Stop accepting immediately, without waiting for the teardown.
   ///
-  /// Cancelling the accept subscription and releasing the socket is
-  /// synchronous, so the port is free for the next host before this returns;
-  /// the socket's own close is asynchronous (dart:io polls for pending
-  /// accepts). Use [stop] when the caller wants to await the full teardown.
+  /// Closing the listening socket releases the port synchronously. The accept
+  /// subscription is deliberately left in place: dart:io reports an
+  /// accept-time peer reset as an error on that stream, and cancelling the
+  /// subscription would turn a late error into an uncaught zone error. The
+  /// stream ends by itself once the socket is closed.
   void dispose() {
     final server = _server;
     _server = null;
-    final subscription = _acceptSubscription;
-    _acceptSubscription = null;
-    unawaited(subscription?.cancel());
     if (server != null) unawaited(server.close());
     _closeChannels();
   }
@@ -449,12 +447,10 @@ class HostNetwork {
   Future<void> stop() async {
     final server = _server;
     _server = null;
-    // Close the listening socket first: a pending accept error then still has
-    // the subscription's onError to land in instead of becoming uncaught.
+    // Close the listening socket first, keeping onError attached until the
+    // close has completed; the subscription then ends with the stream.
     await server?.close();
-    final subscription = _acceptSubscription;
     _acceptSubscription = null;
-    await subscription?.cancel();
     await _closeChannelsAsync();
   }
 
