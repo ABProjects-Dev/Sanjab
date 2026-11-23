@@ -271,7 +271,6 @@ void main() {
       RoomRecord record(String name, int updatedAt) => RoomRecord(
         gameId: 'g1',
         roomName: name,
-        roomName: 'Room',
         hostPlayerId: 'h1',
         hostName: 'سارا',
         myPlayerId: 'p1',
