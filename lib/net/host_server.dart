@@ -101,7 +101,6 @@ class HostNetwork {
   final int maxPendingHandshakes;
 
   ServerSocket? _server;
-  StreamSubscription<Socket>? _acceptSubscription;
   final Map<String, LineChannel> _channels = <String, LineChannel>{};
   final Map<String, MessageDeduper> _dedupers = <String, MessageDeduper>{};
   final Map<String, SequenceGuard> _guards = <String, SequenceGuard>{};
@@ -145,7 +144,9 @@ class HostNetwork {
   void _listenForConnections(ServerSocket server) {
     runZonedGuarded(
       () {
-        _acceptSubscription = server.listen(
+        // The subscription lives as long as the socket; dart:io keeps the
+        // stream alive by itself, so no reference is kept here.
+        server.listen(
           _onSocket,
           onError: (Object error, StackTrace stack) {
             rejectedConnections += 1;
@@ -467,7 +468,6 @@ class HostNetwork {
     // Close the listening socket first, keeping onError attached until the
     // close has completed; the subscription then ends with the stream.
     await server?.close();
-    _acceptSubscription = null;
     await _closeChannelsAsync();
   }
 

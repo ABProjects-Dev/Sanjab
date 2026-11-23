@@ -52,20 +52,19 @@ void main() {
 
   testWidgets('دکمهٔ ایجاد بازی بدون خطا در دسترس است', (tester) async {
     await pumpApp(tester);
-    await tester.tap(find.text('ایجاد بازی'));
-    // Creating a game binds a real TCP port, which never completes inside the
-    // fake-async zone: let the real event loop run, then pump the UI.
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 400)),
-    );
-    await tester.pump();
+    // Creating a game binds a real TCP port and needs the real event loop, so
+    // run the tap inside runAsync and let the flow settle there. The host is
+    // shut down in the same block so no socket or timer outlives the test.
+    await tester.runAsync(() async {
+      await tester.tap(find.text('ایجاد بازی'));
+      await tester.pump();
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      await tester.pump();
+      expect(controller.isHost, isTrue, reason: 'the host must have started');
+      await controller.closeSession(silent: true);
+      await tester.pump();
+    });
     expect(tester.takeException(), isNull);
-    expect(controller.isHost, isTrue, reason: 'the host must have started');
-
-    // Shut the host down inside the test body: no ticker or debounce timer may
-    // outlive it, and the test zone must end with no pending timers.
-    await tester.runAsync(() => controller.closeSession(silent: true));
-    await tester.pump(const Duration(seconds: 1));
     expect(controller.isHost, isFalse);
   });
 
