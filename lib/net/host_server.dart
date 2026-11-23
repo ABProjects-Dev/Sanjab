@@ -148,13 +148,26 @@ class HostNetwork {
   }
 
   void _onSocket(Socket socket) {
-    if (_pendingHandshake.length >= maxPendingHandshakes) {
+    // A peer that connects and drops immediately is legitimate; never let such
+    // a socket escape this handler as an uncaught error.
+    try {
+      if (_pendingHandshake.length >= maxPendingHandshakes) {
+        rejectedConnections += 1;
+        socket.destroy();
+        return;
+      }
+      socket.setOption(SocketOption.tcpNoDelay, true);
+    } on Exception {
+      // The socket resets between accept and configuration: drop it silently.
       rejectedConnections += 1;
-      socket.destroy();
+      try {
+        socket.destroy();
+      } on Object {
+        // Already gone.
+      }
       return;
     }
 
-    socket.setOption(SocketOption.tcpNoDelay, true);
     final channel = LineChannel(socket, label: 'pending');
     final key = 'pending-${++_pendingSequence}';
     _pendingHandshake.add(key);

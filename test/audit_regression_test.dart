@@ -187,6 +187,37 @@ void main() {
     });
   });
 
+  group('Host socket resilience', () {
+    test('a peer that connects and resets does not break the host', () async {
+      final host = RecordingHost();
+      final port = await host.start();
+      addTearDown(host.network.stop);
+
+      // Connect and drop without sending anything, several times: this used to
+      // throw out of the accept handler (ECONNRESET on socket configuration).
+      for (var i = 0; i < 3; i++) {
+        final socket = await Socket.connect('127.0.0.1', port);
+        socket.destroy();
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      // The server still accepts and authenticates a real client afterwards.
+      final client = GameClient(
+        hostAddress: '127.0.0.1',
+        port: port,
+        gameId: 'g1',
+        token: 'ABC123',
+        playerId: 'p1',
+        displayName: 'مینا',
+        autoReconnect: false,
+      );
+      addTearDown(client.close);
+      expect(await client.connect(), isTrue);
+      expect(host.network.isRunning, isTrue);
+      expect(host.network.connectedPlayerIds, contains('p1'));
+    });
+  });
+
   group('Answer frame coalescing', () {
     late RecordingHost host;
     late GameClient client;
