@@ -454,6 +454,9 @@ void main() {
       expect(gradle, contains('../../pubspec.yaml'));
       expect(gradle, contains('versionCode = appVersionCode'));
       expect(gradle, contains('versionName = appVersionName'));
+      // A top-level val cannot be assigned from a run {} block: the derived
+      // values must come from a destructured function result instead.
+      expect(gradle, contains('val (appVersionName, appVersionCode) = readAppVersion()'));
       // compileSdk is an android {} property; assigning it inside defaultConfig
       // does not compile, so guard the placement.
       expect(gradle, contains('compileSdk = 36'));

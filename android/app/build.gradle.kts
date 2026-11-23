@@ -9,9 +9,9 @@ plugins {
 // --- Single source of truth for the app version ---------------------------
 // pubspec.yaml holds "version: MAJOR.MINOR.PATCH+BUILD"; versionName and
 // versionCode are derived from it so the two files can never drift apart.
-val appVersionName: String
-val appVersionCode: Int
-run {
+// The parsing lives in a function because a top-level `val` cannot be assigned
+// from inside a `run {}` block (Kotlin only defers assignment of local vals).
+fun readAppVersion(): Pair<String, Int> {
     val pubspec = file("../../pubspec.yaml")
     val rawVersion =
         pubspec
@@ -20,14 +20,16 @@ run {
             ?.removePrefix("version:")
             ?.trim()
             ?: throw GradleException("pubspec.yaml has no version line.")
-    val name = rawVersion.substringBefore('+').trim().removeSurrounding("\"")
-    val build = rawVersion.substringAfter('+', "0").trim().removeSurrounding("\"").toIntOrNull()
-    if (name.isEmpty() || build == null) {
+    val rawName = rawVersion.substringBefore('+').trim().removeSurrounding("\"")
+    val rawBuild =
+        rawVersion.substringAfter('+', "0").trim().removeSurrounding("\"").toIntOrNull()
+    if (rawName.isEmpty() || rawBuild == null) {
         throw GradleException("pubspec.yaml version '$rawVersion' is not MAJOR.MINOR.PATCH+BUILD.")
     }
-    appVersionName = name
-    appVersionCode = build
+    return rawName to rawBuild
 }
+
+val (appVersionName, appVersionCode) = readAppVersion()
 logger.lifecycle("Sanjab version: name=$appVersionName code=$appVersionCode")
 
 // --- Release signing ----------------------------------------------------
