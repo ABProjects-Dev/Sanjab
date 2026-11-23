@@ -314,8 +314,23 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: Resolve Flutter dependencies
-        run: flutter pub get
+      - name: Resolve Flutter dependencies for the release build
+        # integration_test is a dev-only Flutter SDK plugin; leaving it in makes
+        # the release registrant reference native code that is not shipped.
+        # The same removal happens in the publishing workflow.
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          pubspec = Path("pubspec.yaml")
+          lines = pubspec.read_text().splitlines(keepends=True)
+          matches = [i for i, line in enumerate(lines) if line == "  integration_test:\n"]
+          if len(matches) != 1 or lines[matches[0] + 1] != "    sdk: flutter\n":
+              raise SystemExit("Could not locate the integration_test dev dependency exactly once.")
+          del lines[matches[0]:matches[0] + 2]
+          pubspec.write_text("".join(lines))
+          PY
+          flutter pub get
 
       - name: Set up Gradle caches
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
@@ -348,7 +363,17 @@ jobs:
           export ANDROID_KEYSTORE_PASS="$CI_KEYSTORE_PASS"
           export ANDROID_KEY_ALIAS="ci-gate"
           export ANDROID_KEY_PASS="$CI_KEYSTORE_PASS"
-          flutter build apk --release --no-pub
+          log_file="$RUNNER_TEMP/release-build.log"
+          if ! flutter build apk --release --no-pub > "$log_file" 2>&1; then
+            tail -n 120 "$log_file"
+            grep -nE "^(e: |FAILURE|\* What went wrong|Caused by|> )" "$log_file" \
+              | head -n 15 \
+              | while IFS= read -r line; do
+                  echo "::error title=Release build::${line//'%'/'%25'}"
+                done
+            exit 1
+          fi
+          tail -n 20 "$log_file"
           apk="build/app/outputs/flutter-apk/app-release.apk"
           test -s "$apk"
           ls -lh "$apk"
