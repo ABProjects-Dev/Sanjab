@@ -9,6 +9,11 @@ import '../../core/persian.dart';
 import '../../domain/models.dart';
 
 /// Sectioned card with an optional title.
+///
+/// The surface color is painted by a [Material] rather than a [Container]:
+/// [ListTile] asserts against a non-Material colored ancestor (its ink splashes
+/// would be invisible), and several screens put plain [ListTile]s inside this
+/// card.
 class SectionCard extends StatelessWidget {
   const SectionCard({
     super.key,
@@ -27,32 +32,39 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(16);
     return Container(
-      padding: padding,
       decoration: BoxDecoration(
-        color: color ?? AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: radius,
         border: Border.all(color: AppColors.outline, width: 0.8),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (title != null) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title!,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+      child: Material(
+        color: color ?? AppColors.surface,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: padding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (title != null) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title!,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    ?trailing,
+                  ],
                 ),
-                ?trailing,
+                const SizedBox(height: 10),
               ],
-            ),
-            const SizedBox(height: 10),
-          ],
-          child,
-        ],
+              child,
+            ],
+          ),
+        ),
       ),
     );
   }
