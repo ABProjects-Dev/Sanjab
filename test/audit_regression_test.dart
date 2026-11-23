@@ -50,6 +50,23 @@ class DelayedRoomStore extends MemoryRoomStore {
   }
 }
 
+/// Create a game, retrying on a fresh port.
+///
+/// Every test in this file starts a host on the default port and tears it down;
+/// a listener that is still closing can reject the next bind with ECONNRESET, so
+/// a failed attempt is retried instead of flaking the suite.
+Future<void> createGameWithRetry(GameController host) async {
+  for (var attempt = 0; attempt < 5; attempt++) {
+    try {
+      if (await host.createGame(activeCategoryIds: [0, 1])) return;
+    } on Object {
+      // Fall through to the retry below.
+    }
+    await Future<void>.delayed(Duration(milliseconds: 100 * (attempt + 1)));
+  }
+  throw StateError('could not start a host server after five attempts');
+}
+
 GameController buildController(String id, String name, {RoomStore? rooms}) =>
     GameController(
       store: MemorySessionStore(),
@@ -130,7 +147,7 @@ void main() {
     });
 
     test('the reconnect still succeeds and keeps the previous name', () async {
-      expect(await host.createGame(activeCategoryIds: [0, 1]), isTrue);
+      await createGameWithRetry(host);
       Future<bool> join(GameController member) => member.joinGame(
         address: '127.0.0.1',
         port: host.hostPort,
@@ -241,10 +258,10 @@ void main() {
     });
   });
 
-  group('Saved room timestamps', () {
-    test('a newer room record cannot be overwritten by an older one', () async {
+  group('Saved room records', () {
+    test('one record per room and player, updated in place', () async {
       final store = MemoryRoomStore();
-      RoomRecord record(int updatedAt) => RoomRecord(
+      RoomRecord record(String name, int updatedAt) => RoomRecord(
         gameId: 'g1',
         roomName: 'Room',
         hostPlayerId: 'h1',
@@ -260,9 +277,12 @@ void main() {
         updatedAtEpochMs: updatedAt,
       );
 
-      expect(await store.upsert(record(200)), isTrue);
-      expect(await store.upsert(record(100)), isFalse);
+      expect(await store.upsert(record('Room', 100)), isTrue);
+      expect(await store.upsert(record('Room renamed', 200)), isTrue);
+
       final rooms = await store.loadAll();
+      expect(rooms, hasLength(1), reason: 'upsert must not duplicate a key');
+      expect(rooms.single.roomName, 'Room renamed');
       expect(rooms.single.updatedAtEpochMs, 200);
     });
   });
@@ -272,7 +292,7 @@ void main() {
       final rooms = MemoryRoomStore();
       final first = buildController('h1', 'سارا', rooms: rooms);
       await first.bootstrap();
-      expect(await first.createGame(activeCategoryIds: [0, 1]), isTrue);
+      await createGameWithRetry(first);
       final gameId = first.gameId;
       final token = first.joinToken;
       expect(gameId, isNotEmpty);
@@ -302,7 +322,7 @@ void main() {
       final host = buildController('h1', 'سارا', rooms: rooms);
       addTearDown(host.dispose);
       await host.bootstrap();
-      expect(await host.createGame(activeCategoryIds: [0, 1]), isTrue);
+      await createGameWithRetry(host);
       host.startGame();
       host.setAnswer(0, 'آب');
       final gameId = host.gameId;
@@ -325,7 +345,7 @@ void main() {
       final host = buildController('h1', 'سارا', rooms: rooms);
       addTearDown(host.dispose);
       await host.bootstrap();
-      expect(await host.createGame(activeCategoryIds: [0, 1]), isTrue);
+      await createGameWithRetry(host);
       host.startGame();
       host.setAnswer(0, 'آب');
       final gameId = host.gameId;
@@ -354,7 +374,7 @@ void main() {
       );
       addTearDown(controller.dispose);
       await controller.bootstrap();
-      expect(await controller.createGame(activeCategoryIds: [0, 1]), isTrue);
+      await createGameWithRetry(controller);
       controller.startGame();
       expect(controller.session.phase, GamePhase.playing);
 

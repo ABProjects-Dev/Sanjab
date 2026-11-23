@@ -57,7 +57,9 @@ jobs:
         run: |
           set +e
           report_file="$RUNNER_TEMP/flutter-test-report.jsonl"
-          flutter test --no-pub --coverage --concurrency=2 --reporter=github --file-reporter="json:$report_file"
+          # Serial: several suites bind a fixed TCP port on the host, so running
+          # test files in parallel lets them race for it and flake the run.
+          flutter test --no-pub --coverage --concurrency=1 --reporter=github --file-reporter="json:$report_file"
           test_status=$?
           python3 - "$report_file" "$test_status" <<'PY'
           import json
