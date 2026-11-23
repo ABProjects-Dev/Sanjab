@@ -1,5 +1,5 @@
-/// آزمون سرتاسری نسخهٔ ۱.۰.۰: دو کنترلر واقعی (میزبان و بازیکن) روی
-/// لوکال‌هاست با سوکت TCP واقعی؛ از ساخت بازی تا داوری و نتایج.
+/// End-to-end test: two real controllers (host and player) on localhost with
+/// real TCP sockets, from creating the game through judging to results.
 library;
 
 import 'dart:convert';
@@ -89,9 +89,9 @@ void main() {
   });
 
   test('جریان کامل بازی سه‌نفره: اتصال، دست، استپ، داوری و نتایج', () async {
-    // نسخهٔ ۱.۰.۰: دکمهٔ استپ زمانی فعال می‌شود که همهٔ فیلدهای پاسخ
-    // بازیکن حداقل دو کاراکتر داشته باشند؛ برای آزمون‌پذیر ماندن این جریان،
-    // دسته‌های فعال به دو دسته محدود می‌شود.
+    // Stop becomes available once every answer field of the player holds at
+    // least two characters; to keep this flow quick the session uses two
+    // active categories.
     expect(await host.createGame(activeCategoryIds: [0, 1]), isTrue);
     expect(host.isHost, isTrue);
     expect(host.hostPort, greaterThan(0));
@@ -117,7 +117,7 @@ void main() {
       isTrue,
     );
 
-    // میزبان هر دو بازیکن را در لابی می‌بیند.
+    // The host sees both players in the lobby.
     expect(
       await waitUntil(() => host.session.players.length == 3),
       isTrue,
@@ -126,7 +126,7 @@ void main() {
     final joinedIds = host.session.players.map((p) => p.id).toList();
     expect(joinedIds, containsAll(<String>['h1', 'p1', 'p2']));
 
-    // بازیکن وضعیت همگام‌شدهٔ لابی را دریافت می‌کند.
+    // The player receives the synced lobby state.
     expect(
       await waitUntil(() => player.session.players.length == 3),
       isTrue,
@@ -138,7 +138,7 @@ void main() {
       reason: 'بازیکن تازه‌وارد باید وضعیت اولیهٔ لابی را دریافت کند',
     );
 
-    // نسخهٔ ۱.۰.۰: دست بدون هیچ کلمه یا حرفی و بدون هیچ پیش‌نیاز متنی شروع می‌شود.
+    // A round starts without a word, letter or any text prerequisite.
     host.startGame();
     expect(host.session.phase, GamePhase.playing);
     expect(
@@ -149,7 +149,7 @@ void main() {
       player.session.currentRound!.index,
       host.session.currentRound!.index,
     );
-    // زمان‌سنج ثابت ۷ دقیقه و همگام با میزبان است.
+    // The timer is fixed at seven minutes and synced with the host.
     expect((host.remainingMs / 1000).round(), 420);
     expect(
       ((player.remainingMs - host.remainingMs) / 1000).abs(),
@@ -157,7 +157,7 @@ void main() {
       reason: 'زمان‌سنج بازیکن باید با میزبان همگام باشد',
     );
 
-    // پاسخ‌ها از دستگاه بازیکن به میزبان می‌رسد.
+    // Answers travel from the player device to the host.
     player.setAnswer(0, 'تهران');
     player.setAnswer(1, 'رضا');
     player2.setAnswer(0, 'شیراز');
@@ -172,7 +172,7 @@ void main() {
       reason: 'پاسخ بازیکن باید روی میزبان ثبت شود',
     );
 
-    // در بازی سه‌نفره حد نصاب استپ دو نفر است؛ یک استپ دست را تمام نمی‌کند.
+    // In a three-player game the threshold is two, so one Stop does not end it.
     await player.requestStop();
     expect(
       await waitUntil(() => host.session.stopCount == 1),
@@ -190,15 +190,15 @@ void main() {
       isFalse,
       reason: 'با استپ یک بازیکن، پاسخ‌های میزبان نباید قفل شود',
     );
-    // میزبان می‌تواند تا پایان دست به نوشتن ادامه دهد.
+    // The host may keep writing until the round ends.
     host.setAnswer(1, 'الف‌رضا');
     expect(
       host.session.currentRound!.answerOf('h1', 1)!.text,
       'الف‌رضا',
     );
-    // استپ دوم (بازیکن سوم) دست را برای همه تمام می‌کند.
+    // The second Stop ends the round for everyone.
     await player2.requestStop();
-    // فاز «دریافت پاسخ‌ها» کوتاه است و بی‌درنگ به داوری می‌رسد؛ پس هر دو حالت پذیرفته است.
+    // The collecting phase is brief and moves straight to judging, so either phase is accepted.
     final endedOnHost = await waitUntil(
       () =>
           host.session.phase == GamePhase.collecting ||
@@ -207,7 +207,7 @@ void main() {
     expect(endedOnHost, isTrue, reason: 'استپ بازیکن باید دست را تمام کند');
     expect(host.session.currentRound!.endReason, RoundEndReason.playerStop);
 
-    // پاسخ نهایی همهٔ بازیکنان جمع‌آوری و داوری آغاز می‌شود.
+    // Every final answer is collected and judging begins.
     expect(
       await waitUntil(() => host.session.phase == GamePhase.judging),
       isTrue,
@@ -222,14 +222,14 @@ void main() {
       );
     }
 
-    // داوری فقط روی میزبان: p1 و h1 «تهران» گفته‌اند ⇒ تکراری و صفر امتیاز یکتا.
-    // دستهٔ ۰: یک پاسخ تأییدشده در کنار یک تکراری ⇒ ۱۵ و ۵
+    // Judging happens on the host only: p1 and h1 both said Tehran, so duplicate.
+    // Category 0: one confirmed answer beside a duplicate scores 15 and 5.
     host.setJudgement('h1', 0, JudgementStatus.confirmed);
     host.setJudgement('p1', 0, JudgementStatus.duplicate);
-    // پاسخ‌های تکمیلی بازیکن سوم (که برای فعال شدن استپ نوشته شد) رد می‌شود
-    // تا امتیازها همان انتظار پیشین بماند.
+    // The third player's extra answers, typed only to enable Stop, are rejected
+    // so the expected scores stay unchanged.
     host.setJudgement('p2', 0, JudgementStatus.rejected);
-    // دستهٔ ۱: دو پاسخ متفاوت تأییدشده ⇒ ۱۰ و ۱۰
+    // Category 1: two different confirmed answers score 10 and 10.
     host.setJudgement('h1', 1, JudgementStatus.confirmed);
     host.setJudgement('p1', 1, JudgementStatus.confirmed);
     host.setJudgement('p2', 1, JudgementStatus.rejected);
@@ -238,14 +238,14 @@ void main() {
     expect(scored.perPlayer['p1'], 15, reason: '۵ + ۱۰');
     expect(host.session.phase, GamePhase.roundResults);
 
-    // نتایج به بازیکنان هم می‌رسد.
+    // Results reach the player devices too.
     expect(
       await waitUntil(() => player.session.phase == GamePhase.roundResults),
       isTrue,
     );
     expect(player.session.totals['p1'], 15);
 
-    // دست جدید: امتیازها حفظ و زمان‌سنج دوباره ۷ دقیقه می‌شود.
+    // A new round keeps the scores and resets the timer to seven minutes.
     host.startNextRound();
     expect(host.session.currentRound!.index, 2);
     expect(host.session.totals['h1'], 25);
@@ -379,7 +379,7 @@ void main() {
       isTrue,
       reason: 'وضعیت اتصال بازیکن باید به‌روزرسانی شود',
     );
-    // بازیکن در فهرست و شمارش اعضا می‌ماند.
+    // The player stays in the roster and the member count.
     expect(host.session.players.length, 2);
     expect(host.session.activePlayerCount, 2);
 

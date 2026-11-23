@@ -1,4 +1,4 @@
-/// پیوستن به بازی: شناسایی خودکار میزبان، اسکن QR یا ورود دستی.
+/// Join a game: automatic discovery, QR scan or manual entry.
 library;
 
 import 'dart:convert';
@@ -9,6 +9,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/app_theme.dart';
 import '../../core/persian.dart';
 import '../../net/discovery.dart';
+import '../../state/game_controller.dart';
 import '../../state/game_scope.dart';
 import '../widgets/common.dart';
 import 'lobby_screen.dart';
@@ -63,7 +64,7 @@ class _JoinScreenState extends State<JoinScreen> {
     });
   }
 
-  /// وصل شدن با آدرس، پورت، کد و شناسه بازی.
+  /// Connect with address, port, token and game ID.
   Future<void> _connect({
     required String address,
     required int port,
@@ -94,7 +95,7 @@ class _JoinScreenState extends State<JoinScreen> {
     );
   }
 
-  /// اسکن QR Code میزبان با دوربین.
+  /// Scan the host QR code with the camera.
   Future<void> _scanQrCode() async {
     final controller = GameScope.read(context);
     if (controller.profile.displayName.trim().isEmpty) {
@@ -105,7 +106,9 @@ class _JoinScreenState extends State<JoinScreen> {
 
     final raw = await Navigator.of(context).push<String>(
       MaterialPageRoute<String>(
-        builder: (_) => const QrScannerPage(),
+        builder: (_) => QrScannerPage(
+          onManualEntry: () => Navigator.of(context).pop(),
+        ),
         fullscreenDialog: true,
       ),
     );
@@ -114,7 +117,7 @@ class _JoinScreenState extends State<JoinScreen> {
     _handleScannedQr(raw);
   }
 
-  /// پردازش متن اسکن‌شده از QR: تجزیه، اعتبارسنجی و نمایش تایید اتصال.
+  /// Handle scanned text: parse, validate and ask for confirmation.
   void _handleScannedQr(String raw) {
     Map<String, dynamic> payload;
     try {
@@ -128,7 +131,7 @@ class _JoinScreenState extends State<JoinScreen> {
     if (!controller.qrPayloadValid(payload)) {
       String reason = 'QR Code نامعتبر است.';
       if (controller.sessionFinished) {
-        reason = 'این نشست بازی به‌صورت resmi تمام شده است و QR آن نامعتبر است.';
+        reason = 'این نشست بازی به‌صورت رسمی تمام شده است و QR آن نامعتبر است.';
       } else {
         final gameId = payload['gameId'] as String?;
         final token = payload['token'] as String?;
@@ -145,10 +148,12 @@ class _JoinScreenState extends State<JoinScreen> {
       return;
     }
 
-    // نمایش اطلاعات بازی و میزبان قبل از اتصال و نیاز به تایید کاربر.
+    // Show the game and host details before connecting; the user must confirm.
     final hostName = payload['hostName'] as String? ?? 'میزبان';
     final host = payload['host'] as String? ?? '';
-    final port = (payload['port'] as num?)?.toInt() ?? 50501;
+    final port =
+        (payload['port'] as num?)?.toInt() ??
+        GameController.defaultHostPort;
     final gameId = payload['gameId'] as String?;
     final token = payload['token'] as String?;
 
@@ -196,7 +201,7 @@ class _JoinScreenState extends State<JoinScreen> {
     });
   }
 
-  /// اتصال با اطلاعات استخراج‌شده از QR (فیلدها به‌صورت خودکار تکمیل می‌شوند).
+  /// Connect using the QR data, with the fields pre-filled.
   Future<void> _connectFromScannedQr({
     required String address,
     required int port,
@@ -209,7 +214,7 @@ class _JoinScreenState extends State<JoinScreen> {
       _connecting = true;
       _error = null;
     });
-    // پر کردن فیلدهای دستی برای نمایش و امکان ویرایش توسط کاربر.
+    // Pre-fill the manual fields so the user can review and edit them.
     _addressController.text = address;
     _portController.text = port.toString();
     _codeController.text = token;
@@ -249,7 +254,7 @@ class _JoinScreenState extends State<JoinScreen> {
     }
     await _connect(
       address: address,
-      port: port == 0 ? 50501 : port,
+      port: port == 0 ? GameController.defaultHostPort : port,
       gameId: '*',
       token: code,
     );
@@ -463,9 +468,48 @@ class _JoinScreenState extends State<JoinScreen> {
   }
 }
 
-/// صفحهٔ اسکن QR Code با دوربین.
+/// Scanner failure states that need a Persian fallback UI.
+@visibleForTesting
+enum ScannerFailure { none, permissionDenied, unsupported }
+
+/// Classify a scanner error: a denied camera permission is recoverable through
+/// the system settings, anything else means the camera is unusable here.
+@visibleForTesting
+ScannerFailure scannerFailureFrom(Object error) {
+  final text = error.toString().toLowerCase();
+  final denied =
+      text.contains('permission') ||
+      text.contains('denied') ||
+      text.contains('notauthorized') ||
+      text.contains('not authorized');
+  return denied ? ScannerFailure.permissionDenied : ScannerFailure.unsupported;
+}
+
+/// Persian explanation for a scanner failure, paired with the manual-entry
+/// fallback that must always stay available.
+@visibleForTesting
+String scannerFailureMessage(ScannerFailure failure) {
+  switch (failure) {
+    case ScannerFailure.permissionDenied:
+      return 'مجوز دوربین داده نشده است. برای اسکن QR، مجوز دوربین را از '
+          'تنظیمات برنامه فعال کنید.';
+    case ScannerFailure.unsupported:
+      return 'دوربین در این دستگاه در دسترس نیست.';
+    case ScannerFailure.none:
+      return 'دوربین را روی QR کد قرار دهید';
+  }
+}
+
+/// Camera-based QR scan screen.
+///
+/// A denied camera permission or an unavailable camera does not surface a raw
+/// plugin error: the page switches to a Persian explanation with a
+/// "manual entry" action, so QR stays an optional joining path.
 class QrScannerPage extends StatefulWidget {
-  const QrScannerPage({super.key});
+  const QrScannerPage({super.key, this.onManualEntry});
+
+  /// Called when the user chooses manual address/code entry instead.
+  final VoidCallback? onManualEntry;
 
   @override
   State<QrScannerPage> createState() => _QrScannerPageState();
@@ -474,11 +518,66 @@ class QrScannerPage extends StatefulWidget {
 class _QrScannerPageState extends State<QrScannerPage> {
   MobileScannerController? _scannerController;
   bool _hasResult = false;
+  ScannerFailure _failure = ScannerFailure.none;
+
+  @override
+  void initState() {
+    super.initState();
+    _scannerController = MobileScannerController(autoStart: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startScanner());
+  }
 
   @override
   void dispose() {
     _scannerController?.dispose();
     super.dispose();
+  }
+
+  /// Starts the camera and turns permission/availability errors into a
+  /// user-facing Persian state instead of an unhandled plugin error.
+  Future<void> _startScanner() async {
+    final controller = _scannerController;
+    if (controller == null || !mounted) return;
+    try {
+      await controller.start();
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _failure = scannerFailureFrom(error));
+    }
+  }
+
+  Widget _failureView(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.no_photography_outlined,
+              size: 44,
+              color: AppColors.warning,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              scannerFailureMessage(_failure),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: () {
+                final fallback = widget.onManualEntry;
+                if (fallback != null) fallback();
+                if (mounted) Navigator.of(context).pop();
+              },
+              icon: const Icon(Icons.keyboard_rounded, size: 20),
+              label: const Text('ورود دستی با آدرس و کد'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _onBarcode(BarcodeCapture capture) {
@@ -487,7 +586,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
     if (code == null || code.isEmpty) return;
     _hasResult = true;
     _scannerController?.stop();
-    Navigator.of(context).pop(code);
+    if (mounted) Navigator.of(context).pop(code);
   }
 
   @override
@@ -501,10 +600,12 @@ class _QrScannerPageState extends State<QrScannerPage> {
         children: [
           Expanded(
             flex: 3,
-            child: MobileScanner(
-              controller: _scannerController,
-              onDetect: _onBarcode,
-            ),
+            child: _failure == ScannerFailure.none
+                ? MobileScanner(
+                    controller: _scannerController,
+                    onDetect: _onBarcode,
+                  )
+                : _failureView(context),
           ),
           Expanded(
             flex: 1,

@@ -1,15 +1,16 @@
-/// سرور محلی میزبان: پذیرش اتصال بازیکنان، احراز دسترسی به نشست و
-/// تبادل پیام‌های وضعیت (Host Authoritative).
+/// Host-local server: accepts player connections, authenticates session access
+/// and exchanges state messages (host authoritative).
 library;
 
 import 'dart:async';
 import 'dart:io';
 
+import '../core/app_logger.dart';
 import '../domain/answer_rules.dart';
 import 'line_channel.dart';
 import 'protocol.dart';
 
-/// درخواست ورود یک بازیکن.
+/// A player's join request.
 class HelloRequest {
   const HelloRequest({
     required this.gameId,
@@ -26,7 +27,7 @@ class HelloRequest {
   final String remoteAddress;
 }
 
-/// تصمیم میزبان دربارهٔ درخواست ورود.
+/// The host's decision about a join request.
 class HelloDecision {
   const HelloDecision.accept({this.resumed = false})
     : accepted = true,
@@ -39,11 +40,11 @@ class HelloDecision {
   final bool accepted;
   final String? reason;
 
-  /// آیا این بازیکن قبلاً در نشست بوده و اکنون دوباره وصل شده است.
+  /// Whether this player was already in the session and is reconnecting.
   final bool resumed;
 }
 
-/// رویدادهای رسیده از بازیکنان به میزبان.
+/// Events delivered from players to the host.
 class HostCallbacks {
   const HostCallbacks({
     this.onHello,
@@ -83,7 +84,7 @@ class HostCallbacks {
 /// Maximum simultaneous sockets waiting for a valid hello handshake.
 const int kMaxPendingHandshakes = 32;
 
-/// سرور شبکهٔ میزبان.
+/// The host network server.
 class HostNetwork {
   HostNetwork({
     required this.gameId,
@@ -108,14 +109,14 @@ class HostNetwork {
   final Map<String, Timer> _pendingTimers = <String, Timer>{};
   int _pendingSequence = 0;
 
-  /// شمارندهٔ اتصال‌های ناموفق (برای نمایش/گزارش).
+  /// Counter of rejected connections, for diagnostics.
   int rejectedConnections = 0;
 
   bool get isRunning => _server != null;
 
   int get port => _server?.port ?? 0;
 
-  /// تعداد بازیکنان متصل.
+  /// Number of connected players.
   int get connectedCount => _channels.length;
 
   /// Number of sockets currently waiting for a valid hello handshake.
@@ -123,14 +124,45 @@ class HostNetwork {
 
   Set<String> get connectedPlayerIds => _channels.keys.toSet();
 
-  /// راه‌اندازی سرور روی یک پورت آزاد.
+  /// Start the server on a free port.
   Future<void> start() async {
     if (_server != null) return;
-    _server = await ServerSocket.bind(InternetAddress.anyIPv4, preferredPort);
-    _server!.listen(_onSocket, onError: (Object _) {});
+    final server = await ServerSocket.bind(InternetAddress.anyIPv4, preferredPort);
+    _server = server;
+    _listenForConnections(server);
   }
 
-  /// آدرس‌های IPv4 محلی دستگاه (برای نمایش و ورود دستی).
+  /// Accept connections, absorbing peer resets at the listener level.
+  ///
+  /// dart:io reports a peer that resets between the TCP handshake and `accept`
+  /// as an error on the listening socket's stream. `onError` gets the first one,
+  /// but a stream keeps delivering after an error and a reset arriving while the
+  /// socket closes can escape to the ambient zone as an uncaught error, which
+  /// would make the host look crashed. The subscription is therefore created in
+  /// a guarded zone: every escaped error is logged and counted instead, and the
+  /// host keeps admitting players.
+  void _listenForConnections(ServerSocket server) {
+    runZonedGuarded(
+      () {
+        // The subscription lives as long as the socket; dart:io keeps the
+        // stream alive by itself, so no reference is kept here.
+        server.listen(
+          _onSocket,
+          onError: (Object error, StackTrace stack) {
+            rejectedConnections += 1;
+            AppLogger.instance.error('net.accept.listen', error, stack);
+          },
+          cancelOnError: false,
+        );
+      },
+      (error, stack) {
+        rejectedConnections += 1;
+        AppLogger.instance.error('net.accept.zone', error, stack);
+      },
+    );
+  }
+
+  /// Local IPv4 addresses, for display and manual join.
   Future<List<String>> localAddresses() async {
     final result = <String>[];
     try {
@@ -147,14 +179,33 @@ class HostNetwork {
     return result;
   }
 
+  /// Accept one socket without ever letting it throw into the accept loop.
+  ///
+  /// A peer that connects and resets immediately is legitimate traffic; the
+  /// resulting errors (socket configuration, stream setup) must be dropped on
+  /// the floor instead of surfacing as uncaught errors.
   void _onSocket(Socket socket) {
+    try {
+      _acceptSocket(socket);
+    } catch (error, stack) {
+      rejectedConnections += 1;
+      AppLogger.instance.error('net.accept.socket', error, stack);
+      try {
+        socket.destroy();
+      } catch (_) {
+        // Already gone.
+      }
+    }
+  }
+
+  void _acceptSocket(Socket socket) {
     if (_pendingHandshake.length >= maxPendingHandshakes) {
       rejectedConnections += 1;
       socket.destroy();
       return;
     }
-
     socket.setOption(SocketOption.tcpNoDelay, true);
+
     final channel = LineChannel(socket, label: 'pending');
     final key = 'pending-${++_pendingSequence}';
     _pendingHandshake.add(key);
@@ -164,7 +215,7 @@ class HostNetwork {
     channel.messages.listen((message) {
       if (boundPlayerId == null) {
         if (message.type != MsgType.hello) {
-          // پیش از احراز هویت هیچ پیام دیگری پذیرفته نمی‌شود.
+          // No message other than hello is accepted before authentication.
           rejectedConnections += 1;
           channel.send(MsgType.helloReject, {
             'reason': 'ابتدا باید به بازی وارد شوید.',
@@ -195,14 +246,14 @@ class HostNetwork {
       }
     });
 
-    // فرصت کوتاه برای handshake.
+    // Short window for the handshake.
     _pendingTimers[key] = Timer(const Duration(seconds: 15), () {
       if (boundPlayerId == null && !channel.isClosed) {
         unawaited(channel.close());
       }
     });
 
-    // callback داخلی برای ثبت شناسه پس از پذیرش.
+    // Internal callback that binds the player ID after acceptance.
     _pendingSockets[key] = (id) => boundPlayerId = id;
   }
 
@@ -222,7 +273,7 @@ class HostNetwork {
       displayName: p['name'] as String? ?? '',
       remoteAddress: channel.remoteAddress,
     );
-    // اعتبارسنجی حداقلی ورودی‌ها.
+    // Minimal input validation.
     if (request.gameId != gameId && request.gameId != '*') {
       rejectedConnections += 1;
       channel.send(MsgType.helloReject, {
@@ -293,10 +344,10 @@ class HostNetwork {
     LineChannel channel,
     NetMessage message,
   ) {
-    // ۱) پیام تکراری؟
+    // 1) Duplicate message?
     final deduper = _dedupers[playerId];
     if (deduper != null && !deduper.accept(message.id)) return;
-    // ۲) ترتیب پیام‌ها (پیام قدیمی نادیده گرفته می‌شود).
+    // 2) Ordering: an old message is ignored.
     final guard = _guards[playerId];
     if (guard != null && message.type != MsgType.ping) {
       if (!guard.accept(message.seq)) return;
@@ -352,7 +403,7 @@ class HostNetwork {
       case MsgType.results:
       case MsgType.sessionEnded:
       case MsgType.error:
-        // پیام‌هایی که فقط میزبان می‌فرستد؛ از بازیکن پذیرفته نمی‌شوند.
+        // Host-only message types are not accepted from a player.
         return;
     }
   }
@@ -364,28 +415,28 @@ class HostNetwork {
     });
   }
 
-  /// ارسال وضعیت شخصی‌سازی‌شده به یک بازیکن.
+  /// Send a per-player state payload.
   bool sendState(String playerId, Map<String, dynamic> payload) {
     final channel = _channels[playerId];
     if (channel == null || channel.isClosed) return false;
     return channel.send(MsgType.state, payload);
   }
 
-  /// ارسال پیام مشخص به یک بازیکن.
+  /// Send a specific message to one player.
   bool sendTo(String playerId, MsgType type, Map<String, dynamic> payload) {
     final channel = _channels[playerId];
     if (channel == null || channel.isClosed) return false;
     return channel.send(type, payload);
   }
 
-  /// اعلام نتایج داوری به همهٔ بازیکنان.
+  /// Broadcast a message to every player.
   void broadcast(MsgType type, Map<String, dynamic> payload) {
     for (final entry in _channels.entries) {
       if (!entry.value.isClosed) entry.value.send(type, payload);
     }
   }
 
-  /// قطع اتصال یک بازیکن (اخراج یا پایان نشست).
+  /// Disconnect one player (kick or session end).
   Future<void> disconnect(String playerId) async {
     final channel = _channels.remove(playerId);
     if (channel != null) {
@@ -396,12 +447,50 @@ class HostNetwork {
     }
   }
 
-  /// خاموش‌کردن سرور و بستن همهٔ اتصال‌ها.
+  /// Stop the server and close every connection.
+  /// Stop accepting immediately, without waiting for the teardown.
+  ///
+  /// Closing the listening socket releases the port synchronously. The accept
+  /// subscription is deliberately left in place: dart:io reports an
+  /// accept-time peer reset as an error on that stream, and cancelling the
+  /// subscription would turn a late error into an uncaught zone error. The
+  /// stream ends by itself once the socket is closed.
+  void dispose() {
+    final server = _server;
+    _server = null;
+    if (server != null) unawaited(server.close());
+    _closeChannels();
+  }
+
   Future<void> stop() async {
     final server = _server;
     _server = null;
+    // Close the listening socket first, keeping onError attached until the
+    // close has completed; the subscription then ends with the stream.
     await server?.close();
+    await _closeChannelsAsync();
+  }
 
+  void _closeChannels() {
+    for (final timer in _pendingTimers.values) {
+      timer.cancel();
+    }
+    _pendingTimers.clear();
+    for (final channel in <LineChannel>[
+      ..._channels.values,
+      ..._pendingChannels.values,
+    ]) {
+      unawaited(channel.close());
+    }
+    _pendingChannels.clear();
+    _pendingHandshake.clear();
+    _channels.clear();
+    _dedupers.clear();
+    _guards.clear();
+    _pendingSockets.clear();
+  }
+
+  Future<void> _closeChannelsAsync() async {
     for (final channel in _channels.values.toList()) {
       await channel.close();
     }

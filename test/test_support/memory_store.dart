@@ -1,8 +1,8 @@
-/// ذخیره‌ساز درون‌حافظه‌ای برای تست‌های ویجت.
+/// In-memory session store for widget tests.
 ///
-/// تست‌های ویجت در ناحیهٔ FakeAsync اجرا می‌شوند و ورودی/خروجی واقعی فایل
-/// در آن ناحیه تکمیل نمی‌شود؛ این پیاده‌سازی همان قرارداد [SessionStore] را
-/// بدون I/O برآورده می‌کند.
+/// Widget tests run under FakeAsync, where real file I/O never completes.
+/// This implementation satisfies the same [SessionStore] contract without
+/// touching the disk.
 library;
 
 import 'package:sanjab/data/session_repository.dart';

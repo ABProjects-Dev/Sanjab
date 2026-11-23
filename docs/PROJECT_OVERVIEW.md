@@ -1,9 +1,9 @@
 # Project Overview
 
 **Updated:** 2026-11-04
-**Active source branch:** `arena/da68caee-sanjab` (1.1.0 release preparation)
+**Active source branch:** `main` (1.1.2 release preparation)
 **Latest published release:** Sanjab 1.0.2 (`versionCode` 8)
-**Current release candidate:** Sanjab 1.1.0 (`versionCode` 9), pending publication
+**Current release candidate:** Sanjab 1.1.2 (`versionCode` 11), pending publication
 
 ## Product
 
@@ -13,13 +13,13 @@ The app is built with Flutter and Dart. It presents a right-to-left Persian UI w
 
 ## Current source and release status
 
-The repository's checked-in source includes the 1.1.0 release candidate (`pubspec.yaml` `1.1.0+9`) and its release notes are in `CHANGELOG.md`. The latest published APK is 1.0.2; publishing the 1.1.0 signed APK is pending PR checks and the Android release workflow. The source includes single-player starts, saved-room persistence, answer-length enforcement, network framing limits, snapshot acknowledgment/retry, explicit leave, resumed-room navigation, and color-coded player status. See [Features](FEATURES.md) and [Project Status](PROJECT_STATUS.md).
+The repository's checked-in source includes the 1.1.2 release candidate (`pubspec.yaml` `1.1.2+11`) and its release notes are in `CHANGELOG.md`. The latest published APK is 1.1.1; publishing the 1.1.2 signed APK is pending CI and the Android release workflow. The source includes single-player starts, saved-room persistence, answer-length enforcement, network framing limits, snapshot acknowledgment/retry, explicit leave, resumed-room navigation, and color-coded player status. See [Features](FEATURES.md) and [Project Status](PROJECT_STATUS.md).
 
 | Item | Current source |
 | --- | --- |
 | Package | `com.sanjab.game` |
 | Minimum Android API | 24 (Android 7.0) |
-| Android version | `1.1.0` / version code `9` candidate |
+| Android version | `1.1.2` / version code `11` candidate |
 | Flutter app UI | Persian, RTL, dark theme, portrait |
 | Match transport | IPv4 TCP and UDP on the local network |
 | Backend | None |
@@ -64,7 +64,7 @@ The domain layer is Flutter-independent and unit-testable. The production compos
 
 The network is intentionally local-only, not an Internet-facing service. TCP/UDP traffic is not TLS-encrypted, and a QR/open-join beacon carries a bearer join token. Use a trusted local network and do not share those credentials publicly. This is a security boundary/limitation, not a claim that the app has been penetration-tested.
 
-The merged gameplay changes have passed Flutter tests, Dart analysis, and an Android debug build in GitHub Actions. Local checks remain unavailable because the editing environment has no Flutter/Dart SDK, and physical-device verification remains outstanding. The 1.1.0 version-bump PR is pending CI. See [Bug Report](BUG_REPORT.md) and [Project Status](PROJECT_STATUS.md).
+The merged gameplay changes have passed Flutter tests, Dart analysis, and an Android debug build in GitHub Actions. Local checks remain unavailable because the editing environment has no Flutter/Dart SDK, and physical-device verification remains outstanding. CI is green for the merged changes. See [Bug Report](BUG_REPORT.md) and [Project Status](PROJECT_STATUS.md).
 
 ## Build and verification
 

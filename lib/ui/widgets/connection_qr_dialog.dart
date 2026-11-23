@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../state/game_controller.dart';
 import 'common.dart';
 
-/// نمایش QR و کد اتصال برای بازیکنانی که باید به میزبان ملحق شوند.
+/// Show the QR and join code so players can join the host.
 Future<void> showConnectionQrDialog(
   BuildContext context,
   GameController controller,

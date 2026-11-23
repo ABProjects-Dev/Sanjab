@@ -1,38 +1,38 @@
-/// گزارش‌گیری فنی داخلی با محدودیت حجم و پاک‌سازی کنترل‌شده.
+/// Internal technical logger with a size cap and controlled cleanup.
 ///
-/// اصول (بند ۱۷ سند پروژه):
-///  - پیام فارسی و قابل فهم برای کاربر نمایش داده می‌شود؛
-///  - جزئیات فنی در گزارش داخلی ذخیره می‌شود؛
-///  - محتوای پاسخ بازیکنان و اطلاعات شخصی هرگز در گزارش نوشته نمی‌شود
-///    (فقط شناسه‌ها، شمارنده‌ها و نام فنی خطا).
+/// Principles:
+///  - The user sees a readable Persian message;
+///  - Technical detail goes to the internal log only;
+///  - Player answers and personal data are never written to the log
+///    (only IDs, counters and technical error names).
 library;
 
 import 'dart:async';
 import 'dart:io';
 
-/// گزارش‌دهندهٔ سادهٔ فایل‌محور.
+/// Minimal file-backed logger.
 class AppLogger {
   AppLogger._();
 
   static final AppLogger instance = AppLogger._();
 
-  /// حداکثر حجم فایل گزارش (بایت). با رسیدن به این حجم، فایل چرخش می‌کند.
+  /// Maximum log file size in bytes; the file rotates at this limit.
   static const int maxFileBytes = 256 * 1024;
 
-  /// حداکثر تعداد فایل‌های چرخشی نگه‌داری‌شده.
+  /// Maximum number of rotated files kept.
   static const int maxRotatedFiles = 2;
 
   File? _file;
   bool _initialized = false;
   final List<String> _recent = <String>[];
 
-  /// آخرین خطوط گزارش (برای نمایش در صفحهٔ گزارش‌های فنی).
+  /// Recent log lines, shown on the technical log screen.
   List<String> get recent => List<String>.unmodifiable(_recent);
 
-  /// مسیر فایل گزارش جاری.
+  /// Path of the current log file.
   String? get path => _file?.path;
 
-  /// راه‌اندازی با پوشهٔ دادهٔ برنامه.
+  /// Initialize with the application data directory.
   void init(Directory dir) {
     try {
       final logDir = Directory('${dir.path}/logs');
@@ -52,7 +52,7 @@ class AppLogger {
     }
   }
 
-  /// ثبت یک رخداد فنی. [message] هرگز نباید محتوای پاسخ بازیکنان باشد.
+  /// Record a technical event. [message] must never contain player answers.
   void log(String tag, String message) {
     final stamp = DateTime.now().toIso8601String();
     final line = '[$stamp] $tag: $message';
@@ -66,7 +66,7 @@ class AppLogger {
       }
       file.writeAsStringSync('$line\n', mode: FileMode.append, flush: true);
     } catch (_) {
-      // گزارش‌گیری هرگز نباید خودش باعث خطا شود.
+      // Logging must never throw.
     }
   }
 
@@ -78,7 +78,7 @@ class AppLogger {
     }
   }
 
-  /// چرخش فایل‌ها با حفظ حداکثر [maxRotatedFiles] فایل.
+  /// Rotate files, keeping at most [maxRotatedFiles] rotations.
   void _rotate() {
     try {
       final dir = _file!.parent;
@@ -92,14 +92,14 @@ class AppLogger {
       }
       _file!.renameSync('${dir.path}/app.log.1');
     } catch (_) {
-      // در صورت شکست، فایل جاری پاک می‌شود تا حجم نامحدود رشد نکند.
+      // On failure, truncate the current file so it cannot grow without bound.
       try {
         _file!.writeAsStringSync('', flush: true);
       } catch (_) {}
     }
   }
 
-  /// پاک‌سازی کامل گزارش‌ها (از تنظیمات).
+  /// Delete every log file (from Settings).
   Future<void> clear() async {
     _recent.clear();
     if (!_initialized) return;

@@ -1,4 +1,4 @@
-/// آزمون پروتکل پیام‌ها: ساخت، اعتبارسنجی، جلوگیری از تکرار و ترتیب.
+/// Protocol: encoding, validation, duplicate suppression and ordering.
 library;
 
 import 'dart:convert';

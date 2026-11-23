@@ -1,9 +1,10 @@
-/// تنظیمات ضروری برنامه: گزارش فنی، پاک‌سازی داده‌های موقت و دربارهٔ برنامه.
+/// Settings: technical log, clearing temporary data and about.
 library;
 
 import 'package:flutter/material.dart';
 
 import '../../core/app_logger.dart';
+import '../../core/app_version.dart';
 import '../../core/persian.dart';
 import '../../state/game_scope.dart';
 import '../widgets/common.dart';
@@ -58,11 +59,11 @@ class SettingsScreen extends StatelessWidget {
                   ActionTile(
                     icon: Icons.info_outline_rounded,
                     title: 'دربارهٔ برنامه',
-                    subtitle: 'سنجاب — نسخهٔ ${faNum('1.1.0')}',
+                    subtitle: 'سنجاب — نسخهٔ ${faNum(kAppVersionLabel)}',
                     onTap: () => showAboutDialog(
                       context: context,
                       applicationName: 'سنجاب',
-                      applicationVersion: faNum('1.1.0'),
+                      applicationVersion: faNum(kAppVersionLabel),
                       applicationLegalese:
                           'شناسهٔ بسته: com.sanjab.game\nچندنفره روی شبکهٔ محلی؛ بدون نیاز به اینترنت',
                       children: const [
@@ -96,7 +97,7 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-/// نمایش آخرین رخدادهای فنی ثبت‌شده (برای بررسی توسعه‌دهنده).
+/// Recent technical log entries, for developer inspection.
 class TechnicalLogsScreen extends StatefulWidget {
   const TechnicalLogsScreen({super.key});
 

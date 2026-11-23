@@ -1,7 +1,7 @@
-/// فهرست دسته‌های بازی — برگرفته از نسخهٔ Kotlin (شناسه‌ها برای همیشه پایدارند).
+/// Game categories. IDs are permanent and never reordered.
 library;
 
-/// یک دستهٔ بازی.
+/// One game category.
 class GameCategory {
   const GameCategory(this.id, this.title);
 
@@ -9,9 +9,9 @@ class GameCategory {
   final String title;
 }
 
-/// تنها منبع حقیقت برای همهٔ ۱۳ دستهٔ بازی.
-/// شناسه‌ها هرگز تغییر نمی‌کنند: ۰..۹ = ده دستهٔ اصلی («اشیاء» = ۹)
-/// و ۱۰ = گل، ۱۱ = ماشین، ۱۲ = اعضای بدن.
+/// Single source of truth for all 13 categories.
+/// IDs never change: 0..9 are the ten original categories (objects = 9),
+/// 10 = flower, 11 = car, 12 = body parts.
 const List<GameCategory> kAllCategories = <GameCategory>[
   GameCategory(0, 'اسم'),
   GameCategory(1, 'فامیل'),
@@ -28,7 +28,7 @@ const List<GameCategory> kAllCategories = <GameCategory>[
   GameCategory(12, 'اعضای بدن'),
 ];
 
-/// ترتیب نمایش دسته‌ها (همان ترتیب نسخهٔ Kotlin).
+/// Display order of categories.
 const List<int> kCategoryDisplayOrder = <int>[
   0,
   1,
@@ -45,15 +45,15 @@ const List<int> kCategoryDisplayOrder = <int>[
   9,
 ];
 
-/// دسته‌های به ترتیب نمایش.
+/// Categories in display order.
 List<GameCategory> orderedCategories() => kCategoryDisplayOrder
     .map((id) => kAllCategories.firstWhere((c) => c.id == id))
     .toList(growable: false);
 
-/// شناسهٔ همهٔ دسته‌ها به ترتیب نمایش (پیش‌فرض: همه فعال).
+/// IDs of all categories in display order (all active by default).
 List<int> defaultActiveCategoryIds() => List<int>.from(kCategoryDisplayOrder);
 
-/// یافتن دسته با شناسه.
+/// Look up a category by ID.
 GameCategory? categoryById(int id) {
   for (final c in kAllCategories) {
     if (c.id == id) return c;
@@ -61,7 +61,7 @@ GameCategory? categoryById(int id) {
   return null;
 }
 
-/// دسته‌های فعال به ترتیب نمایش، از روی فهرست شناسه‌ها.
+/// Active categories in display order, from a list of IDs.
 List<GameCategory> activeCategoriesOf(List<int> ids) {
   final set = ids.toSet();
   return orderedCategories()

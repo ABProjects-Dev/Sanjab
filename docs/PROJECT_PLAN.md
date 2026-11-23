@@ -1,9 +1,9 @@
 # Project Plan and Verification
 
 **Updated:** 2026-11-04
-**Active branch:** `arena/da68caee-sanjab`
+**Active branch:** `main`
 **Latest published release:** 1.0.2 (`versionCode` 8)
-**Release candidate:** 1.1.0 (`versionCode` 9), pending publication
+**Release candidate:** 1.1.2 (`versionCode` 11), pending publication
 
 ## Current remediation
 
@@ -11,7 +11,7 @@ The gameplay and room-lifecycle changes in PR #16 are merged. Regression tests, 
 
 ## Acceptance criteria before release
 
-- `flutter test`, `flutter analyze`, and the Android debug build pass in CI for the 1.1.0 version-bump PR.
+- `flutter test`, `flutter analyze`, and the Android debug build pass in CI for the 1.1.2 PR.
 - Initial join failure does not retry invisibly; established reconnect remains supported.
 - Explicit exit is delivered separately from transport disconnect. Explicit exit removes roster membership; transient disconnect preserves it and allows reconnect.
 - Mid-game explicit exit preserves historical answers/scores while excluding the player from later rounds and current pending snapshot/Stop threshold.
@@ -29,11 +29,11 @@ The gameplay and room-lifecycle changes in PR #16 are merged. Regression tests, 
 
 ## Release and maintenance
 
-- Keep the published 1.0.2 artifact unchanged; publish the 1.1.0+9 candidate only after CI and signed APK verification pass.
+- Keep every published artifact unchanged; publish the 1.1.2+11 candidate only after CI and signed APK verification pass.
 - Preserve the original signing key and publish the APK/checksum assets through the Android release workflow.
 - Consider pinning the supported Flutter/Gradle/JDK toolchain and Android SDK targets for reproducibility.
 - Add a full two-device integration environment when practical.
 
 ## Verification record
 
-The gameplay PR's CI passed; the 1.1.0 version-bump PR checks are pending. No physical-device network or lifecycle matrix has been run. See [Project Status](PROJECT_STATUS.md), [Bug Report](BUG_REPORT.md), and [Test Plan](TEST_PLAN.md).
+CI is green for the merged changes; the release build gate was added for 1.1.2. No physical-device network or lifecycle matrix has been run. See [Project Status](PROJECT_STATUS.md), [Bug Report](BUG_REPORT.md), and [Test Plan](TEST_PLAN.md).

@@ -1,4 +1,4 @@
-/// ویجت‌های مشترک رابط کاربری.
+/// Shared UI widgets.
 library;
 
 import 'package:flutter/material.dart';
@@ -8,7 +8,12 @@ import '../../core/app_theme.dart';
 import '../../core/persian.dart';
 import '../../domain/models.dart';
 
-/// کارت بخش‌بندی‌شده با عنوان اختیاری.
+/// Sectioned card with an optional title.
+///
+/// The surface color is painted by a [Material] rather than a [Container]:
+/// [ListTile] asserts against a non-Material colored ancestor (its ink splashes
+/// would be invisible), and several screens put plain [ListTile]s inside this
+/// card.
 class SectionCard extends StatelessWidget {
   const SectionCard({
     super.key,
@@ -27,38 +32,45 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(16);
     return Container(
-      padding: padding,
       decoration: BoxDecoration(
-        color: color ?? AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: radius,
         border: Border.all(color: AppColors.outline, width: 0.8),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (title != null) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title!,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+      child: Material(
+        color: color ?? AppColors.surface,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: padding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (title != null) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title!,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    ?trailing,
+                  ],
                 ),
-                ?trailing,
+                const SizedBox(height: 10),
               ],
-            ),
-            const SizedBox(height: 10),
-          ],
-          child,
-        ],
+              child,
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-/// ردیف قابل لمس برای فهرست‌های منو.
+/// Tappable row for menu lists.
 class ActionTile extends StatelessWidget {
   const ActionTile({
     super.key,
@@ -131,7 +143,7 @@ class ActionTile extends StatelessWidget {
   }
 }
 
-/// برچسب کوچک وضعیت.
+/// Small status chip.
 class PillLabel extends StatelessWidget {
   const PillLabel({
     super.key,
@@ -175,7 +187,7 @@ class PillLabel extends StatelessWidget {
   }
 }
 
-/// نام فارسی و رنگ هر وضعیت داوری.
+/// Persian label and color for each judgement state.
 String judgementLabel(JudgementStatus status) {
   switch (status) {
     case JudgementStatus.confirmed:
@@ -206,7 +218,7 @@ Color judgementColor(JudgementStatus status) {
   }
 }
 
-/// نمایش پیام کوتاه فارسی.
+/// Show a short Persian message.
 void showMessage(BuildContext context, String message) {
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
@@ -215,7 +227,7 @@ void showMessage(BuildContext context, String message) {
     ..showSnackBar(SnackBar(content: Text(message)));
 }
 
-/// دیالوگ تأیید دوگزینه‌ای.
+/// Two-option confirmation dialog.
 Future<bool> confirmDialog(
   BuildContext context, {
   required String title,
@@ -250,7 +262,7 @@ Future<bool> confirmDialog(
   return result ?? false;
 }
 
-/// نشانگر زمان‌سنج.
+/// Timer indicator.
 class TimerPill extends StatelessWidget {
   const TimerPill({super.key, required this.remainingMs, this.paused = false});
 
@@ -294,11 +306,11 @@ class TimerPill extends StatelessWidget {
   }
 }
 
-/// نمایش QR روی یک سطح سفید و یکپارچه با حاشیهٔ کافی برای اسکن آسان.
+/// Render the QR on a solid white surface with enough quiet zone to scan.
 ///
-/// نسخهٔ ۱.۰.۰: QR هرگز مستقیماً روی پس‌زمینهٔ رنگی برنامه قرار نمی‌گیرد؛
-/// زمینه سفید با گوشهٔ گرد و فاصلهٔ سفید اطراف، کنتراست و خوانایی را در
-/// اندازه‌های مختلف صفحه حفظ می‌کند.
+/// The QR never sits on the colored app background; the white panel with
+/// rounded corners and padding keeps contrast and scannability at every
+/// screen size.
 class QrCodePanel extends StatelessWidget {
   const QrCodePanel({
     super.key,
@@ -314,7 +326,7 @@ class QrCodePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final side = MediaQuery.sizeOf(context).shortestSide;
-    // اندازه پویا تا در صفحه‌های کوچک هم QR و حاشیهٔ سفید جا شود.
+    // Dynamic size so the QR and its quiet zone fit on small screens.
     final qrSize = size > side * 0.6 ? side * 0.6 : size;
     return Center(
       child: Container(

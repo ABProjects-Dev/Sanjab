@@ -1,4 +1,4 @@
-/// آزمون منطق دامنهٔ نسخهٔ ۱.۰.۰: دست‌ها، استپ (با حد نصاب)، دریافت پاسخ‌ها، داوری و همگام‌سازی.
+/// Domain logic: rounds, Stop with its threshold, answer collection, judging and sync.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -15,8 +15,8 @@ GameSession newSession({int players = 3}) {
   return session;
 }
 
-/// نسخهٔ ۱.۰.۰: پاسخ همهٔ دسته‌های فعال را با متن معتبر (دست‌کم دو کاراکتر)
-/// پر می‌کند تا شرط فعال شدن دکمهٔ «استپ» برقرار شود.
+/// Fill every active category with valid text (at least two characters) so the
+/// Stop condition is satisfied.
 void fillAllAnswers(GameSession session, String playerId, {String text = 'آب'}) {
   for (final categoryId in session.config.activeCategoryIds) {
     session.setAnswer(playerId, categoryId, text);
@@ -143,7 +143,7 @@ void main() {
 
     test('شروع دست به هیچ کلمه یا حرفی وابسته نیست (نسخهٔ ۱.۰.۰)', () {
       final session = newSession();
-      // هیچ ورودی متنی/کلمه‌ای برای شروع دست لازم نیست.
+      // Starting a round needs no text or word input.
       final first = session.startNewRound(nowMs: 0);
       expect(first.index, 1);
       expect(session.phase, GamePhase.playing);
@@ -214,7 +214,7 @@ void main() {
       expect(session.requestStop('h1', nowMs: 100), isTrue);
       expect(session.phase, GamePhase.playing, reason: 'یک استپ کافی نیست');
       expect(session.stopCount, 1);
-      // پیام تکراری همان بازیکن شمارش نمی‌شود.
+      // A duplicate Stop from the same player is not counted.
       expect(session.requestStop('h1', nowMs: 150), isFalse);
       expect(session.stopCount, 1);
       expect(session.requestStop('p1', nowMs: 200), isTrue);
@@ -271,7 +271,7 @@ void main() {
         session.currentRound!.submissionOf('p1'),
         SubmissionState.received,
       );
-      // پیام تکراری شبکه نباید پاسخ را دوباره ثبت کند.
+      // A duplicate network message must not record the answer twice.
       final again = session.applySnapshot('p1', {
         0: 'مشهد',
       }, roundIndex: round.index);
@@ -323,7 +323,7 @@ void main() {
       final session = newSession(players: 2);
       session.startNewRound(nowMs: 0);
       session.setAnswer('h1', 0, 'تهران');
-      // در فاز بازی، داوری اعمال نمی‌شود.
+      // Judging is not applied during the playing phase.
       session.setJudgement('h1', 0, JudgementStatus.confirmed);
       expect(
         session.currentRound!.answerOf('h1', 0)!.status,
@@ -358,7 +358,7 @@ void main() {
       expect(scored.perPlayer['h1'], 20);
       expect(session.totals['h1'], 20);
       expect(session.phase, GamePhase.roundResults);
-      // داوری دوباره در این فاز ممکن نیست.
+      // Judging cannot be repeated in this phase.
       expect(
         () => session.finalizeJudging(),
         throwsA(isA<GameRuleException>()),

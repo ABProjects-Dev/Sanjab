@@ -1,10 +1,10 @@
-/// ذخیره‌سازی پایدار «اتاق‌های ذخیره‌شده» روی دستگاه هر بازیکن (نسخهٔ ۱.۰.۰).
+/// Durable storage of saved rooms on each device.
 ///
-/// ویژگی‌ها:
-///  * نوشتن اتمیک (temp + rename) با یک نسخهٔ پشتیبان (`.bak`)؛
-///  * یک رکورد برای هر جفت «اتاق + بازیکن» (بدون رکورد تکراری)؛
-///  * تحمل خرابی فایل: در صورت خرابی فایل اصلی، پشتیبان خوانده می‌شود؛
-///  * امکان نگه‌داری چند اتاق برای یک دستگاه.
+/// Properties:
+///  * Atomic writes (temp + rename) with a `.bak` backup;
+///  * One record per room and player pair, never duplicated;
+///  * Corruption tolerance: the backup is read when the main file is corrupt;
+///  * Multiple rooms per device.
 library;
 
 import 'dart:convert';
@@ -14,24 +14,24 @@ import '../core/app_logger.dart';
 import '../core/serial_task_queue.dart';
 import '../domain/room_record.dart';
 
-/// قرارداد ذخیره‌سازی اتاق‌ها (برای تست‌پذیری).
+/// Room storage contract (for testability).
 abstract class RoomStore {
   Future<void> ensureDirectory();
 
-  /// فهرست اتاق‌های ذخیره‌شده روی این دستگاه.
+  /// Saved rooms on this device.
   Future<List<RoomRecord>> loadAll();
 
-  /// درج یا به‌روزرسانی یک اتاق (کلید: شناسهٔ اتاق + شناسهٔ بازیکن).
+  /// Insert or update a room; the key is room ID plus player ID.
   Future<bool> upsert(RoomRecord record);
 
-  /// حذف یک اتاق مشخص.
+  /// Remove one room record.
   Future<bool> remove(String gameId, String myPlayerId);
 
-  /// پاک‌سازی کامل.
+  /// Delete everything.
   Future<void> clear();
 }
 
-/// پیاده‌سازی فایل‌محور روی حافظهٔ دستگاه.
+/// File-backed implementation on device storage.
 class RoomRepository implements RoomStore {
   RoomRepository(this.directory);
 
@@ -109,7 +109,7 @@ class RoomRepository implements RoomStore {
         try {
           await main.copy(_backupPath);
         } catch (_) {
-          // پشتیبان اختیاری است.
+          // The backup is best effort.
         }
       }
       await temp.rename(_mainPath);
@@ -130,7 +130,7 @@ class RoomRepository implements RoomStore {
       } else {
         records.add(record);
       }
-      // نگه‌داری حداکثر ۲۰ اتاق (قدیمی‌ترها حذف می‌شوند) تا فایل بی‌نهایت رشد نکند.
+      // Keep at most 20 rooms so the file cannot grow without bound; oldest go first.
       if (records.length > 20) {
         records.sort(
           (a, b) => b.updatedAtEpochMs.compareTo(a.updatedAtEpochMs),
@@ -167,7 +167,7 @@ class RoomRepository implements RoomStore {
   }
 }
 
-/// پیاده‌سازی حافظه‌ای برای آزمون‌ها.
+/// In-memory implementation for tests.
 class MemoryRoomStore implements RoomStore {
   MemoryRoomStore([List<RoomRecord>? initial])
     : _records = List<RoomRecord>.from(initial ?? const <RoomRecord>[]);

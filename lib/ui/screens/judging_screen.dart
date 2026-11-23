@@ -1,8 +1,8 @@
-/// صفحهٔ داوری — فقط روی دستگاه میزبان.
+/// Judging screen, host device only.
 ///
-/// جابه‌جایی بین دسته‌ها تنها با کشیدن افقی (Swipe) انجام می‌شود؛ هیچ دکمهٔ
-/// بعدی/قبلی وجود ندارد و در دو سر فهرست، حرکت متوقف می‌شود (بند ۹.۴ سند ۱.۰.۰
-/// که در ۱.۰.۰ هم حفظ شده است).
+/// Categories move only by horizontal swipe; there are no previous or next
+/// buttons and movement stops at both ends of the list.
+///
 library;
 
 import 'package:flutter/material.dart';

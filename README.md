@@ -6,14 +6,14 @@ Sanjab is a Persian-language, category-based word game for Android. It supports 
 
 | Item | Value |
 | --- | --- |
-| Latest published release | `1.1.0` |
-| Checked-in app version | `1.1.1+10` (`versionCode` 10) — release candidate |
+| Latest published release | `1.1.1` |
+| Checked-in app version | `1.1.2+11` (`versionCode` 11) — release candidate |
 | Android package | `com.sanjab.game` |
 | Minimum Android | API 24 (Android 7.0) |
 | UI | Persian, right-to-left, dark theme, portrait, Vazirmatn |
 | Network | Local IPv4 TCP/UDP; no cloud backend |
 
-The repository source now identifies the 1.1.1 release candidate (`versionCode` 10) in `CHANGELOG.md`. Publishing the signed APK is pending the Android release workflow. See [Project Status](docs/PROJECT_STATUS.md).
+The repository source identifies the 1.1.2 release candidate (`versionCode` 11) in `CHANGELOG.md`. The Android app version is derived from `pubspec.yaml` (`versionName` and `versionCode` in Gradle, and `lib/core/app_version.dart` for the in-app label), so no version literal is duplicated by hand. Publishing the signed APK is pending the Android release workflow. See [Project Status](docs/PROJECT_STATUS.md).
 
 ## Features
 
@@ -48,9 +48,9 @@ flutter test
 flutter build apk --debug
 ```
 
-The merged gameplay changes passed the Flutter test suite, Dart analysis, and Android debug APK build in GitHub Actions. The 1.1.0 version-bump PR must pass those checks before it is merged. The integration test covers host setup on one device, not a complete two-phone match; physical-device LAN behavior still needs verification.
+The Flutter test suite, Dart analysis, and Android debug APK build run in GitHub Actions for every push and pull request, and the release build has its own manually dispatched workflow. The integration test covers host setup on one device, not a complete two-phone match; physical-device LAN behavior still needs verification.
 
-The Gradle wrapper scripts are not tracked; the release workflow generates them on its runner. See [Android Release Builds](docs/ANDROID_RELEASE.md) for signed APK publication and checksum verification.
+The Gradle wrapper scripts (`gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar`) are tracked, so a local build needs only a JDK and the Android SDK. See [Android Release Builds](docs/ANDROID_RELEASE.md) for signed APK publication and checksum verification.
 
 ## Documentation
 

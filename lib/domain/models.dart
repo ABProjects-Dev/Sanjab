@@ -1,107 +1,107 @@
-/// مدل‌های دادهٔ دامنهٔ بازی «سنجاب» — نسخهٔ ۱.۰.۰ (چندنفره).
+/// Sanjab domain data models (multiplayer).
 ///
-/// این فایل هیچ وابستگی‌ای به Flutter ندارد تا منطق بازی مستقل از رابط کاربری
-/// و قابل تست باشد. تنها منبع حقیقت وضعیت بازی، [GameSession] روی دستگاه
-/// میزبان است و بقیهٔ دستگاه‌ها نسخهٔ همگام‌شدهٔ همان را نگه می‌دارند.
+/// This library has no Flutter dependency, so game logic stays testable and
+/// independent of the UI. The single source of truth is [GameSession] on the
+/// host; other devices keep a synchronized copy.
 library;
 
-/// شناسهٔ نسخهٔ پروتکل شبکه. با تغییر ساختار پیام‌ها افزایش می‌یابد.
+/// Network protocol version. Increase it whenever message shapes change.
 const int kProtocolVersion = 4;
 
-/// مدت ثابت هر دست: ۷ دقیقه = ۴۲۰ ثانیه (بند ۶ سند نسخه ۱.۰.۰).
+/// Fixed round duration: seven minutes (420 seconds).
 const int kRoundDurationSeconds = 420;
 
-/// مدت ثابت هر دست بر حسب میلی‌ثانیه.
+/// Fixed round duration in milliseconds.
 const int kRoundDurationMs = kRoundDurationSeconds * 1000;
 
-/// وضعیت داوری یک پاسخ.
+/// Judgement state of one answer.
 enum JudgementStatus {
-  /// هنوز داوری نشده است.
+  /// Not judged yet.
   unchecked,
 
-  /// تأییدشده (پاسخ معتبر).
+  /// Confirmed (valid answer).
   confirmed,
 
-  /// تکراری (داور به‌صورت دستی تشخیص داده است).
+  /// Duplicate, as decided manually by the referee.
   duplicate,
 
-  /// ردشده.
+  /// Rejected.
   rejected,
 
-  /// خانه خالی (بازیکن پاسخی وارد نکرده است).
+  /// Empty field (the player entered nothing).
   empty,
 }
 
-/// دلیل پایان یک دست.
+/// Reason a round ended.
 enum RoundEndReason {
-  /// پایان زمان ۷ دقیقه‌ای.
+  /// The seven-minute timer expired.
   timer,
 
-  /// درخواست استپ یک بازیکن.
+  /// A player pressed Stop.
   playerStop,
 
-  /// استپ میزبان.
+  /// The host pressed Stop.
   hostStop,
 
-  /// تصمیم میزبان (پایان دستی).
+  /// Manual host decision.
   referee,
 }
 
-/// فاز جاری بازی.
+/// Current game phase.
 ///
-/// [collecting] فاز تازهٔ نسخهٔ ۱.۰.۰ است: زمان دست تمام شده و میزبان در حال
-/// دریافت Snapshot نهایی پاسخ‌های همهٔ بازیکنان است.
+/// [collecting] means the round time is over and the host is gathering final
+/// snapshots from every player.
 enum GamePhase {
-  /// لابی: بازیکنان در حال پیوستن هستند و بازی شروع نشده است.
+  /// Lobby: players are joining and the game has not started.
   lobby,
 
-  /// دست در جریان است و زمان‌سنج فعال است.
+  /// A round is running and the timer is active.
   playing,
 
-  /// دست به‌صورت موقت متوقف شده است.
+  /// The round is paused.
   paused,
 
-  /// دست تمام شده و میزبان در حال دریافت پاسخ‌های نهایی همهٔ بازیکنان است.
+  /// The round is over and final answers are being collected.
   collecting,
 
-  /// صفحهٔ داوری فعال است (فقط روی دستگاه میزبان).
+  /// Judging is active (host device only).
   judging,
 
-  /// نتایج دست نمایش داده می‌شود.
+  /// Round results are displayed.
   roundResults,
 
-  /// نشست به‌صورت رسمی توسط میزبان پایان یافته است (نسخهٔ ۱.۰.۰).
+  /// The host formally ended the session.
   finished,
 }
 
-/// وضعیت ارسال پاسخ‌های یک بازیکن در یک دست.
+/// Submission state of one player in a round.
 enum SubmissionState {
-  /// در حال نوشتن پاسخ‌ها.
+  /// Typing answers.
   typing,
 
-  /// استپ کرده و پاسخ‌های خود را فرستاده است.
+  /// Stopped and sent the answers.
   stopped,
 
-  /// میزبان دریافت پاسخ‌های او را تأیید کرده است.
+  /// The host acknowledged the answers.
   received,
 
-  /// اتصال او قطع شده است.
+  /// The player is disconnected.
   offline,
 }
 
-/// نقش دستگاه در نشست بازی.
+/// Device role in the session.
 enum GameRole {
-  /// هیچ نشستی فعال نیست.
+  /// No active session.
   none,
 
-  /// میزبان (مرجع اصلی وضعیت).
+  /// Host: authoritative state owner.
   host,
 
-  /// بازیکن عضو.
+  /// Joined player.
   player,
 }
 
-/// یک بازیکن. شناسهٔ بازیکن در طول کل بازی پایدار و مستقل از نام نمایشی است.
+/// A player. The ID is stable and independent of the display name.
 class Player {
   const Player({required this.id, required this.name, this.isHost = false});
 
@@ -121,7 +121,7 @@ class Player {
   );
 }
 
-/// یک پاسخ (یک بازیکن در یک دسته از یک دست).
+/// One answer: a player, a category and a round.
 class AnswerEntry {
   const AnswerEntry({
     required this.playerId,
@@ -135,10 +135,10 @@ class AnswerEntry {
   final String text;
   final JudgementStatus status;
 
-  /// پاسخ خالی: نه امتیاز دارد و نه قابل داوری است.
+  /// A blank answer scores nothing and cannot be judged.
   bool get isBlank => text.trim().isEmpty;
 
-  /// کلید یکتای پاسخ در کل بازی: «شناسهٔ دست | شناسهٔ بازیکن | شناسهٔ دسته».
+  /// Unique answer key: round | player | category.
   static String keyOf(int roundIndex, String playerId, int categoryId) =>
       '$roundIndex|$playerId|$categoryId';
 
@@ -167,15 +167,15 @@ class AnswerEntry {
   );
 }
 
-/// تنظیمات یک بازی. مدت دست در نسخهٔ ۱.۰.۰ ثابت است و قابل تغییر نیست؛
-/// تنها دسته‌های فعال در لابی توسط میزبان انتخاب می‌شوند.
+/// Game configuration. The round duration is fixed; only the host chooses the
+/// active categories, in the lobby.
 class GameConfig {
   const GameConfig({required this.activeCategoryIds});
 
-  /// شناسهٔ دسته‌های فعال، به ترتیب نمایش.
+  /// Active category IDs in display order.
   final List<int> activeCategoryIds;
 
-  /// مدت ثابت هر دست (همیشه ۴۲۰ ثانیه).
+  /// Fixed round duration (always 420 seconds).
   int get roundDurationSeconds => kRoundDurationSeconds;
 
   int get roundDurationMs => kRoundDurationMs;
@@ -193,7 +193,7 @@ class GameConfig {
   );
 }
 
-/// وضعیت کامل یک دست.
+/// Complete state of one round.
 class RoundRecord {
   RoundRecord({
     required this.index,
@@ -214,43 +214,43 @@ class RoundRecord {
            activePlayerIdsAtStart ?? <String>{},
        scores = scores ?? <String, int>{};
 
-  /// شمارهٔ دست (از ۱).
+  /// Round number, starting at 1.
   final int index;
 
   final int startedAtEpochMs;
 
-  /// زمان پایان دست بر اساس ساعت مرجع میزبان. مبنای معتبر زمان‌سنج.
+  /// Round end time on the host clock; the authoritative timer basis.
   int endEpochMs;
 
-  /// پاسخ‌ها با کلید «دست|بازیکن|دسته».
+  /// Answers keyed by round|player|category.
   final Map<String, AnswerEntry> answers;
 
-  /// بازیکنانی که استپ کرده‌اند (پاسخ‌هایشان قفل شده است).
+  /// Players who pressed Stop; their answers are locked.
   final Set<String> stoppedPlayerIds;
 
-  /// بازیکنانی که Snapshot نهایی پاسخ‌هایشان توسط میزبان دریافت و تأیید شده است.
+  /// Players whose final snapshot the host received and acknowledged.
   final Set<String> receivedSnapshotPlayerIds;
 
-  /// شناسه‌های بازیکنان فعال در زمان شروع این دست (عکس‌WORK状ه است).
-  /// قطع ارتباط بعد از شروع دست حد نصاب را تغییر نمی‌دهد.
+  /// IDs of players active when this round started (a snapshot).
+  /// A later disconnect does not change the Stop threshold.
   final Set<String> activePlayerIdsAtStart;
 
-  /// حد نصاب استپ برای پایان خودکار دست: ceil(بازیکن‌های فعال / ۲).
+  /// Stop threshold for ending the round: ceil(active players / 2).
   int get stopThreshold {
     final active = activePlayerIdsAtStart.length;
     if (active <= 0) return 1;
     return (active / 2).ceil();
   }
 
-  /// زمان باقی‌مانده (میلی‌ثانیه) در لحظهٔ توقف موقت؛ null یعنی متوقف نیست.
+  /// Remaining milliseconds at pause time; null means not paused.
   int? pausedRemainingMs;
 
   RoundEndReason? endReason;
 
-  /// آیا داوری این دست نهایی شده است.
+  /// Whether judging of this round is final.
   bool judged;
 
-  /// امتیاز هر بازیکن در این دست (پس از نهایی‌شدن داوری).
+  /// Per-player score of this round after judging is finalized.
   final Map<String, int> scores;
 
   bool get isPaused => pausedRemainingMs != null;
@@ -310,7 +310,7 @@ class RoundRecord {
   );
 }
 
-/// یک ردیف رتبه‌بندی.
+/// One standings row.
 class Standing {
   const Standing({
     required this.playerId,
