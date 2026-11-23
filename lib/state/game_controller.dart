@@ -1374,8 +1374,13 @@ class GameController extends ChangeNotifier {
   }
 
   /// Close all links and return to the role-less state, keeping the room record.
+  ///
+  /// The stop is not awaited: tearing a listening socket down is asynchronous
+  /// (dart:io polls for pending accepts), and callers such as reconnect and
+  /// createGame must not wait for a previous listener's teardown on the same
+  /// port. Nothing is reused, so the outcome does not matter.
   Future<void> _detachAll() async {
-    await _hostNet?.stop();
+    _hostNet?.dispose();
     _hostNet = null;
     await _beacon?.stop();
     _beacon = null;

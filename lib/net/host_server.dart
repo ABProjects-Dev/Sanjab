@@ -430,6 +430,22 @@ class HostNetwork {
   }
 
   /// Stop the server and close every connection.
+  /// Stop accepting immediately, without waiting for the teardown.
+  ///
+  /// Cancelling the accept subscription and releasing the socket is
+  /// synchronous, so the port is free for the next host before this returns;
+  /// the socket's own close is asynchronous (dart:io polls for pending
+  /// accepts). Use [stop] when the caller wants to await the full teardown.
+  void dispose() {
+    final server = _server;
+    _server = null;
+    final subscription = _acceptSubscription;
+    _acceptSubscription = null;
+    unawaited(subscription?.cancel());
+    if (server != null) unawaited(server.close());
+    _closeChannels();
+  }
+
   Future<void> stop() async {
     final server = _server;
     _server = null;
@@ -439,7 +455,29 @@ class HostNetwork {
     final subscription = _acceptSubscription;
     _acceptSubscription = null;
     await subscription?.cancel();
+    await _closeChannelsAsync();
+  }
 
+  void _closeChannels() {
+    for (final timer in _pendingTimers.values) {
+      timer.cancel();
+    }
+    _pendingTimers.clear();
+    for (final channel in <LineChannel>[
+      ..._channels.values,
+      ..._pendingChannels.values,
+    ]) {
+      unawaited(channel.close());
+    }
+    _pendingChannels.clear();
+    _pendingHandshake.clear();
+    _channels.clear();
+    _dedupers.clear();
+    _guards.clear();
+    _pendingSockets.clear();
+  }
+
+  Future<void> _closeChannelsAsync() async {
     for (final channel in _channels.values.toList()) {
       await channel.close();
     }

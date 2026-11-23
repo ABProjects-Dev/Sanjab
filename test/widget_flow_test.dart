@@ -53,9 +53,14 @@ void main() {
   testWidgets('دکمهٔ ایجاد بازی بدون خطا در دسترس است', (tester) async {
     await pumpApp(tester);
     await tester.tap(find.text('ایجاد بازی'));
+    // Creating a game binds a real TCP port, which never completes inside the
+    // fake-async zone: give the real event loop a moment, then pump the UI.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 500)),
+    );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
+    expect(controller.isHost, isTrue, reason: 'the host must have started');
   });
 
   testWidgets(
