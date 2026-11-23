@@ -10,6 +10,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/app_theme.dart';
 import '../../core/persian.dart';
 import '../../net/discovery.dart';
+import '../../state/game_controller.dart';
 import '../../state/game_scope.dart';
 import '../widgets/common.dart';
 import 'lobby_screen.dart';
@@ -151,7 +152,9 @@ class _JoinScreenState extends State<JoinScreen> {
     // Show the game and host details before connecting; the user must confirm.
     final hostName = payload['hostName'] as String? ?? 'میزبان';
     final host = payload['host'] as String? ?? '';
-    final port = (payload['port'] as num?)?.toInt() ?? 50501;
+    final port =
+        (payload['port'] as num?)?.toInt() ??
+        GameController.defaultHostPort;
     final gameId = payload['gameId'] as String?;
     final token = payload['token'] as String?;
 
@@ -252,7 +255,7 @@ class _JoinScreenState extends State<JoinScreen> {
     }
     await _connect(
       address: address,
-      port: port == 0 ? 50501 : port,
+      port: port == 0 ? GameController.defaultHostPort : port,
       gameId: '*',
       token: code,
     );

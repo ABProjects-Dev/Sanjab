@@ -50,21 +50,27 @@ class DelayedRoomStore extends MemoryRoomStore {
   }
 }
 
-/// Create a game, retrying on a fresh port.
+int _portOffset = 0;
+
+/// Preferred host port for one test.
 ///
-/// Every test in this file starts a host on the default port and tears it down;
-/// a listener that is still closing can reject the next bind with ECONNRESET, so
-/// a failed attempt is retried instead of flaking the suite.
+/// Other suites in this package bind the default port; giving each test its own
+/// port keeps a listener that is still closing from resetting the next bind
+/// (ECONNRESET) and flaking the run.
+int _nextPort() => 52300 + _portOffset++;
+
+/// Create a game on this test's port, falling back to any free port.
 Future<void> createGameWithRetry(GameController host) async {
+  Object? lastError;
   for (var attempt = 0; attempt < 5; attempt++) {
     try {
       if (await host.createGame(activeCategoryIds: [0, 1])) return;
-    } on Object {
-      // Fall through to the retry below.
+    } on Object catch (error) {
+      lastError = error;
     }
-    await Future<void>.delayed(Duration(milliseconds: 100 * (attempt + 1)));
+    await Future<void>.delayed(Duration(milliseconds: 150 * (attempt + 1)));
   }
-  throw StateError('could not start a host server after five attempts');
+  throw StateError('could not start a host server: $lastError');
 }
 
 GameController buildController(String id, String name, {RoomStore? rooms}) =>
@@ -74,6 +80,7 @@ GameController buildController(String id, String name, {RoomStore? rooms}) =>
         initial: Profile(playerId: id, displayName: name),
       ),
       roomStore: rooms ?? MemoryRoomStore(),
+      preferredHostPort: _nextPort(),
     );
 
 /// A host that records answer frames so coalescing can be observed.
@@ -263,6 +270,7 @@ void main() {
       final store = MemoryRoomStore();
       RoomRecord record(String name, int updatedAt) => RoomRecord(
         gameId: 'g1',
+        roomName: name,
         roomName: 'Room',
         hostPlayerId: 'h1',
         hostName: 'سارا',
@@ -371,6 +379,7 @@ void main() {
           initial: const Profile(playerId: 'h1', displayName: 'سارا'),
         ),
         roomStore: MemoryRoomStore(),
+        preferredHostPort: _nextPort(),
       );
       addTearDown(controller.dispose);
       await controller.bootstrap();

@@ -33,6 +33,9 @@ import '../net/game_client.dart';
 import '../net/host_server.dart';
 import '../net/protocol.dart';
 
+/// Port the host prefers for the local game server.
+const int kDefaultHostPort = 50501;
+
 /// Network state as shown in the UI.
 enum NetStatus {
   /// No active session.
@@ -57,8 +60,19 @@ class GameController extends ChangeNotifier {
     required this.profileRepo,
     RoomStore? roomStore,
     int Function()? clock,
+    this.preferredHostPort = kDefaultHostPort,
   }) : _clock = clock ?? (() => DateTime.now().millisecondsSinceEpoch),
        roomStore = roomStore ?? MemoryRoomStore();
+
+  /// Default preferred host port, mirrored for callers that only build a QR or
+  /// a manual-entry default without holding the instance.
+  static const int defaultHostPort = kDefaultHostPort;
+
+  /// Port the host tries first; any free port is used when it is taken.
+  ///
+  /// Tests pin a distinct value so parallel or consecutive suites never race for
+  /// the same listening port.
+  final int preferredHostPort;
 
   final SessionStore store;
   final ProfileStore profileRepo;
@@ -415,7 +429,7 @@ class GameController extends ChangeNotifier {
 
     // Try the default port first; otherwise take any free port from the system.
     HostNetwork? network;
-    for (final preferredPort in const <int>[50501, 0]) {
+    for (final preferredPort in <int>[preferredHostPort, 0]) {
       final candidate = HostNetwork(
         gameId: _gameId,
         token: _joinToken,
