@@ -1,12 +1,38 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// --- امضای نسخهٔ انتشار -------------------------------------------------
-// اطلاعات کلید هرگز داخل سورس ذخیره نمی‌شود؛ از Gradle property یا متغیر محیطی
-// خوانده می‌شود (راهنما: documentation/راهنمای انتشار.txt).
+// --- Single source of truth for the app version ---------------------------
+// pubspec.yaml holds "version: MAJOR.MINOR.PATCH+BUILD"; versionName and
+// versionCode are derived from it so the two files can never drift apart.
+val appVersionName: String
+val appVersionCode: Int
+run {
+    val pubspec = file("../../pubspec.yaml")
+    val rawVersion =
+        pubspec
+            .readLines()
+            .firstOrNull { it.startsWith("version:") }
+            ?.removePrefix("version:")
+            ?.trim()
+            ?: throw GradleException("pubspec.yaml has no version line.")
+    val name = rawVersion.substringBefore('+').trim().removeSurrounding("\"")
+    val build = rawVersion.substringAfter('+', "0").trim().removeSurrounding("\"").toIntOrNull()
+    if (name.isEmpty() || build == null) {
+        throw GradleException("pubspec.yaml version '$rawVersion' is not MAJOR.MINOR.PATCH+BUILD.")
+    }
+    appVersionName = name
+    appVersionCode = build
+}
+logger.lifecycle("Sanjab version: name=$appVersionName code=$appVersionCode")
+
+// --- Release signing ----------------------------------------------------
+// Key material is never committed: it is read from a Gradle property or an
+// environment variable (see docs/ANDROID_RELEASE.md).
 val releaseStorePath: String? =
     (project.findProperty("ANDROID_KEYSTORE") as String?)
         ?: System.getenv("ANDROID_KEYSTORE")
@@ -36,7 +62,8 @@ if (releaseSigningPartiallyConfigured) {
 
 android {
     namespace = "com.sanjab.game"
-    compileSdk = flutter.compileSdkVersion
+    // Explicit Android API levels: do not rely on Flutter's floating defaults.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -45,12 +72,12 @@ android {
     }
 
     defaultConfig {
-        // شناسهٔ بستهٔ برنامه — پس از انتشار هرگز تغییر نمی‌کند.
+        // Application ID: never changes after the first publication.
         applicationId = "com.sanjab.game"
         minSdk = 24          // Android 7.0
-        targetSdk = flutter.targetSdkVersion
-        versionCode = 10     // Sanjab 1.1.1
-        versionName = "1.1.1"
+        targetSdk = 36       // explicit: do not inherit a floating default
+        versionCode = appVersionCode     // read from pubspec.yaml
+        versionName = appVersionName     // read from pubspec.yaml
     }
 
     signingConfigs {

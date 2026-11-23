@@ -1,5 +1,5 @@
-/// سرور محلی میزبان: پذیرش اتصال بازیکنان، احراز دسترسی به نشست و
-/// تبادل پیام‌های وضعیت (Host Authoritative).
+/// Host-local server: accepts player connections, authenticates session access
+/// and exchanges state messages (host authoritative).
 library;
 
 import 'dart:async';
@@ -9,7 +9,7 @@ import '../domain/answer_rules.dart';
 import 'line_channel.dart';
 import 'protocol.dart';
 
-/// درخواست ورود یک بازیکن.
+/// A player's join request.
 class HelloRequest {
   const HelloRequest({
     required this.gameId,
@@ -26,7 +26,7 @@ class HelloRequest {
   final String remoteAddress;
 }
 
-/// تصمیم میزبان دربارهٔ درخواست ورود.
+/// The host's decision about a join request.
 class HelloDecision {
   const HelloDecision.accept({this.resumed = false})
     : accepted = true,
@@ -39,11 +39,11 @@ class HelloDecision {
   final bool accepted;
   final String? reason;
 
-  /// آیا این بازیکن قبلاً در نشست بوده و اکنون دوباره وصل شده است.
+  /// Whether this player was already in the session and is reconnecting.
   final bool resumed;
 }
 
-/// رویدادهای رسیده از بازیکنان به میزبان.
+/// Events delivered from players to the host.
 class HostCallbacks {
   const HostCallbacks({
     this.onHello,
@@ -83,7 +83,7 @@ class HostCallbacks {
 /// Maximum simultaneous sockets waiting for a valid hello handshake.
 const int kMaxPendingHandshakes = 32;
 
-/// سرور شبکهٔ میزبان.
+/// The host network server.
 class HostNetwork {
   HostNetwork({
     required this.gameId,
@@ -108,14 +108,14 @@ class HostNetwork {
   final Map<String, Timer> _pendingTimers = <String, Timer>{};
   int _pendingSequence = 0;
 
-  /// شمارندهٔ اتصال‌های ناموفق (برای نمایش/گزارش).
+  /// Counter of rejected connections, for diagnostics.
   int rejectedConnections = 0;
 
   bool get isRunning => _server != null;
 
   int get port => _server?.port ?? 0;
 
-  /// تعداد بازیکنان متصل.
+  /// Number of connected players.
   int get connectedCount => _channels.length;
 
   /// Number of sockets currently waiting for a valid hello handshake.
@@ -123,14 +123,14 @@ class HostNetwork {
 
   Set<String> get connectedPlayerIds => _channels.keys.toSet();
 
-  /// راه‌اندازی سرور روی یک پورت آزاد.
+  /// Start the server on a free port.
   Future<void> start() async {
     if (_server != null) return;
     _server = await ServerSocket.bind(InternetAddress.anyIPv4, preferredPort);
     _server!.listen(_onSocket, onError: (Object _) {});
   }
 
-  /// آدرس‌های IPv4 محلی دستگاه (برای نمایش و ورود دستی).
+  /// Local IPv4 addresses, for display and manual join.
   Future<List<String>> localAddresses() async {
     final result = <String>[];
     try {
@@ -164,7 +164,7 @@ class HostNetwork {
     channel.messages.listen((message) {
       if (boundPlayerId == null) {
         if (message.type != MsgType.hello) {
-          // پیش از احراز هویت هیچ پیام دیگری پذیرفته نمی‌شود.
+          // No message other than hello is accepted before authentication.
           rejectedConnections += 1;
           channel.send(MsgType.helloReject, {
             'reason': 'ابتدا باید به بازی وارد شوید.',
@@ -195,14 +195,14 @@ class HostNetwork {
       }
     });
 
-    // فرصت کوتاه برای handshake.
+    // Short window for the handshake.
     _pendingTimers[key] = Timer(const Duration(seconds: 15), () {
       if (boundPlayerId == null && !channel.isClosed) {
         unawaited(channel.close());
       }
     });
 
-    // callback داخلی برای ثبت شناسه پس از پذیرش.
+    // Internal callback that binds the player ID after acceptance.
     _pendingSockets[key] = (id) => boundPlayerId = id;
   }
 
@@ -222,7 +222,7 @@ class HostNetwork {
       displayName: p['name'] as String? ?? '',
       remoteAddress: channel.remoteAddress,
     );
-    // اعتبارسنجی حداقلی ورودی‌ها.
+    // Minimal input validation.
     if (request.gameId != gameId && request.gameId != '*') {
       rejectedConnections += 1;
       channel.send(MsgType.helloReject, {
@@ -293,10 +293,10 @@ class HostNetwork {
     LineChannel channel,
     NetMessage message,
   ) {
-    // ۱) پیام تکراری؟
+    // 1) Duplicate message?
     final deduper = _dedupers[playerId];
     if (deduper != null && !deduper.accept(message.id)) return;
-    // ۲) ترتیب پیام‌ها (پیام قدیمی نادیده گرفته می‌شود).
+    // 2) Ordering: an old message is ignored.
     final guard = _guards[playerId];
     if (guard != null && message.type != MsgType.ping) {
       if (!guard.accept(message.seq)) return;
@@ -352,7 +352,7 @@ class HostNetwork {
       case MsgType.results:
       case MsgType.sessionEnded:
       case MsgType.error:
-        // پیام‌هایی که فقط میزبان می‌فرستد؛ از بازیکن پذیرفته نمی‌شوند.
+        // Host-only message types are not accepted from a player.
         return;
     }
   }
@@ -364,28 +364,28 @@ class HostNetwork {
     });
   }
 
-  /// ارسال وضعیت شخصی‌سازی‌شده به یک بازیکن.
+  /// Send a per-player state payload.
   bool sendState(String playerId, Map<String, dynamic> payload) {
     final channel = _channels[playerId];
     if (channel == null || channel.isClosed) return false;
     return channel.send(MsgType.state, payload);
   }
 
-  /// ارسال پیام مشخص به یک بازیکن.
+  /// Send a specific message to one player.
   bool sendTo(String playerId, MsgType type, Map<String, dynamic> payload) {
     final channel = _channels[playerId];
     if (channel == null || channel.isClosed) return false;
     return channel.send(type, payload);
   }
 
-  /// اعلام نتایج داوری به همهٔ بازیکنان.
+  /// Broadcast a message to every player.
   void broadcast(MsgType type, Map<String, dynamic> payload) {
     for (final entry in _channels.entries) {
       if (!entry.value.isClosed) entry.value.send(type, payload);
     }
   }
 
-  /// قطع اتصال یک بازیکن (اخراج یا پایان نشست).
+  /// Disconnect one player (kick or session end).
   Future<void> disconnect(String playerId) async {
     final channel = _channels.remove(playerId);
     if (channel != null) {
@@ -396,7 +396,7 @@ class HostNetwork {
     }
   }
 
-  /// خاموش‌کردن سرور و بستن همهٔ اتصال‌ها.
+  /// Stop the server and close every connection.
   Future<void> stop() async {
     final server = _server;
     _server = null;

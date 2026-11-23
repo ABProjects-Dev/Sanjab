@@ -1,23 +1,23 @@
-/// شناسایی خودکار میزبان در شبکهٔ محلی (UDP broadcast).
+/// Automatic host discovery on the local network (UDP broadcast).
 ///
-/// چرا Broadcast و نه mDNS؟ هر دو در اندروید کار می‌کنند، اما mDNS/NSD به سرویس
-/// سیستمی و مجوزهای اضافی و پیاده‌سازی بومی نیاز دارد. روش UDP broadcast تنها با
-/// مجوز INTERNET (که برای Socket لازم است) کار می‌کند، در Hotspot و Wi-Fi مشترک
-/// یکسان عمل می‌کند و وابستگی بیرونی ندارد. اگر شبکه Broadcast را مسدود کند
-/// (برخی روترها)، ورود دستی با آدرس IP و کد اتصال همیشه در دسترس است.
+/// Why broadcast instead of mDNS? mDNS/NSD needs a system service, extra
+/// permissions and native code. UDP broadcast needs only INTERNET, behaves the
+/// same on a hotspot and shared Wi-Fi, and adds no dependency. On networks that
+/// block broadcast, manual address entry and QR codes remain available.
+///
 library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// پورت ثابت شناسایی (UDP).
+/// Fixed discovery port (UDP).
 const int kDiscoveryPort = 50507;
 
-/// متن پروب شناسایی.
+/// Discovery probe text.
 const String kProbeText = 'SANJAB_DISCOVER_V2';
 
-/// یک میزبان شناسایی‌شده در شبکه.
+/// A host discovered on the network.
 class DiscoveredHost {
   const DiscoveredHost({
     required this.gameId,
@@ -36,10 +36,10 @@ class DiscoveredHost {
   final String address;
   final int port;
 
-  /// آیا ورود بدون کد (فقط از شبکهٔ محلی) مجاز است.
+  /// Whether open join (no code) is allowed on this network.
   final bool openJoin;
 
-  /// توکن اتصال؛ تنها در حالت [openJoin] ارسال می‌شود.
+  /// Join token; only published when [openJoin] is enabled.
   final String? token;
 
   final int playerCount;
@@ -55,7 +55,7 @@ class DiscoveredHost {
     'pc': playerCount,
   };
 
-  /// ساخت از پیام JSON؛ در صورت نامعتبر بودن null برمی‌گرداند.
+  /// Parse a JSON payload; returns null when it is not valid.
   static DiscoveredHost? tryParse(String raw, {required String address}) {
     Object? decoded;
     try {
@@ -83,7 +83,7 @@ class DiscoveredHost {
   }
 }
 
-/// پاسخ‌دهندهٔ شناسایی روی دستگاه میزبان.
+/// Discovery responder on the host device.
 class DiscoveryBeacon {
   DiscoveryBeacon({
     required this.gameId,
@@ -108,7 +108,7 @@ class DiscoveryBeacon {
 
   bool get isRunning => _socket != null;
 
-  /// شروع پاسخ‌دهی به پروب‌ها + ارسال دوره‌ای اعلان.
+  /// Answer probes and send a periodic beacon.
   Future<bool> start() async {
     if (_socket != null) return true;
     try {
@@ -135,7 +135,7 @@ class DiscoveryBeacon {
       });
       return true;
     } catch (_) {
-      // اگر پورت شناسایی در دسترس نبود، بازی با ورود دستی ادامه می‌یابد.
+      // If the discovery port is taken, the game continues with manual join.
       _socket = null;
       return false;
     }
@@ -166,7 +166,7 @@ class DiscoveryBeacon {
     } catch (_) {}
   }
 
-  /// به‌روزرسانی تعداد بازیکنان (برای نمایش در فهرست اتصال).
+  /// Update the player count shown in the join list.
   void updatePlayerCount(int count) => playerCount = count;
 
   Future<void> stop() async {
@@ -177,7 +177,7 @@ class DiscoveryBeacon {
   }
 }
 
-/// جست‌وجوی میزبان‌های فعال در شبکهٔ محلی.
+/// Search for active hosts on the local network.
 Future<List<DiscoveredHost>> discoverHosts({
   Duration timeout = const Duration(milliseconds: 2500),
 }) async {
@@ -205,7 +205,7 @@ Future<List<DiscoveredHost>> discoverHosts({
     // limited-broadcast probe above; QR/manual join remains the reliable fallback.
     await Future<void>.delayed(timeout);
   } catch (_) {
-    // در صورت خطا فهرست خالی برمی‌گردد و ورود دستی پیشنهاد می‌شود.
+    // On error an empty list is returned and manual join is offered.
   } finally {
     socket?.close();
   }

@@ -1,12 +1,12 @@
-/// پروتکل پیام‌های شبکهٔ محلی «سنجاب» (نسخهٔ ۴).
+/// Sanjab local-network message protocol (version 4).
 ///
-/// همهٔ پیام‌ها JSON تک‌خطی با ساختار یکسان هستند:
+/// Every message is single-line JSON with the same envelope:
 /// `{"v":4,"t":"type","id":"msg-id","q":12,"p":{...}}`
-///  - `v` نسخهٔ پروتکل (پیام با نسخهٔ ناسازگار رد می‌شود)
-///  - `t` نوع پیام
-///  - `id` شناسهٔ یکتای پیام (برای جلوگیری از پردازش دوباره)
-///  - `q` شمارهٔ ترتیب (Sequence) برای کنترل ترتیب پیام‌های یک فرستنده
-///  - `p` محتوای پیام
+///  - `v` protocol version; a mismatched version is rejected
+///  - `t` message type
+///  - `id` unique message ID, used to drop duplicate deliveries
+///  - `q` per-sender sequence number used for ordering
+///  - `p` message payload
 library;
 
 import 'dart:convert';
@@ -14,53 +14,53 @@ import 'dart:math';
 
 import '../domain/models.dart' show kProtocolVersion;
 
-/// نوع پیام‌های پروتکل.
+/// Protocol message types.
 enum MsgType {
-  /// بازیکن: درخواست ورود به نشست.
+  /// Player: request to join the session.
   hello,
 
-  /// میزبان: پذیرش ورود.
+  /// Host: join accepted.
   helloAck,
 
-  /// میزبان: رد ورود.
+  /// Host: join rejected.
   helloReject,
 
-  /// میزبان: وضعیت کامل و معتبر بازی.
+  /// Host: complete authoritative state.
   state,
 
-  /// بازیکن: تغییر پاسخ یک دسته.
+  /// Player: answer text changed for a category.
   answer,
 
-  /// بازیکن: درخواست استپ (پایان دست).
+  /// Player: Stop request (end the round).
   stop,
 
-  /// بازیکن: خروج صریح از عضویت بازی (از قطع اتصال موقت متمایز است).
+  /// Player: explicit exit, distinct from a transient disconnect.
   leave,
 
-  /// بازیکن: ارسال Snapshot نهایی پاسخ‌ها.
+  /// Player: final answer snapshot.
   snapshot,
 
-  /// میزبان: تأیید دریافت Snapshot یک بازیکن.
+  /// Host: acknowledgement of a player's snapshot.
   snapshotAck,
 
-  /// میزبان: پایان داوری و اعلام نتایج.
+  /// Host: judging finished, results announced.
   results,
 
-  /// میزبان: پایان رسمی جلسه؛ همهٔ بازیکنان باید به صفحهٔ اصلی برگردند و
-  /// نشست برای همیشه نامعتبر می‌شود (نسخهٔ ۱.۰.۰).
+  /// Host: the session ended formally; players return Home and the session
+  /// becomes permanently invalid.
   sessionEnded,
 
-  /// هر دو طرف: بررسی زنده‌بودن اتصال.
+  /// Either side: liveness check.
   ping,
 
-  /// هر دو طرف: پاسخ بررسی زنده‌بودن.
+  /// Either side: liveness reply.
   pong,
 
-  /// خطای پروتکل یا رد درخواست.
+  /// Protocol error or rejected request.
   error,
 }
 
-/// خطای پروتکل (پیام نامعتبر، نسخهٔ ناسازگار و …).
+/// Protocol error: invalid message, incompatible version, and so on.
 class ProtocolException implements Exception {
   ProtocolException(this.message);
 
@@ -70,7 +70,7 @@ class ProtocolException implements Exception {
   String toString() => message;
 }
 
-/// یک پیام شبکه.
+/// One network message.
 class NetMessage {
   NetMessage({
     required this.type,
@@ -92,10 +92,10 @@ class NetMessage {
     'p': payload,
   };
 
-  /// تبدیل پیام به یک خط JSON (بدون نویسهٔ خط جدید در متن).
+  /// Encode to one JSON line (no embedded newline).
   String encode() => '${jsonEncode(toJson())}\n';
 
-  /// ساخت پیام از نقشهٔ JSON با اعتبارسنجی کامل.
+  /// Build a message from a JSON map with full validation.
   static NetMessage fromJson(Map<String, dynamic> json) {
     final version = json['v'];
     if (version is! int) {
@@ -158,10 +158,10 @@ class NetMessage {
   }
 }
 
-/// حداکثر اندازهٔ یک پیام (بایت). از پیام‌های بزرگ و مخرب جلوگیری می‌کند.
+/// Maximum message size in bytes, to bound hostile or oversized frames.
 const int kMaxMessageBytes = 256 * 1024;
 
-/// ساخت شناسهٔ یکتای پیام.
+/// Generate a unique message ID.
 String newMessageId([Random? random]) {
   final rnd = random ?? Random();
   final buffer = StringBuffer();
@@ -171,10 +171,10 @@ String newMessageId([Random? random]) {
   return buffer.toString();
 }
 
-/// کنترل تکرار پیام‌ها.
+/// Duplicate-message guard.
 ///
-/// پیام‌های تکراری (بر اساس شناسه) نادیده گرفته می‌شوند؛ در نتیجه ارسال دوبارهٔ
-/// یک پاسخ یا Snapshot باعث ثبت چندبارهٔ آن نمی‌شود.
+/// Messages with a known ID are ignored, so a retransmitted answer or snapshot
+/// is not applied twice.
 class MessageDeduper {
   MessageDeduper({this.capacity = 512});
 
@@ -182,7 +182,7 @@ class MessageDeduper {
   final Set<String> _seen = <String>{};
   final List<String> _order = <String>[];
 
-  /// اگر پیام تازه باشد true برمی‌گرداند و آن را ثبت می‌کند.
+  /// Returns true and records the ID when the message is new.
   bool accept(String id) {
     if (!_seen.add(id)) return false;
     _order.add(id);
@@ -201,11 +201,11 @@ class MessageDeduper {
   }
 }
 
-/// کنترل ترتیب پیام‌های یک فرستنده بر اساس شمارهٔ ترتیب.
+/// Per-sender message ordering by sequence number.
 class SequenceGuard {
   int _lastSeq = -1;
 
-  /// اگر پیام جدیدتر از آخرین پیام پذیرفته‌شده باشد true برمی‌گرداند.
+  /// Returns true when the message is newer than the last accepted one.
   bool accept(int seq) {
     if (seq <= _lastSeq) return false;
     _lastSeq = seq;

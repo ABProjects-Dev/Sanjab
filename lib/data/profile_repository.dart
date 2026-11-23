@@ -1,4 +1,4 @@
-/// ذخیره‌سازی محلی پروفایل (شناسهٔ پایدار بازیکن + نام نمایشی).
+/// Local profile storage: stable player ID plus display name.
 library;
 
 import 'dart:convert';
@@ -7,13 +7,13 @@ import 'dart:io';
 import '../core/app_logger.dart';
 import '../domain/profile.dart';
 
-/// قرارداد ذخیره‌سازی پروفایل (برای آزمون‌پذیری و جای‌گزینی).
+/// Profile storage contract, for testability and substitution.
 abstract class ProfileStore {
   Future<Profile> load();
   Future<bool> save(Profile profile);
 }
 
-/// مخزن پروفایل روی فایل محلی دستگاه.
+/// File-backed profile repository.
 class ProfileRepository implements ProfileStore {
   ProfileRepository(this.directory);
 
@@ -22,7 +22,7 @@ class ProfileRepository implements ProfileStore {
   File get _file => File('${directory.path}/profile.json');
   File get _temp => File('${directory.path}/profile.json.tmp');
 
-  /// بارگذاری پروفایل؛ در نبود یا خرابی فایل، پروفایل تازه ساخته می‌شود.
+  /// Load the profile; a missing or corrupt file yields a fresh profile.
   @override
   Future<Profile> load() async {
     try {
@@ -45,7 +45,7 @@ class ProfileRepository implements ProfileStore {
     }
   }
 
-  /// ذخیرهٔ اتمیک پروفایل.
+  /// Atomically save the profile.
   @override
   Future<bool> save(Profile profile) async {
     try {

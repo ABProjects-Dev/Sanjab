@@ -1,0 +1,40 @@
+name: Maintenance
+
+on:
+  schedule:
+    # Weekly: prune stale Actions caches so the repository stays inside its
+    # storage budget (Flutter/Gradle caches are large and short-lived).
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  prune-caches:
+    name: Prune Actions caches
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Delete caches older than seven days
+        shell: bash
+        run: |
+          set -euo pipefail
+          cutoff="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Deleting caches not accessed since $cutoff"
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/caches?per_page=100" \
+            --jq ".actions_caches[] | select(.last_accessed_at < \"$cutoff\") | \"\(.id)\"" |
+            while IFS= read -r id; do
+              [[ -z "$id" ]] && continue
+              gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/caches/${id}" >/dev/null
+              echo "deleted cache $id"
+            done
+
+      - name: Report the remaining cache usage
+        shell: bash
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/actions/cache/usage" \
+            --jq '"active caches: \(.active_caches_count) (\(.active_caches_size_in_bytes / 1024 / 1024 | floor) MiB)"'

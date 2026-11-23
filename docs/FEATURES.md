@@ -1,6 +1,6 @@
 # Features and Limitations
 
-Status reflects the 1.1.0 release candidate on `arena/da68caee-sanjab` as of 2026-11-04. “Implemented” means present in source; it does not imply a physical-device test has passed.
+Status reflects the 1.1.2 release candidate on `main` as of 2026-11-23. “Implemented” means present in source; it does not imply a physical-device test has passed.
 
 ## Implemented
 
@@ -29,7 +29,7 @@ Status reflects the 1.1.0 release candidate on `arena/da68caee-sanjab` as of 202
 
 ### Build and release
 
-- Android application, minimum API 24; current source candidate is 1.1.0+9, pending publication.
+- Android application, minimum API 24, with explicit `compileSdk`/`targetSdk` 36; current source candidate is 1.1.2+11, pending publication.
 - GitHub Actions workflow for Flutter tests, analysis, and Android debug APK build.
 - Separate manually dispatched signed Android release workflow with signing-certificate verification and APK/checksum upload.
 
@@ -41,11 +41,11 @@ Status reflects the 1.1.0 release candidate on `arena/da68caee-sanjab` as of 202
 - No application-level encryption of local JSON data was identified. Android app data is sandboxed; manifest backup is disabled, but that is not a substitute for cryptographic protection against a device compromise.
 - No fully automated two-phone end-to-end match is present. The integration test covers one-device host setup only; real-network behavior needs physical-device testing.
 - Effective compile/target SDK values are Flutter Gradle defaults rather than explicitly pinned project values.
-- The published 1.0.2 APK predates the 1.1.0 changes; 1.1.0+9 is pending CI and signed release verification.
+- The published 1.1.1 APK predates the 1.1.2 changes; 1.1.2+11 is pending CI and signed release verification.
 
 ## Current limitations and verification gaps
 
-- Flutter/Dart checks for the 1.1.0 version-bump PR are pending because the local editing environment has no SDK. Release is contingent on passing PR CI and signed APK verification.
+- Local Flutter/Dart checks cannot run in the current editing environment (no SDK); CI is the authority for tests and builds. Release is contingent on passing CI and signed APK verification.
 - Automatic discovery uses limited broadcast only; some networks may block it, so QR/manual joining remain necessary fallbacks.
 - An offline player cannot receive host session completion; the saved room remains explicitly unverified until authoritative host contact.
 - Flutter lifecycle callbacks cannot be awaited by the OS; a lifecycle-triggered flush is best effort and not guaranteed to finish before abrupt process termination.

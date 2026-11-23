@@ -1,11 +1,11 @@
-/// آزمون یکپارچه روی دستگاه واقعی (اندروید).
+/// Integration test on a real Android device.
 ///
-/// این آزمون فقط روی دستگاه/شبیه‌ساز اجرا می‌شود:
+/// This test runs only on a device or emulator:
 ///   flutter test integration_test/app_flow_test.dart -d DEVICE_ID
 ///
-/// توجه: بررسی کامل چندنفره نیاز به **دو گوشی در یک شبکهٔ محلی** دارد و در
-/// این آزمون خودکار شبیه‌سازی نمی‌شود؛ اما مسیر میزبانی، ساخت نشست و نمایش
-/// کد اتصال روی دستگاه واقعی بررسی می‌شود.
+/// Note: full multiplayer needs **two phones on the same LAN** and is not
+/// simulated here; the host path, session creation and join-code display are
+/// still exercised on a real device.
 library;
 
 import 'dart:io';
@@ -50,7 +50,7 @@ void main() {
 
     expect(controller.isHost, isTrue);
     expect(controller.hostPort, greaterThan(0));
-    // کد اتصال ۶ نویسه‌ای روی صفحهٔ لابی نمایش داده می‌شود.
+    // The six-character join code is shown in the lobby.
     expect(controller.joinToken.length, 6);
     await tester.pump(const Duration(milliseconds: 600));
     expect(tester.takeException(), isNull);

@@ -1,9 +1,10 @@
-/// صفحهٔ اصلی: ایجاد بازی، پیوستن به بازی، پروفایل و راهنما.
+/// Home: create a game, join a game, profile and guide.
 library;
 
 import 'package:flutter/material.dart';
 
 import '../../core/app_theme.dart';
+import '../../core/app_version.dart';
 import '../../core/persian.dart';
 import '../../domain/models.dart';
 import '../../domain/room_record.dart';
@@ -66,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .push(MaterialPageRoute<void>(builder: (_) => const JoinScreen()));
   }
 
-  /// ادامهٔ یک اتاق ذخیره‌شده (میزبان یا بازیکن).
+  /// Resume a saved room, as host or player.
   Future<void> _resumeRoom(RoomRecord room) async {
     final controller = GameScope.read(context);
     setState(() => _busy = true);
@@ -89,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .push(MaterialPageRoute<void>(builder: (_) => route));
   }
 
-  /// خروج صریح از یک اتاق ذخیره‌شده (با تأیید).
+  /// Explicitly exit a saved room, after confirmation.
   Future<void> _leaveSavedRoom(RoomRecord room) async {
     final controller = GameScope.read(context);
     final ok = await confirmDialog(
@@ -357,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 18),
             Center(
               child: Text(
-                'نسخهٔ ${faNum('1.1.0')} — بدون اینترنت و بدون سرور بیرونی',
+                'نسخهٔ ${faNum(kAppVersionName)} — بدون اینترنت و بدون سرور بیرونی',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -368,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// برچسب فارسی وضعیت ذخیره‌شدهٔ اتاق.
+/// Persian label of a saved room's state.
 String _roomPhaseLabel(RoomRecord room) {
   final phase = switch (room.phase) {
     GamePhase.lobby => 'لابی',

@@ -1,25 +1,25 @@
-/// رکورد «اتاق ذخیره‌شده» روی دستگاه هر بازیکن — نسخهٔ ۱.۰.۰.
+/// A saved-room record on a device, for either role.
 ///
-/// هر دستگاه (میزبان یا بازیکن) برای هر اتاقی که به آن ملحق شده است یک رکورد
-/// پایدار نگه می‌دارد تا پس از بازگشت به صفحه اصلی، بستن برنامه، خاموش شدن گوشی
-/// یا قطع شبکه بتواند با گزینهٔ «ادامه بازی» به همان اتاق برگردد.
+/// Every device keeps one durable record per room it joined, so Home, an app
+/// restart, a device restart or a network drop can still resume the same room
+/// through the resume action.
 library;
 
 import 'models.dart';
 
-/// وضعیت آخرین اتصال به اتاق.
+/// Last known link state of the room.
 enum RoomLinkStatus {
-  /// آخرین بار متصل بود.
+  /// Last attempt was connected.
   online,
 
-  /// آخرین بار قطع بود.
+  /// Last attempt was disconnected.
   offline,
 
-  /// اتصال در حال برقراری بود.
+  /// Connection was being established.
   connecting,
 }
 
-/// یک اتاق ذخیره‌شده روی این دستگاه.
+/// One saved room on this device.
 class RoomRecord {
   RoomRecord({
     required this.gameId,
@@ -43,59 +43,59 @@ class RoomRecord {
     this.sessionSnapshot,
   }) : myAnswers = myAnswers ?? <int, String>{};
 
-  /// شناسهٔ یکتای اتاق (همان شناسهٔ نشست میزبان).
+  /// Unique room ID (the host session ID).
   final String gameId;
 
-  /// نام اتاق (نام بازی/میزبان).
+  /// Room name (the host's game name).
   final String roomName;
 
   final String hostPlayerId;
   final String hostName;
 
-  /// شناسهٔ پایدار همین دستگاه در نقش عضو اتاق.
+  /// Stable ID of this device's membership in the room.
   final String myPlayerId;
   final String myName;
 
-  /// نقش این دستگاه در اتاق.
+  /// This device's role in the room.
   final GameRole role;
 
-  /// آدرس میزبان برای اتصال دوباره (روی دستگاه میزبان خالی است).
+  /// Host address for reconnecting; empty on the host device.
   final String address;
   final int port;
   final String token;
 
-  /// وضعیت جلسه در آخرین ذخیره‌سازی.
+  /// Session phase at the last save.
   final GamePhase phase;
 
-  /// شمارهٔ دست جاری.
+  /// Current round index.
   final int roundIndex;
 
-  /// زمان آخرین فعالیت (برای مرتب‌سازی فهرست اتاق‌ها).
+  /// Last activity time, used to sort the room list.
   final int updatedAtEpochMs;
 
-  /// زمان باقی‌ماندهٔ دست در لحظهٔ ذخیره‌سازی (میلی‌ثانیه) — بازیابی زمان‌سنج.
+  /// Remaining round time at save (milliseconds), used to restore the timer.
   final int remainingMs;
 
-  /// جلسه به‌صورت رسمی پایان یافته است (قابل ادامه نیست).
+  /// The session ended formally and cannot be resumed.
   final bool ended;
 
   final RoomLinkStatus linkStatus;
 
-  /// پاسخ‌های ثبت‌شدهٔ این بازیکن در دست جاری.
+  /// This player's answers in the current round.
   final Map<int, String> myAnswers;
 
-  /// آیا این بازیکن استپ کرده است.
+  /// Whether this player pressed Stop.
   final bool stopped;
 
-  /// آخرین وضعیت معتبر بازی (JSON کامل نشست) برای بازیابی فوری رابط کاربری.
+  /// Last authoritative session JSON, used to restore the UI immediately.
   final Map<String, dynamic>? sessionSnapshot;
 
   bool get isHost => role == GameRole.host;
 
-  /// قابل ادامه است؟ لابی هم تا وقتی رسماً تمام نشده قابل بازیابی است.
+  /// Whether the room can be resumed; a lobby counts until it ends formally.
   bool get resumable => !ended && phase != GamePhase.finished;
 
-  /// کلید یکتای رکورد؛ برای هر بازیکن در هر اتاق فقط یک رکورد وجود دارد.
+  /// Unique record key: one record per player per room.
   String get key => '$gameId|$myPlayerId';
 
   RoomRecord copyWith({

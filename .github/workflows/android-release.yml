@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing GitHub release tag to build and update
+        description: Existing GitHub release tag to build and publish (must not have an APK asset yet)
         required: true
-        default: v1.1.1
+        default: v1.1.2
         type: string
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Check out tagged source
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
@@ -36,6 +36,8 @@ jobs:
             echo "Release tag does not match the version in pubspec.yaml." >&2
             exit 1
           fi
+          # The generated in-app version must match the tag as well.
+          python3 tool/sync_app_version.py --check
 
       - name: Verify GitHub release exists
         env:
@@ -44,13 +46,13 @@ jobs:
         run: gh release view "$RELEASE_TAG" >/dev/null
 
       - name: Set up Java
-        uses: actions/setup-java@v6.1.0
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2.23.0
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
           # Pin the exact Flutter used to verify this build; floating stable
@@ -74,17 +76,16 @@ jobs:
           flutter pub get
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6.4.1
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           gradle-version: 9.3.1
 
-      - name: Generate ignored Gradle wrapper files
+      - name: Point Gradle at the Flutter and Android SDKs
         run: |
           flutter_root="$(dirname "$(dirname "$(readlink -f "$(command -v flutter)")")")"
           android_sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$android_sdk"
           printf 'flutter.sdk=%s\nsdk.dir=%s\n' "$flutter_root" "$android_sdk" > android/local.properties
-          gradle -p android wrapper --gradle-version 9.3.1 --distribution-type bin
 
       - name: Restore and validate release keystore
         env:
@@ -146,12 +147,44 @@ jobs:
             exit 1
           fi
 
+          # Read the version back from the built APK: gradle derives it from
+          # pubspec.yaml, and this asserts the artifact really carries it.
+          aapt2="$(find "$sdk_root/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          test -x "$aapt2"
+          badging="$("$aapt2" dump badging "$apk_path")"
+          apk_version_name="$(printf '%s' "$badging" | sed -n "s/^package: name='[^']*' versionCode='\([^']*\)' versionName='\([^']*\)'.*/\2/p")"
+          apk_version_code="$(printf '%s' "$badging" | sed -n "s/^package: name='[^']*' versionCode='\([^']*\)' versionName='\([^']*\)'.*/\1/p")"
+          expected_version="$(sed -n 's/^version: *//p' pubspec.yaml | tr -d '\"' | head -n 1)"
+          expected_name="${expected_version%%+*}"
+          expected_code="${expected_version##*+}"
+          if [[ "$apk_version_name" != "$expected_name" || "$apk_version_code" != "$expected_code" ]]; then
+            echo "::error title=APK version mismatch::APK=${apk_version_name:-?}(${apk_version_code:-?}); pubspec=${expected_name}(${expected_code})"
+            exit 1
+          fi
+          echo "APK version verified: ${apk_version_name}+${apk_version_code}"
+
           asset="Sanjab-${RELEASE_TAG}.apk"
           cp "$apk_path" "$asset"
           sha256sum "$asset" > "${asset}.sha256"
+
+      - name: Refuse to overwrite an already published artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
+          for name in "Sanjab-${RELEASE_TAG}.apk" "Sanjab-${RELEASE_TAG}.apk.sha256"; do
+            if printf '%s\n' "$existing" | grep -qxF "$name"; then
+              echo "::error title=Release asset already published::$name already exists on $RELEASE_TAG."
+              echo "Published artifacts are immutable. Delete the old asset or cut a new tag deliberately." >&2
+              exit 1
+            fi
+          done
 
       - name: Upload signed APK and checksum to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
-        run: gh release upload "$RELEASE_TAG" "Sanjab-${RELEASE_TAG}.apk" "Sanjab-${RELEASE_TAG}.apk.sha256" --clobber
+        run: gh release upload "$RELEASE_TAG" "Sanjab-${RELEASE_TAG}.apk" "Sanjab-${RELEASE_TAG}.apk.sha256"

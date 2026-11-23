@@ -1,9 +1,9 @@
-/// آزمون‌های نسخهٔ ۱.۰.۰ — اعتبارسنجی دکمهٔ «استپ».
+/// Stop button validation.
 ///
-/// یازده سناریوی الزامی سند ۱.۰.۰ در سه لایه آزموده می‌شود:
-///  ۱) قاعدهٔ متن (کاراکتر معتبر، فاصله، نیم‌فاصله، کاراکتر نامرئی)
-///  ۲) منطق دامنه (`GameSession.canPlayerStop` / `requestStop`)
-///  ۳) منطق اجرای عملیات و رابط کاربری (کنترلر و صفحهٔ بازی، شامل بازی چندنفره)
+/// The eleven required scenarios are covered at three layers:
+///  1) text rule: valid characters, spaces, half-spaces, invisible characters
+///  2) domain logic (`GameSession.canPlayerStop` / `requestStop`)
+///  3) controller and play screen, including a multiplayer game
 library;
 
 import 'package:flutter/material.dart';
@@ -32,7 +32,7 @@ Future<bool> waitUntil(
   return condition();
 }
 
-/// ساخت نشست سه‌نفره با دو دستهٔ فعال (برای آزمون سریع قاعدهٔ «همهٔ فیلدها»).
+/// Build a three-player session with two active categories.
 GameSession newSession({int players = 3, List<int> categories = const [0, 1]}) {
   final session = GameSession.fresh(gameId: 'g1', hostPlayerId: 'h1');
   session.setActiveCategories(categories);
@@ -43,7 +43,7 @@ GameSession newSession({int players = 3, List<int> categories = const [0, 1]}) {
   return session;
 }
 
-/// پر کردن همهٔ دسته‌های فعال با متن معتبر.
+/// Fill every active category with valid text.
 void fillAll(GameSession session, String playerId, {String text = 'آب'}) {
   for (final categoryId in session.config.activeCategoryIds) {
     session.setAnswer(playerId, categoryId, text);
@@ -53,7 +53,7 @@ void fillAll(GameSession session, String playerId, {String text = 'آب'}) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // ---------------------------------------------------------------- لایهٔ متن
+  // --------------------------------------------------------- Text layer
   group('قاعدهٔ کاراکتر معتبر', () {
     test('۱) متن خالی معتبر نیست', () {
       expect(isAnswerEligibleForStop(''), isFalse);
@@ -71,21 +71,21 @@ void main() {
       expect(isAnswerEligibleForStop('   '), isFalse);
       expect(isAnswerEligibleForStop('  ا  '), isFalse);
       expect(isAnswerEligibleForStop('  آب  '), isTrue);
-      // فاصله‌های میانی هم شمرده نمی‌شوند.
+      // Inner spaces are not counted either.
       expect(validAnswerCharCount('ا ب'), 2);
       expect(validAnswerCharCount('ا  ب  پ'), 3);
     });
 
     test('۴) کاراکترهای نامرئی و نیم‌فاصله به‌تنهایی معتبر نیستند', () {
-      // نیم‌فاصله، فاصلهٔ صفرعرض، BOM، LRM/RLM و فاصلهٔ محافظت‌شده
+      // Half-space, zero-width space, BOM, LRM/RLM and no-break space
       expect(isAnswerEligibleForStop('\u200c\u200c'), isFalse);
       expect(isAnswerEligibleForStop('\u200b\u200b'), isFalse);
       expect(isAnswerEligibleForStop('\ufeff\u200e'), isFalse);
       expect(isAnswerEligibleForStop('\u00a0\u00a0'), isFalse);
       expect(isAnswerEligibleForStop('\t\n\r'), isFalse);
-      // مخلوط نامرئی با یک حرف واقعی هم کافی نیست.
+      // Invisible characters mixed with a single real letter are not enough.
       expect(isAnswerEligibleForStop('\u200cا\u200c'), isFalse);
-      // دو حرف واقعی در کنار کاراکترهای نامرئی معتبر است.
+      // Two real letters beside invisible characters are valid.
       expect(isAnswerEligibleForStop('\u200cآب\u200c'), isTrue);
     });
 
@@ -102,7 +102,7 @@ void main() {
     });
   });
 
-  // -------------------------------------------------------------- لایهٔ دامنه
+  // ------------------------------------------------------- Domain layer
   group('منطق دامنه: فعال شدن دکمهٔ استپ', () {
     test('۶) همهٔ فیلدها خالی ⇒ استپ مجاز نیست', () {
       final session = newSession();
@@ -159,7 +159,7 @@ void main() {
       expect(session.canPlayerStop('h1'), isTrue);
       session.setAnswer('h1', 0, 'آ');
       expect(session.canPlayerStop('h1'), isFalse);
-      // تکمیل مجدد ⇒ دوباره مجاز.
+      // Filling the field again re-enables Stop.
       session.setAnswer('h1', 0, 'آب');
       expect(session.canPlayerStop('h1'), isTrue);
     });
@@ -190,13 +190,13 @@ void main() {
       session.startNewRound(nowMs: 0);
       session.setAnswer('h1', 0, 'آب');
       session.setAnswer('h1', 3, 'پت');
-      // دستهٔ ۱ فعال نیست؛ خالی بودنش مانع استپ نیست.
+      // Category 1 is inactive, so its empty field does not block Stop.
       expect(session.setAnswer('h1', 1, ''), isFalse);
       expect(session.canPlayerStop('h1'), isTrue);
     });
   });
 
-  // --------------------------------------------- لایهٔ کنترلر (بازی چندنفره)
+  // ------------------------------------------- Controller layer (multiplayer)
   group('منطق اجرای عملیات استپ در کنترلر و همگام‌سازی چندنفره', () {
     late GameController host;
     late GameController player;
@@ -324,7 +324,7 @@ void main() {
           reason: 'مقدار «${entry.key}» ⇒ انتظار ${entry.value}',
         );
       }
-      // تغییر هم‌زمان دو فیلد: یکی کامل و دیگری ناقص ⇒ غیرفعال.
+      // Two fields changed at once, one complete and one short: still disabled.
       host.setAnswer(0, 'آب');
       host.setAnswer(1, 'پ');
       expect(host.iCanStop, isFalse);
@@ -334,7 +334,7 @@ void main() {
 
     test('۲۰) استپ بازیکن با پاسخ کامل، در همهٔ دستگاه‌ها هم‌گام می‌شود',
         () async {
-      // بازیکن فیلدها را پر می‌کند؛ میزبان هم‌گام می‌گیرد.
+      // The player fills the fields and the host syncs them.
       player.setAnswer(0, 'تهران');
       player.setAnswer(1, 'رضا');
       expect(await waitUntil(() => player.iCanStop), isTrue);
@@ -355,17 +355,17 @@ void main() {
         GamePhase.playing,
         reason: 'در بازی سه‌نفره یک استپ دست را تمام نمی‌کند',
       );
-      // میزبان خودش پاسخ‌ها را پر نکرده است؛ قاعده برای هر بازیکن جداست.
+      // The host has no answers of its own; the rule applies per player.
       expect(host.iCanStop, isFalse, reason: 'سنجش با پاسخ‌های همان بازیکن');
 
-      // بازیکن دوم با پاسخ ناقص نمی‌تواند استپ کند.
+      // The second player cannot Stop with incomplete answers.
       player2.setAnswer(0, 'شیراز');
       expect(player2.iCanStop, isFalse);
       await player2.requestStop();
       expect(host.session.stopCount, 1);
       expect(player2.lastError, contains('حرف'));
 
-      // پس از تکمیل، استپ دوم دست را برای همه تمام می‌کند.
+      // Once complete, the second Stop ends the round for everyone.
       player2.setAnswer(1, 'کریم');
       expect(await waitUntil(() => player2.iCanStop), isTrue);
       await player2.requestStop();
@@ -378,11 +378,11 @@ void main() {
         isTrue,
       );
       expect(host.session.currentRound!.endReason, RoundEndReason.playerStop);
-      // هر دو بازیکن استپ‌کرده‌اند (پس از فاز دریافت پاسخ‌ها، Snapshot هر
-      // بازیکن هم او را «قفل‌شده» می‌کند؛ رفتار نسخهٔ ۱.۰.۰ بدون تغییر).
+      // Both players have stopped; once collection ends, each player's snapshot
+      // also locks the player in.
       expect(host.session.isPlayerStopped('p1'), isTrue);
       expect(host.session.isPlayerStopped('p2'), isTrue);
-      // بازیکن استپ‌کرده پاسخ‌هایش را می‌فرستد و میزبان همه را می‌گیرد.
+      // A stopped player sends its answers and the host receives all of them.
       expect(
         await waitUntil(
           () =>
@@ -398,7 +398,7 @@ void main() {
     });
   });
 
-  // ------------------------------------------------------- لایهٔ رابط کاربری
+  // ------------------------------------------------------------- UI layer
   group('رابط کاربری صفحهٔ بازی', () {
     late GameController controller;
 
@@ -416,7 +416,7 @@ void main() {
         ),
       );
       await controller.bootstrap();
-      // نشست آمادهٔ بازی (بدون شبکه) تا صفحهٔ بازی آزموده شود.
+      // A game-ready session without networking, so the play screen can be tested.
       controller.session.setActiveCategories(const [0, 1]);
       controller.session.addPlayer('سارا', id: 'h1', isHost: true);
       controller.session.addPlayer('مینا', id: 'p1');
@@ -544,7 +544,7 @@ void main() {
       expect(stopButton(tester).onPressed, isNotNull);
       expect(find.textContaining('حداقل ۲ حرف'), findsNothing);
 
-      // پاسخ‌ها همچنان قابل ویرایش‌اند (غیرفعال بودن دکمه مانع تایپ نیست).
+      // Answers stay editable: a disabled button never blocks typing.
       await tester.enterText(fields.at(0), ' ');
       await tester.pump();
       expect(stopButton(tester).onPressed, isNull, reason: 'فیلد تنها فاصله است');

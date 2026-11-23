@@ -1,4 +1,4 @@
-/// ابزارهای نمایش فارسی: ارقام فارسی و قالب‌بندی زمان.
+/// Persian display helpers: Persian digits and time formatting.
 library;
 
 const List<String> _persianDigits = <String>[
@@ -14,7 +14,7 @@ const List<String> _persianDigits = <String>[
   '۹',
 ];
 
-/// تبدیل همهٔ ارقام لاتین یک متن به ارقام فارسی.
+/// Convert every Latin digit in a string to a Persian digit.
 String faNum(Object? value) {
   if (value == null) return '';
   final text = value.toString();
@@ -29,7 +29,7 @@ String faNum(Object? value) {
   return buffer.toString();
 }
 
-/// قالب زمان باقی‌مانده به صورت «mm:ss» با ارقام فارسی.
+/// Format remaining time as mm:ss with Persian digits.
 String faTimer(int milliseconds) {
   final totalSeconds = (milliseconds / 1000).ceil().clamp(0, 24 * 3600);
   final minutes = totalSeconds ~/ 60;
@@ -39,13 +39,13 @@ String faTimer(int milliseconds) {
   return faNum('$mm:$ss');
 }
 
-/// قالب مدت زمان به فارسی و خوانا (مثلاً «۵ دقیقه»).
+/// Human-readable Persian duration label (for example 5 minutes).
 String faDurationLabel(int seconds) {
   if (seconds % 60 == 0) return '${faNum(seconds ~/ 60)} دقیقه';
   return '${faNum(seconds)} ثانیه';
 }
 
-/// تبدیل ارقام فارسی/عربی یک متن به ارقام لاتین (برای ورودی‌های فنی مثل IP و پورت).
+/// Convert Persian/Arabic digits to Latin (for technical input such as IP and port).
 String faToEnDigits(String input) {
   const persian = '۰۱۲۳۴۵۶۷۸۹';
   const arabic = '٠١٢٣٤٥٦٧٨٩';

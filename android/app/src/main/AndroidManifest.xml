@@ -1,12 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- بازی چندنفرهٔ محلی: هیچ ارتباطی با اینترنت یا سرور بیرونی انجام نمی‌شود.
-         مجوز INTERNET فقط برای باز کردن Socket روی شبکهٔ محلی (Hotspot/Wi-Fi) لازم است.
-         همهٔ مجوزهای زیر از نوع «normal» هستند و نیازی به درخواست در زمان اجرا ندارند. -->
+    <!-- Local multiplayer only: no traffic reaches the Internet or any external
+         server. INTERNET is required just to open sockets on the LAN (hotspot or
+         shared Wi-Fi). All permissions below are normal and need no runtime prompt. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
-    <!-- اسکن QR Code با دوربین (بند ۱) — مجوز خطرناک است و در زمان اجرا توسط mobile_scanner درخواست می‌شود. -->
+    <!-- QR scanning: a dangerous permission, requested at runtime by mobile_scanner. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <application
         android:label="سنجاب"

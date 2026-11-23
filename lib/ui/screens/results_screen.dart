@@ -1,7 +1,7 @@
-/// نتایج دست و مجموع امتیازها.
+/// Round results and total scores.
 ///
-/// روی دستگاه میزبان، دکمه‌های «دست جدید» و «پایان بازی» فعال است؛ دستگاه
-/// بازیکنان فقط نتیجهٔ اعلام‌شده توسط میزبان را می‌بینند.
+/// The host gets New round and End game; player devices only see the results
+/// announced by the host.
 library;
 
 import 'package:flutter/material.dart';

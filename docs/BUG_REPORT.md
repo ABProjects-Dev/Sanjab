@@ -38,7 +38,7 @@
 
 ## Verification still required
 
-- The merged gameplay changes passed Flutter tests, Dart analysis, and the Android debug build in CI; rerun them for the 1.1.0 version-bump PR before release.
+- The merged gameplay changes passed Flutter tests, Dart analysis, and the Android debug build in CI; the same gates run on every pull request.
 - Exercise discovery and full gameplay on physical Android devices across Wi-Fi and hotspot configurations.
 - Verify lifecycle persistence under backgrounding and process termination; no claim of guaranteed completion on force-stop is made.
 

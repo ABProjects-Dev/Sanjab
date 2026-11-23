@@ -1,21 +1,21 @@
-/// قواعد اعتبارسنجی پاسخ‌ها برای دکمهٔ «استپ» — نسخهٔ ۱.۰.۰.
+/// Answer validation rules for the Stop button.
 ///
-/// قاعدهٔ واحد پروژه: دکمهٔ «استپ» تنها زمانی فعال می‌شود که **همهٔ**
-/// فیلدهای پاسخ بازیکن در دست جاری دست‌کم [kStopMinValidChars] کاراکتر
-/// «معتبر» داشته باشند.
+/// Single project rule: Stop is enabled only when **every** answer field of
+/// the player in the current round has at least [kStopMinValidChars] valid
+/// characters.
 ///
-/// کاراکتر معتبر یعنی کاراکتری که:
-///  * قابل مشاهده باشد (فاصله، نیم‌فاصله، کاراکترهای صفرعرض، نشانه‌های
-///    جهت‌دهی متن، BOM و کاراکترهای کنترلی به حساب نمی‌آیند)؛
-///  * فاصله نباشد، نه در ابتدا/انتهای پاسخ و نه در میانهٔ آن.
+/// A valid character is one that:
+///  * is visible (spaces, half-spaces, zero-width characters, bidi marks,
+///    BOM and control characters do not count);
+///  * is not whitespace, neither at the edges nor in the middle of the answer.
 ///
-/// همین تابع‌ها هم در رابط کاربری و هم در منطق دامنه و میزبان استفاده
-/// می‌شوند تا قاعده در همهٔ لایه‌ها یکسان باشد.
+/// The same helpers are used by the UI, the domain layer and the host so the
+/// rule cannot drift between layers.
 library;
 
 import 'package:characters/characters.dart';
 
-/// حداقل تعداد کاراکتر معتبر لازم در هر فیلد پاسخ تا دکمهٔ «استپ» فعال شود.
+/// Minimum valid characters per answer field before Stop becomes available.
 const int kStopMinValidChars = 2;
 
 /// Maximum number of user-perceived characters accepted in an answer.
@@ -28,36 +28,36 @@ int answerCharacterCount(String text) => text.characters.length;
 bool isAnswerWithinLimit(String text) =>
     answerCharacterCount(text) <= kMaxAnswerLength;
 
-/// الگوی کاراکترهای غیرقابل مشاهده/فاصله‌ای که در شمارش معتبر نیستند:
-///  * U+0000..U+0020  کاراکترهای کنترلی و فاصلهٔ معمولی
-///  * U+007F..U+00A0  کنترلی، فاصلهٔ بدون‌شکستن (NBSP)
-///  * U+00AD         خط تیرهٔ نرم
-///  * U+1680, U+180E فاصله‌های یونیکد
-///  * U+2000..U+200F انواع فاصله، کاراکترهای صفرعرض (ZWSP/ZWNJ/ZWJ) و LRM/RLM
-///  * U+2028..U+202F جداکنندهٔ خط/پاراگراف و فاصلهٔ باریک
-///  * U+205F..U+2064 فاصلهٔ ریاضی و «word joiner» و عملگرهای نامرئی
-///  * U+2066..U+206F نشانه‌های جهت‌دهی متن
-///  * U+3000, U+FEFF, U+FFF9..U+FFFB فاصلهٔ تمام‌عرض، BOM و نشانه‌های حاشیه‌نویسی
+/// Characters excluded from the valid count (whitespace and invisible):
+///  * U+0000..U+0020  control characters and the plain space
+///  * U+007F..U+00A0  control characters and no-break space (NBSP)
+///  * U+00AD         soft hyphen
+///  * U+1680, U+180E Unicode spaces
+///  * U+2000..U+200F spaces, zero-width characters (ZWSP/ZWNJ/ZWJ) and LRM/RLM
+///  * U+2028..U+202F line and paragraph separators, narrow spaces
+///  * U+205F..U+2064 math space, word joiner and invisible operators
+///  * U+2066..U+206F bidi control marks
+///  * U+3000, U+FEFF, U+FFF9..U+FFFB ideographic space, BOM and annotation marks
 final RegExp _invisibleRunes = RegExp(
   '[\u0000-\u0020\u007F-\u00A0\u00AD\u1680\u180E'
   '\u2000-\u200F\u2028-\u202F\u205F-\u2064\u2066-\u206F'
   '\u3000\uFEFF\uFFF9-\uFFFB]',
 );
 
-/// پاسخ را برای شمارش کاراکتر معتبر پاک‌سازی می‌کند
-/// (همهٔ فاصله‌ها و کاراکترهای غیرقابل مشاهده حذف می‌شوند).
+/// Strips whitespace and invisible characters before counting valid ones.
 ///
-/// مثال: `'  آب\u200c  '` → `'آب'`.
+///
+/// Example: `'  ab\u200c  '` becomes `'ab'`.
 String normalizeAnswerForStop(String text) =>
     text.replaceAll(_invisibleRunes, '');
 
-/// تعداد کاراکترهای معتبر پاسخ.
+/// Number of valid characters in an answer.
 ///
-/// فاصلهٔ ابتدا/انتها و نیز فاصله‌های میانی، نیم‌فاصله و کاراکترهای
-/// غیرقابل مشاهده شمرده نمی‌شوند.
+/// Leading and trailing spaces, inner spaces, half-spaces and invisible
+/// characters are not counted.
 int validAnswerCharCount(String text) =>
     normalizeAnswerForStop(text).runes.length;
 
-/// آیا این فیلد پاسخ شرط حداقل [kStopMinValidChars] کاراکتر معتبر را دارد؟
+/// Whether this answer field has at least [kStopMinValidChars] valid characters.
 bool isAnswerEligibleForStop(String text) =>
     validAnswerCharCount(text) >= kStopMinValidChars;

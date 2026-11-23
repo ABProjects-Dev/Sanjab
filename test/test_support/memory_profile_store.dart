@@ -1,4 +1,4 @@
-/// مخزن پروفایل حافظه‌ای برای آزمون‌ها (بدون I/O فایل).
+/// In-memory profile repository for tests, with no file I/O.
 library;
 
 import 'package:sanjab/data/profile_repository.dart';

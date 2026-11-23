@@ -1,4 +1,4 @@
-/// آزمون ویجت نسخهٔ ۱.۰.۰: صفحهٔ اصلی، پروفایل و راهنمای بازی.
+/// Widget tests: Home, Profile and Guide.
 library;
 
 import 'package:flutter/material.dart';
@@ -46,7 +46,7 @@ void main() {
     expect(find.text('پیوستن به بازی'), findsOneWidget);
     expect(find.text('راهنمای بازی'), findsOneWidget);
     expect(find.text('تنظیمات'), findsOneWidget);
-    // نام نمایشی پروفایل روی صفحهٔ اصلی دیده می‌شود.
+    // The profile display name appears on Home.
     expect(find.text('بازیکن آزمون'), findsOneWidget);
   });
 
@@ -87,7 +87,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(profiles.profile.displayName, 'سارا');
-      // شناسهٔ پایدار بازیکن با تغییر نام عوض نمی‌شود.
+      // Renaming keeps the stable player ID.
       expect(profiles.profile.playerId, 'test-player');
     },
   );

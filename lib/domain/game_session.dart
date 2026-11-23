@@ -1,9 +1,9 @@
-/// وضعیت کامل و مرجع بازی (منطق دامنه، بدون هیچ وابستگی به Flutter).
+/// Complete, authoritative game state (domain logic, no Flutter dependency).
 ///
-/// در نسخهٔ ۱.۰.۰ این کلاس روی دستگاه **میزبان** مرجع اصلی وضعیت است
-/// (Host Authoritative) و روی دستگاه بازیکنان نسخهٔ همگام‌شدهٔ همان است.
-/// همهٔ تغییرات از راه متدهای این کلاس انجام می‌شود و زمان‌سنج بر پایهٔ
-/// «زمان واقعی» (Timestamp) کار می‌کند، نه شمارش تیک.
+/// On the **host** device this class is the authoritative state; clients hold
+/// a synchronized copy (host-authoritative model).
+/// All changes go through this class, and the timer is based on real
+/// timestamps rather than accumulated ticks.
 library;
 
 import 'answer_rules.dart';
@@ -11,7 +11,7 @@ import 'categories.dart';
 import 'models.dart';
 import 'scoring.dart';
 
-/// نام‌ها برای یکتاسازی مقایسه نرمال می‌شوند (فاصلهٔ اضافه و ی/ک عربی).
+/// Normalize a name for uniqueness checks (spacing and Arabic/Persian letters).
 String normalizeName(String value) {
   final buffer = StringBuffer();
   var lastSpace = true;
@@ -33,7 +33,7 @@ String normalizeName(String value) {
   return buffer.toString().trim();
 }
 
-/// خطاهای قابل نمایش به کاربر (پیام فارسی و قابل فهم).
+/// Game rule violation with a user-facing Persian message.
 class GameRuleException implements Exception {
   GameRuleException(this.message);
 
@@ -43,7 +43,7 @@ class GameRuleException implements Exception {
   String toString() => message;
 }
 
-/// وضعیت مرجع بازی.
+/// Authoritative game state.
 class GameSession {
   GameSession({
     required this.config,
@@ -64,30 +64,30 @@ class GameSession {
        connectedPlayerIds = connectedPlayerIds ?? <String>{},
        leftPlayerIds = leftPlayerIds ?? <String>{};
 
-  /// نسخهٔ ساختار ذخیره‌سازی (۲ = ساختار چندنفرهٔ ۱.۰.۰).
+  /// Persisted schema version.
   static const int schemaVersion = 2;
 
-  /// حداقل بازیکن برای شروع بازی؛ میزبان می‌تواند به‌تنهایی تمرین کند.
+  /// Minimum players to start; the host may practice alone.
   static const int minPlayers = 1;
 
   GameConfig config;
 
-  /// بازیکنان بازی (ترتیب نمایش).
+  /// Players in display order.
   final List<Player> players;
 
-  /// دست‌های انجام‌شده. بدون محدودیت تعداد.
+  /// Completed rounds (no fixed limit).
   final List<RoundRecord> rounds;
 
-  /// مجموع امتیاز هر بازیکن در کل بازی.
+  /// Total score per player across the session.
   final Map<String, int> totals;
 
-  /// بازیکنانی که هم‌اکنون به میزبان متصل‌اند.
+  /// Players currently connected to the host.
   final Set<String> connectedPlayerIds;
 
-  /// بازیکنانی که صریحاً از نشست خارج شده‌اند (با قطع اتصال اشتباه نشود).
+  /// Players who explicitly left; not to be confused with a dropped connection.
   final Set<String> leftPlayerIds;
 
-  /// بازیکنانی که هنوز عضو نشست‌اند؛ قطع اتصال عضویت را تغییر نمی‌دهد.
+  /// Players still in the session; a disconnect does not change membership.
   int get activePlayerCount =>
       players.where((player) => !leftPlayerIds.contains(player.id)).length;
 
@@ -97,17 +97,17 @@ class GameSession {
 
   int playerSeq;
 
-  /// شناسهٔ یکتای نشست بازی (روی میزبان ساخته می‌شود).
+  /// Unique session ID, created on the host.
   final String gameId;
 
-  /// شناسهٔ بازیکن میزبان.
+  /// Player ID of the host.
   final String hostPlayerId;
 
   final int createdAtEpochMs;
 
   int savedAtEpochMs;
 
-  /// ساخت یک نشست تازه (لابی خالی).
+  /// Create a fresh session (empty lobby).
   factory GameSession.fresh({
     int nowMs = 0,
     String gameId = '',
@@ -120,12 +120,12 @@ class GameSession {
     savedAtEpochMs: nowMs,
   );
 
-  // --------------------------------------------------------------- بازیکنان
+  // ---------------------------------------------------------------- Players
 
-  /// افزودن بازیکن. نام باید غیرخالی و در بازی یکتا باشد.
+  /// Add a player. The name must be non-empty and unique in the session.
   ///
-  /// [id] اختیاری است؛ وقتی بازیکن عضو از دستگاه خودش شناسهٔ پایدار می‌فرستد
-  /// از همان استفاده می‌شود تا هویت او با تغییر نام عوض نشود.
+  /// [id] is optional: when a joining device supplies its stable id the id is
+  /// reused, so identity survives a display-name change.
   Player addPlayer(String name, {String? id, bool isHost = false}) {
     final clean = name.trim();
     if (clean.isEmpty) {
@@ -157,7 +157,7 @@ class GameSession {
     return player;
   }
 
-  /// حذف بازیکن (تنها در لابی مجاز است؛ وسط دست فهرست بازیکنان تغییر نمی‌کند).
+  /// Remove a player (lobby only; the roster is frozen once a round starts).
   void removePlayer(String playerId) {
     if (phase != GamePhase.lobby) {
       throw GameRuleException('حذف بازیکن فقط در لابی امکان‌پذیر است.');
@@ -174,10 +174,10 @@ class GameSession {
     }
   }
 
-  /// ثبت خروج صریح بازیکن. قطع اتصال معمولی نباید این متد را فراخوانی کند.
+  /// Record an explicit exit. A normal disconnect must not call this.
   ///
-  /// در لابی رکورد حذف می‌شود. پس از شروع، تاریخچه و مجموع امتیاز حفظ می‌شوند،
-  /// اما بازیکن از شمارش اعضا/حد نصاب دست جاری و دست‌های بعدی کنار می‌رود.
+  /// In the lobby the record is removed. After the start, history and totals are
+  /// kept, but the player leaves the roster, thresholds and later rounds.
   bool markPlayerLeft(String playerId) {
     if (playerId == hostPlayerId || playerById(playerId) == null) return false;
     if (phase == GamePhase.finished) return false;
@@ -201,7 +201,7 @@ class GameSession {
     return true;
   }
 
-  /// تغییر نام نمایشی بازیکن (هویت او تغییر نمی‌کند).
+  /// Rename a player without changing identity.
   void renamePlayer(String playerId, String newName) {
     final clean = newName.trim();
     if (clean.isEmpty) {
@@ -225,7 +225,7 @@ class GameSession {
     players[index] = players[index].copyWith(name: clean);
   }
 
-  /// به‌روزرسانی وضعیت اتصال یک بازیکن.
+  /// Update a player's connection state.
   void setConnected(String playerId, bool connected) {
     if (connected && !leftPlayerIds.contains(playerId)) {
       connectedPlayerIds.add(playerId);
@@ -236,11 +236,11 @@ class GameSession {
 
   bool isConnected(String playerId) => connectedPlayerIds.contains(playerId);
 
-  /// آیا بازی می‌تواند شروع شود؟
+  /// Whether the game can start.
   bool get canStartGame =>
       phase == GamePhase.lobby && activePlayerCount >= minPlayers;
 
-  /// بازیکن با شناسه.
+  /// Player with the given ID.
   Player? playerById(String id) {
     for (final p in players) {
       if (p.id == id) return p;
@@ -248,15 +248,15 @@ class GameSession {
     return null;
   }
 
-  /// نام نمایشی بازیکن (برای نمایش در رابط کاربری).
+  /// Display name of a player, for the UI.
   String nameOf(String playerId) => playerById(playerId)?.name ?? '—';
 
-  // ------------------------------------------------------------------- دست‌ها
+  // ------------------------------------------------------------------ Rounds
 
-  /// دست جاری (آخرین دست) یا null.
+  /// The current (last) round, or null.
   RoundRecord? get currentRound => rounds.isEmpty ? null : rounds.last;
 
-  /// آیا دستی در جریان/داوری/نتایج است؟
+  /// Whether a round is in play, judging or results.
   bool get hasActiveGame =>
       rounds.isNotEmpty &&
       (phase == GamePhase.playing ||
@@ -265,10 +265,10 @@ class GameSession {
           phase == GamePhase.judging ||
           phase == GamePhase.roundResults);
 
-  /// شروع یک دست جدید بدون هیچ کلمه یا حرفی، با حفظ امتیازهای قبلی.
+  /// Start a new round without any letter or word, keeping previous scores.
   ///
-  /// نسخهٔ ۱.۰.۰: قابلیت تعیین کلمه/حرف برای دست‌ها به‌طور کامل حذف شده است؛
-  /// شروع دست به هیچ ورودی متنی وابسته نیست.
+  /// Choosing a word or letter per round has been removed entirely; starting a
+  /// round depends on no text input.
   RoundRecord startNewRound({
     required int nowMs,
     List<int>? activeCategoryIds,
@@ -314,7 +314,7 @@ class GameSession {
     return round;
   }
 
-  /// تغییر دسته‌های فعال (تنها پیش از شروع دست یا بین دست‌ها).
+  /// Change active categories (only before a round or between rounds).
   bool setActiveCategories(List<int> ids) {
     if (phase != GamePhase.lobby && phase != GamePhase.roundResults) {
       return false;
@@ -330,7 +330,7 @@ class GameSession {
     return true;
   }
 
-  /// مدت باقی‌ماندهٔ دست جاری بر اساس زمان واقعی (میلی‌ثانیه).
+  /// Remaining time of the current round in milliseconds, from the real clock.
   int remainingMs(int nowMs) {
     final round = currentRound;
     if (round == null) return 0;
@@ -339,7 +339,7 @@ class GameSession {
     return remaining < 0 ? 0 : remaining;
   }
 
-  /// توقف موقت زمان‌سنج (فقط میزبان).
+  /// Pause the timer (host only).
   bool pause(int nowMs) {
     final round = currentRound;
     if (round == null || phase != GamePhase.playing) return false;
@@ -348,7 +348,7 @@ class GameSession {
     return true;
   }
 
-  /// ادامهٔ بازی از همان زمان قبلی (فقط میزبان).
+  /// Resume from the paused remaining time (host only).
   bool resume(int nowMs) {
     final round = currentRound;
     if (round == null || phase != GamePhase.paused) return false;
@@ -359,7 +359,7 @@ class GameSession {
     return true;
   }
 
-  /// ثبت/ویرایش پاسخ یک بازیکن در یک دسته (میزبان آن را اعتبارسنجی می‌کند).
+  /// Set or edit one answer; the host validates it.
   bool setAnswer(String playerId, int categoryId, String text) {
     final round = currentRound;
     if (round == null || phase != GamePhase.playing) return false;
@@ -380,19 +380,19 @@ class GameSession {
     return true;
   }
 
-  /// آیا بازیکن استپ کرده است؟
+  /// Whether the player has pressed Stop.
   bool isPlayerStopped(String playerId) =>
       currentRound?.stoppedPlayerIds.contains(playerId) ?? false;
 
-  /// تعداد استپ‌های ثبت‌شده در دست جاری.
+  /// Number of recorded Stop requests in the current round.
   int get stopCount => currentRound?.stoppedPlayerIds.length ?? 0;
 
-  /// (نسخهٔ ۱.۰.۰) آیا همهٔ فیلدهای پاسخ این بازیکن شرط دکمهٔ «استپ» را دارند؟
+  /// Whether every answer field of this player satisfies the Stop rule.
   ///
-  /// تنها دسته‌های فعال و قابل تکمیل در دست جاری بررسی می‌شوند و هر فیلد
-  /// باید حداقل [kStopMinValidChars] کاراکتر معتبر داشته باشد. فاصلهٔ
-  /// ابتدا/انتها، فاصله‌های میانی، نیم‌فاصله و کاراکترهای غیرقابل مشاهده
-  /// به حساب نمی‌آیند.
+  /// Only the active categories of the current round are checked, and each field
+  /// needs at least [kStopMinValidChars] valid characters. Leading, trailing and
+  /// inner spaces, half-spaces and invisible characters do not count.
+  ///
   bool canPlayerStop(String playerId) {
     final round = currentRound;
     if (round == null) return false;
@@ -414,8 +414,8 @@ class GameSession {
     return true;
   }
 
-  /// (نسخهٔ ۱.۰.۰) دسته‌هایی که پاسخ این بازیکن در آن‌ها هنوز شرط حداقل
-  /// دو کاراکتر معتبر را ندارد — برای نمایش راهنمای دکمهٔ استپ.
+  /// Categories where this player's answer still misses the minimum valid
+  /// characters; used for the Stop hint text.
   List<int> pendingStopCategoryIds(String playerId) {
     final round = currentRound;
     if (round == null) return const <int>[];
@@ -433,37 +433,37 @@ class GameSession {
     return pending;
   }
 
-  /// درخواست استپ یک بازیکن.
+  /// A player pressed Stop.
   ///
-  /// نسخهٔ ۱.۰.۰: هر بازیکن فقط یک بار می‌تواند استپ کند و پیام تکراری
-  /// دوباره شمارش نمی‌شود. دست تنها زمانی پایان می‌یابد که تعداد
-  /// استپ‌کنندگان به حد نصاب ceil(بازیکن‌های فعال در ابتدای دست / ۲) برسد.
-  /// قطع ارتباط بازیکن باعث تغییر حد نصاب نمی‌شود.
+  /// Each player may Stop once; a duplicate message is not counted again. The
+  /// round ends only when the number of stoppers reaches ceil(active players at
+  /// round start / 2). A disconnect does not change the threshold.
   ///
-  /// مقدار بازگشتی: true اگر استپ با موفقیت ثبت شود (بستن دست با رسیدن به
-  /// حد نصاب یا خیر). endRound فقط یک بار اجرا می‌شود چون فاز پس از playing
-  /// خارج می‌شود.
   ///
-  /// نسخهٔ ۱.۰.۰: پیش از ثبت استپ، کامل بودن پاسخ‌های همان بازیکن بررسی
-  /// می‌شود ([canPlayerStop]). پیام قدیمی/تکراری یا درخواست دستگاهی که
-  /// همهٔ فیلدهایش را پر نکرده است، بی‌اثر رد می‌شود.
+  /// Returns true when the Stop is accepted, whether or not the threshold ended
+  /// the round: endRound runs once because the phase leaves playing.
+  ///
+  ///
+  /// The player's own answers are validated before the Stop is recorded, so an
+  /// old or duplicate message, or a request from a device whose fields are still
+  /// incomplete, is rejected without effect.
   bool requestStop(String playerId, {required int nowMs}) {
     final round = currentRound;
     if (round == null) return false;
     if (phase != GamePhase.playing && phase != GamePhase.paused) return false;
     if (playerById(playerId) == null) return false;
     if (!canPlayerStop(playerId)) return false;
-    // هر بازیکن فقط یک بار استپ می‌کند؛ پیام تکراری دوباره شمارش نمی‌شود.
+    // One Stop per player; duplicate messages are not counted again.
     if (round.stoppedPlayerIds.contains(playerId)) return false;
     round.stoppedPlayerIds.add(playerId);
-    // دست تنها وقتی پایان می‌یابد که به حد نصاب برسیم.
+    // The round ends only once the Stop threshold is reached.
     if (round.stoppedPlayerIds.length >= round.stopThreshold) {
       return endRound(RoundEndReason.playerStop, nowMs: nowMs);
     }
     return true;
   }
 
-  /// پایان دست توسط میزبان (زمان یا تصمیم میزبان).
+  /// End the round as host (timeout or manual decision).
   bool endRound(RoundEndReason reason, {required int nowMs}) {
     final round = currentRound;
     if (round == null) return false;
@@ -474,19 +474,19 @@ class GameSession {
     return true;
   }
 
-  /// بررسی اتمام زمان؛ در صورت پایان، دست را می‌بندد و true برمی‌گرداند.
+  /// Check for timeout; ends the round and returns true when it expires.
   bool tickTimer(int nowMs) {
     if (phase != GamePhase.playing) return false;
     if (remainingMs(nowMs) > 0) return false;
     return endRound(RoundEndReason.timer, nowMs: nowMs);
   }
 
-  // ------------------------------------------------- دریافت پاسخ‌های پایانی
+  // ------------------------------------------- Final answer collection
 
-  /// اعمال Snapshot نهایی پاسخ‌های یک بازیکن روی میزبان.
+  /// Apply a player's final answer snapshot on the host.
   ///
-  /// این متد idempotent است: اگر Snapshot همان بازیکن قبلاً دریافت شده باشد،
-  /// دوباره اعمال نمی‌شود (جلوگیری از ثبت چندبارهٔ پاسخ پس از پیام تکراری شبکه).
+  /// Idempotent: a snapshot already received from the same player is not applied
+  /// twice, so duplicate network messages cannot rewrite answers.
   bool applySnapshot(
     String playerId,
     Map<int, String> answers, {
@@ -512,13 +512,13 @@ class GameSession {
             : JudgementStatus.unchecked,
       );
     }
-    // پاسخ‌های استپ‌شده قفل می‌شوند.
+    // Stopped answers are locked.
     round.stoppedPlayerIds.add(playerId);
     round.receivedSnapshotPlayerIds.add(playerId);
     return true;
   }
 
-  /// علامت‌گذاری دریافت Snapshot بدون تغییر پاسخ‌ها (برای بازیکن قطع‌شده).
+  /// Mark the snapshot as received without changing answers (offline player).
   bool markSnapshotReceived(String playerId) {
     final round = currentRound;
     if (round == null) return false;
@@ -528,7 +528,7 @@ class GameSession {
     return true;
   }
 
-  /// بازیکنانی که Snapshot نهایی آن‌ها هنوز دریافت نشده است.
+  /// Players whose final snapshot has not arrived yet.
   List<String> get pendingSnapshotPlayerIds {
     final round = currentRound;
     if (round == null) return const <String>[];
@@ -542,10 +542,10 @@ class GameSession {
         .toList(growable: false);
   }
 
-  /// آیا پاسخ‌های همهٔ بازیکنان دریافت شده است؟
+  /// Whether every player's snapshot has arrived.
   bool get allSnapshotsReceived => pendingSnapshotPlayerIds.isEmpty;
 
-  /// جمع‌بندی فاز دریافت: اگر همهٔ Snapshotها رسیده باشند، داوری آغاز می‌شود.
+  /// Close the collecting phase and start judging once all snapshots arrived.
   bool tryStartJudging() {
     if (phase != GamePhase.collecting) return false;
     if (!allSnapshotsReceived) return false;
@@ -553,9 +553,9 @@ class GameSession {
     return true;
   }
 
-  // ------------------------------------------------------------------ داوری
+  // ------------------------------------------------------------- Judging
 
-  /// تعیین وضعیت داوری یک پاسخ (تنها روی دستگاه میزبان).
+  /// Set the judgement of one answer (host device only).
   void setJudgement(String playerId, int categoryId, JudgementStatus? status) {
     final round = currentRound;
     if (round == null || phase != GamePhase.judging) return;
@@ -571,7 +571,7 @@ class GameSession {
     round.answers[key] = existing.copyWith(status: next);
   }
 
-  /// تعداد پاسخ‌های غیرخالی که هنوز داوری نشده‌اند.
+  /// Number of non-empty answers not judged yet.
   int get uncheckedCount {
     final round = currentRound;
     if (round == null) return 0;
@@ -580,7 +580,7 @@ class GameSession {
         .length;
   }
 
-  /// آیا همهٔ پاسخ‌های غیرخالی این دسته داوری شده‌اند؟
+  /// Whether all non-empty answers of this category are judged.
   bool isCategoryJudged(int categoryId) {
     final round = currentRound;
     if (round == null) return true;
@@ -589,7 +589,7 @@ class GameSession {
         .every((a) => a.isBlank || a.status != JudgementStatus.unchecked);
   }
 
-  /// پاسخ‌های یک دسته در دست جاری (به ترتیب بازیکنان).
+  /// Answers of one category in the current round, in player order.
   List<AnswerEntry> answersOfCategory(int categoryId) {
     final round = currentRound;
     if (round == null) return const <AnswerEntry>[];
@@ -602,7 +602,7 @@ class GameSession {
     return list;
   }
 
-  /// نهایی‌کردن داوری: محاسبهٔ امتیاز دست جاری و افزودن به مجموع.
+  /// Finalize judging: score the round and add it to the totals.
   RoundScoring finalizeJudging() {
     final round = currentRound;
     if (round == null) {
@@ -632,7 +632,7 @@ class GameSession {
     return scored;
   }
 
-  /// امتیازدهی ذخیره‌شدهٔ یک دست (برای نمایش نتایج).
+  /// Stored scoring of a round, for the results screen.
   RoundScoring scoringOfRound(int roundIndex) {
     final round = rounds.firstWhere(
       (r) => r.index == roundIndex,
@@ -644,11 +644,11 @@ class GameSession {
     );
   }
 
-  /// رتبه‌بندی بر اساس مجموع امتیاز.
+  /// Standings by total score.
   List<Standing> standings() =>
       buildStandings(players: players, totals: totals);
 
-  /// پایان کامل بازی؛ داده‌های موقت پاک می‌شوند (تاریخچهٔ دائمی نگه داشته نمی‌شود).
+  /// Finish the game and clear temporary data; no permanent history is kept.
   void finishAndClear() {
     rounds.clear();
     leftPlayerIds.clear();
@@ -659,7 +659,7 @@ class GameSession {
     phase = GamePhase.lobby;
   }
 
-  // ---------------------------------------------------------------- سریال‌سازی
+  // ------------------------------------------------------- Serialization
 
   Map<String, dynamic> toJson() => {
     'v': schemaVersion,
@@ -678,8 +678,8 @@ class GameSession {
   };
 
   static GameSession fromJson(Map<String, dynamic> json) {
-    // دادهٔ schema قدیمی (نسخهٔ ۱) در مدل شبکه‌ای قابل ادامه دادن نیست؛
-    // چون ساختار بازیکنان، شناسه‌ها و داوری تغییر کرده است.
+    // Older schema data cannot be continued in this model because players,
+    // identities and judging changed shape.
     final version = (json['v'] as num?)?.toInt();
     if (version != null && version != schemaVersion) {
       throw FormatException(
@@ -713,7 +713,7 @@ class GameSession {
       createdAtEpochMs: (json['created'] as num?)?.toInt() ?? 0,
       savedAtEpochMs: (json['saved'] as num?)?.toInt() ?? 0,
     );
-    // اعتبارسنجی: بازیکنان و پاسخ‌ها باید منسجم باشند.
+    // Validate consistency between players and answers.
     session.players.removeWhere((p) => p.id.isEmpty || p.name.trim().isEmpty);
     session.leftPlayerIds.removeWhere(
       (id) =>

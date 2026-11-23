@@ -1,4 +1,4 @@
-/// ریشهٔ برنامه: تم، زبان فارسی، جهت RTL و مدیریت وضعیت.
+/// Application root: theme, Persian locale, RTL direction and state scope.
 library;
 
 import 'dart:async';
@@ -21,7 +21,7 @@ class SanjabApp extends StatefulWidget {
 
   final GameController controller;
 
-  /// صفحهٔ آغازین (پیش‌فرض صفحهٔ اصلی)؛ برای آزمون ویجت استفاده می‌شود.
+  /// Initial screen (defaults to Home); used by widget tests.
   final Widget? initialScreen;
 
   @override

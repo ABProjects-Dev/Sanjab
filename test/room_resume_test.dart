@@ -1,5 +1,5 @@
-/// آزمون‌های نسخهٔ ۱.۰.۰: ذخیرهٔ اتاق، بازگشت به صفحهٔ اصلی، «ادامه بازی»
-/// برای میزبان و بازیکن، خروج صریح از اتاق و پایان رسمی بازی.
+/// Session lifecycle: saved rooms, returning Home, resuming as host and player,
+/// explicit room exit and formal game end.
 library;
 
 import 'dart:io';
@@ -175,7 +175,7 @@ void main() {
       first.setAnswer(0, 'تهران');
       final remainingBefore = first.remainingMs;
       await first.flush();
-      // خاموش شدن ناگهانی برنامه: بدون closeSession منطقی، فقط توقف کنترلر.
+      // Abrupt app exit: stop the controller without a logical closeSession.
       first.dispose();
       await Future<void>.delayed(const Duration(milliseconds: 200));
 
@@ -213,7 +213,7 @@ void main() {
       host.startGame();
       host.setAnswer(0, 'تهران');
       host.forceEndRound();
-      // بازیکن در این آزمون کلاینت واقعی ندارد؛ دریافت پاسخ‌هایش را علامت می‌زنیم.
+      // This player has no real client here; mark its answers as received.
       host.session.markSnapshotReceived('p1');
       host.session.tryStartJudging();
       expect(host.session.phase, GamePhase.judging);
@@ -294,7 +294,7 @@ void main() {
       expect(savedRoom.address, '127.0.0.1');
       expect(savedRoom.port, host.hostPort);
 
-      // بسته شدن ناگهانی برنامهٔ بازیکن.
+      // The player app terminates abruptly.
       await first.leaveGame();
       first.dispose();
       await Future<void>.delayed(const Duration(milliseconds: 200));
@@ -465,7 +465,7 @@ void main() {
 
   group('مهاجرت نشست ذخیره‌شدهٔ قدیمی', () {
     test('نشست ذخیره‌شدهٔ نسخهٔ قبل پس از آپدیت قابل ادامه است', () async {
-      // دادهٔ شبیه‌سازی‌شدهٔ نشست قدیمی: schemaVersion = 2 و کلید حرف در دست.
+      // Simulated legacy data: schemaVersion = 2 with a letter key on the round.
       final legacyJson = <String, dynamic>{
         'v': 2,
         'phase': 'playing',
@@ -613,7 +613,7 @@ void main() {
       expect(loaded.length, 1, reason: 'رکورد تکراری ساخته نمی‌شود');
       expect(loaded.single.roundIndex, 2);
 
-      // خراب‌کردن فایل اصلی: باید از نسخهٔ پشتیبان خوانده شود.
+      // Corrupt the main file; the backup must be used.
       final main = File('${dir.path}/rooms.json');
       await main.writeAsString('{ خراب');
       final recovered = await repo.loadAll();

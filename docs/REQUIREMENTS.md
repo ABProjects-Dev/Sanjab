@@ -1,7 +1,7 @@
 # Requirements and Current Behavior
 
-**Updated:** 2026-11-04
-**Active source branch:** `arena/da68caee-sanjab`; preparing release `1.1.0+9`.
+**Updated:** 2026-11-23
+**Active source branch:** `main`; preparing release `1.1.2+11`.
 
 ## Purpose and scope
 
@@ -55,9 +55,9 @@ Full rule details: [Game Rules](GAME_RULES.md).
 ## Platform and release
 
 - Android package: `com.sanjab.game`; minimum API 24.
-- Latest published release is `1.0.2+8`; this branch's source is the unreleased `1.1.0+9` candidate.
+- Latest published release is `1.1.2+11`; the checked-in source is the unreleased `1.1.2+11` candidate.
 - Persian RTL, dark theme, portrait. QR scanner requires camera access; networking is local IPv4 TCP/UDP.
-- Effective `compileSdk`/`targetSdk` are inherited from Flutter Gradle defaults, not pinned.
+- `compileSdk`/`targetSdk` are pinned to 36 in `android/app/build.gradle.kts`, not pinned.
 - App includes a screen-awake MethodChannel and bounded local technical logs.
 
 ## Security and privacy boundary

@@ -7,11 +7,10 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * فعالیت اصلی برنامهٔ «سنجاب».
+ * Main activity of Sanjab.
  *
- * تنها وظیفهٔ بومی این کلاس، روشن نگه‌داشتن صفحهٔ گوشی در طول بازی است؛
- * تمام منطق بازی در Dart (Flutter) پیاده‌سازی شده و هیچ وابستگی‌ای به کد
- * نسخهٔ Kotlin قبلی وجود ندارد.
+ * The only native responsibility is keeping the screen awake during play; all game
+ * logic lives in Dart (Flutter) and nothing depends on the old Kotlin build.
  */
 class MainActivity : FlutterActivity() {
 
@@ -42,7 +41,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // تم تاریک ثابت برنامه
+        // Fixed dark background of the app
         window.setBackgroundDrawableResource(android.R.color.black)
     }
 }

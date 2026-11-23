@@ -1,11 +1,11 @@
-/// دسترسی به کنترلر بازی در درخت ویجت‌ها.
+/// Access to the game controller from the widget tree.
 library;
 
 import 'package:flutter/widgets.dart';
 
 import 'game_controller.dart';
 
-/// ارث‌بر ویجت برای مدیریت وضعیت (بدون وابستگی بیرونی).
+/// Inherited widget used for state sharing, with no external dependency.
 class GameScope extends InheritedNotifier<GameController> {
   const GameScope({
     super.key,
@@ -13,14 +13,14 @@ class GameScope extends InheritedNotifier<GameController> {
     required super.child,
   }) : super(notifier: controller);
 
-  /// خواندن کنترلر همراه با ثبت وابستگی (برای بازسازی ویجت پس از تغییر).
+  /// Read the controller and subscribe, so the widget rebuilds on change.
   static GameController of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<GameScope>();
     assert(scope != null, 'GameScope در درخت ویجت‌ها یافت نشد.');
     return scope!.notifier!;
   }
 
-  /// خواندن کنترلر بدون ثبت وابستگی (برای رویدادها).
+  /// Read the controller without subscribing, for event handlers.
   static GameController read(BuildContext context) {
     final scope = context.getInheritedWidgetOfExactType<GameScope>();
     assert(scope != null, 'GameScope در درخت ویجت‌ها یافت نشد.');

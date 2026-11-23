@@ -1,22 +1,22 @@
-/// پروفایل محلی دستگاه (بند ۷ سند نسخه ۱.۰.۰).
+/// Device-local profile.
 ///
-/// هر دستگاه یک شناسهٔ بازیکن پایدار و یک نام نمایشی دارد. شناسه مستقل از
-/// نام است تا تغییر نام، هویت بازیکن در نشست فعال را عوض نکند.
+/// Each device has a stable player ID and a display name. The ID is separate
+/// from the name, so renaming never changes identity in an active session.
 library;
 
 import 'dart:math';
 
-/// پروفایل کاربر روی این دستگاه.
+/// The user profile on this device.
 class Profile {
   const Profile({required this.playerId, required this.displayName});
 
-  /// شناسهٔ داخلی پایدار بازیکن (هرگز نمایش داده نمی‌شود).
+  /// Stable internal player ID, never shown to other players.
   final String playerId;
 
-  /// نام نمایشی که به بقیهٔ بازیکنان نشان داده می‌شود.
+  /// Display name shown to the other players.
   final String displayName;
 
-  /// پروفایل پیش‌فرض پیش از اولین تنظیم نام.
+  /// Default profile before a name is set.
   static const Profile empty = Profile(playerId: '', displayName: '');
 
   bool get isConfigured => playerId.isNotEmpty && displayName.trim().isNotEmpty;
@@ -34,11 +34,11 @@ class Profile {
   );
 }
 
-/// طول مجاز نام نمایشی.
+/// Allowed display-name length.
 const int kMinDisplayNameLength = 1;
 const int kMaxDisplayNameLength = 24;
 
-/// اعتبارسنجی نام نمایشی؛ در صورت نامعتبر بودن پیام فارسی برمی‌گرداند.
+/// Validate a display name; returns a Persian message when invalid.
 String? validateDisplayName(String value) {
   final clean = value.trim();
   if (clean.isEmpty) return 'نام نمایشی نمی‌تواند خالی باشد.';
@@ -51,7 +51,7 @@ String? validateDisplayName(String value) {
   return null;
 }
 
-/// ساخت شناسهٔ یکتای بازیکن (بدون وابستگی به بستهٔ بیرونی).
+/// Generate a unique player ID without an external package.
 String generatePlayerId([Random? random]) {
   final rnd = random ?? Random.secure();
   const alphabet = '0123456789abcdefghijklmnopqrstuvwxyz';
@@ -62,7 +62,7 @@ String generatePlayerId([Random? random]) {
   return buffer.toString();
 }
 
-/// ساخت شناسهٔ نشست بازی.
+/// Generate a session (game) ID.
 String generateGameId([Random? random]) {
   final rnd = random ?? Random.secure();
   const alphabet = '0123456789abcdef';
@@ -73,7 +73,7 @@ String generateGameId([Random? random]) {
   return buffer.toString();
 }
 
-/// ساخت توکن اتصال (کلید ورود به نشست) — ۶ نویسهٔ خوانا.
+/// Generate the join token: six readable characters.
 String generateJoinToken([Random? random]) {
   final rnd = random ?? Random.secure();
   const alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';

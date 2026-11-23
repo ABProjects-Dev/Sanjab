@@ -1,0 +1,24 @@
+version: 2
+
+updates:
+  # Keep the pinned Flutter/Dart dependencies current (dev-only tooling).
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore
+    ignore:
+      # Flutter SDK constraints are owned by the pinned toolchain, not Dependabot.
+      - dependency-name: flutter
+      - dependency-name: integration_test
+
+  # Actions are pinned to commit SHAs; Dependabot keeps the pins current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: ci

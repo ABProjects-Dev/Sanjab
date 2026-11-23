@@ -1,15 +1,14 @@
-/// مدیریت وضعیت بازی ۱.۰.۰ — پل میان منطق دامنه، شبکهٔ محلی و رابط کاربری.
+/// Game state management: the bridge between domain logic, the local network and the UI.
 ///
-/// دو نقش:
-///  * **میزبان (Host)**: تنها مرجع وضعیت بازی. با [createGame] نشست می‌سازد،
-///    سرور محلی را بالا می‌آورد، ورود بازیکنان را مدیریت می‌کند، زمان‌سنج و
-///    داوری و امتیازدهی فقط روی دستگاه او انجام می‌شود و وضعیت را برای همه
-///    می‌فرستد.
-///  * **بازیکن (Player)**: با [joinGame] به میزبان وصل می‌شود، پاسخ‌های خود را
-///    می‌فرستد و وضعیت معتبر را از میزبان می‌گیرد (Host Authoritative).
+/// Two roles:
+///  * **Host**: the only source of game state. [createGame] creates a session,
+///    starts the local server, admits players, and owns the timer, judging and
+///    scoring; it pushes authoritative state to every device.
+///  * **Player**: [joinGame] connects to the host, sends its own answers and
+///    mirrors the authoritative state received from the host.
 ///
-/// هیچ داده‌ای از شبکهٔ اینترنت رد و بدل نمی‌شود؛ همهٔ ارتباطات روی شبکهٔ محلی
-/// (Hotspot یا Wi-Fi مشترک) است.
+/// No traffic leaves the local network: all communication happens on a hotspot
+/// or shared Wi-Fi.
 library;
 
 import 'dart:async';
@@ -34,21 +33,21 @@ import '../net/game_client.dart';
 import '../net/host_server.dart';
 import '../net/protocol.dart';
 
-/// حالت اتصال شبکه برای نمایش در رابط کاربری.
+/// Network state as shown in the UI.
 enum NetStatus {
-  /// نشستی فعال نیست.
+  /// No active session.
   offline,
 
-  /// میزبان در حال انتظار برای بازیکنان.
+  /// Host waiting for players.
   hosting,
 
-  /// بازیکن متصل است.
+  /// Player is connected.
   connected,
 
-  /// بازیکن در حال تلاش برای اتصال مجدد.
+  /// Player is trying to reconnect.
   reconnecting,
 
-  /// اتصال قطع شده است.
+  /// Connection is down.
   disconnected,
 }
 
@@ -64,7 +63,7 @@ class GameController extends ChangeNotifier {
   final SessionStore store;
   final ProfileStore profileRepo;
 
-  /// ذخیره‌سازی پایدار اتاق‌های این دستگاه (نسخهٔ ۱.۰.۰).
+  /// Durable room storage for this device.
   final RoomStore roomStore;
   final int Function() _clock;
 
@@ -82,21 +81,21 @@ class GameController extends ChangeNotifier {
   String _gameId = '';
   String _joinToken = '';
 
-  /// آدرس میزبان که این دستگاه (در نقش بازیکن) به آن وصل شده است.
+  /// Host address this device connected to in the player role.
   String _hostAddress = '';
   bool _openJoin = true;
   int _hostPort = 0;
   String _hostName = '';
   List<String> _localAddresses = const <String>[];
 
-  /// اتاق‌های ذخیره‌شده روی این دستگاه (نسخهٔ ۱.۰.۰).
+  /// Rooms saved on this device.
   List<RoomRecord> _rooms = <RoomRecord>[];
 
-  /// آیا نشست به‌صورت resmi (رسمی) تمام شده است. پس از پایان رسمی، بازیابی
-  /// این نشست امکان‌پذیر نیست و QR / توکن نامعتبر است.
+  /// Whether the session ended formally. Afterwards the session cannot be
+  /// restored and its QR code and join token are invalid.
   bool _sessionFinished = false;
 
-  /// اختلاف ساعت دستگاه با میزبان (برای زمان‌سنج همگام).
+  /// Clock difference against the host, used to sync the timer.
   int _clockOffsetMs = 0;
 
   /// Snapshot is complete only after the matching host acknowledgment arrives.
@@ -113,6 +112,20 @@ class GameController extends ChangeNotifier {
   Timer? _hostPingTimer;
   int _lastTickSecond = -1;
   bool _saveScheduled = false;
+  Timer? _saveTimer;
+
+  /// Incremented whenever pending persistence must be abandoned (room exit,
+  /// session end); a write that started earlier and lands later is then
+  /// discarded instead of resurrecting deleted data.
+  int _persistEpoch = 0;
+
+  /// The write currently in progress, so a room exit can wait for it instead of
+  /// racing it (an older write landing after the removal would bring the room
+  /// back).
+  Future<void>? _inFlightSave;
+
+  /// Coalescing window for background persistence of typing and state changes.
+  static const Duration _saveDebounce = Duration(milliseconds: 600);
   int _stateSeq = 0;
   bool _applyingRemoteState = false;
 
@@ -137,15 +150,15 @@ class GameController extends ChangeNotifier {
   bool get sessionFinished => _sessionFinished;
   String get gameName => _hostName.isEmpty ? 'بازی سنجاب' : 'بازی $_hostName';
 
-  /// نام نمایشی این دستگاه.
+  /// Display name of this device.
   String get myPlayerId => _profile.playerId;
 
   int nowMs() => _clock();
 
-  /// زمان همگام‌شده با میزبان (روی دستگاه بازیکن، اختلاف ساعت جبران می‌شود).
+  /// Host-synchronized time; the player compensates for clock skew.
   int syncedNowMs() => _clock() + _clockOffsetMs;
 
-  /// مدت باقی‌ماندهٔ دست جاری بر اساس زمان مرجع میزبان.
+  /// Remaining time of the current round on the host clock.
   int get remainingMs => _session.remainingMs(syncedNowMs());
 
   List<GameCategory> get activeCategories =>
@@ -165,22 +178,22 @@ class GameController extends ChangeNotifier {
 
   bool get iAmStopped => _session.isPlayerStopped(myPlayerId);
 
-  /// (نسخهٔ ۱.۰.۰) آیا دکمهٔ «استپ» برای این دستگاه فعال است؟
+  /// Whether the Stop button is enabled on this device.
   ///
-  /// شرط: فاز بازی، استپ نکرده باشیم و همهٔ فیلدهای پاسخ همین بازیکن
-  /// حداقل دو کاراکتر معتبر داشته باشند. وضعیت در همهٔ دستگاه‌ها بر اساس
-  /// پاسخ‌های همان بازیکن سنجیده می‌شود (روی میزبان با نسخهٔ معتبر پاسخ‌ها).
+  /// Requires the playing phase, no Stop yet, and at least two valid characters
+  /// in every answer field of this player. Every device evaluates the player's
+  /// own answers; the host uses the authoritative copy.
   bool get iCanStop {
     if (_session.phase != GamePhase.playing) return false;
     if (iAmStopped) return false;
     return _session.canPlayerStop(myPlayerId);
   }
 
-  /// تعداد فیلدهای پاسخ این بازیکن که هنوز شرط حداقل دو کاراکتر را ندارند.
+  /// Answer fields of this player that still miss the two-character minimum.
   int get myPendingStopFields =>
       _session.pendingStopCategoryIds(myPlayerId).length;
 
-  /// متن راهنمای دکمهٔ غیرفعال «استپ».
+  /// Hint text for the disabled Stop button.
   String get stopHintText {
     final pending = myPendingStopFields;
     if (pending <= 0) return '';
@@ -209,14 +222,14 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ------------------------------------------------------------ چرخهٔ عمر
+  // ----------------------------------------------------------- Lifecycle
 
-  /// بارگذاری پروفایل و بازی ذخیره‌شده در شروع برنامه.
+  /// Load the profile and any saved session at startup.
   Future<void> bootstrap() async {
     try {
       _profile = await profileRepo.load();
       if (!_profile.isConfigured) {
-        // شناسه ساخته شده است؛ نام نمایشی بعداً در صفحهٔ پروفایل تعیین می‌شود.
+        // The ID exists already; the display name is chosen later on the profile screen.
         await profileRepo.save(_profile);
       }
       await store.ensureDirectory();
@@ -224,7 +237,7 @@ class GameController extends ChangeNotifier {
       _rooms = await roomStore.loadAll();
       final loaded = await store.load();
       if (loaded != null && loaded.phase != GamePhase.lobby) {
-        // بازی نیمه‌تمام میزبان (یا نشست قبلی) قابل بازیابی است.
+        // An unfinished host game or previous session can be restored.
         _session = loaded;
         _gameId = loaded.gameId;
         _hostName =
@@ -244,8 +257,8 @@ class GameController extends ChangeNotifier {
       if (!foundSavedGame) {
         foundSavedGame = _rooms.any((r) => r.resumable);
       }
-      // مهاجرت نشست‌های ذخیره‌شدهٔ قدیمی: ممکن است نشست موجود باشد اما رکورد
-      // اتاق متناظر نداشته باشد؛ رکورد را می‌سازیم تا «ادامه بازی» در دسترس باشد.
+      // Migration of older saved sessions: a session may exist without a matching
+      // room record; create the record so Resume stays available.
       if (_role == GameRole.host &&
           _session.phase != GamePhase.lobby &&
           _gameId.isNotEmpty &&
@@ -263,7 +276,7 @@ class GameController extends ChangeNotifier {
             role: GameRole.host,
             address: '',
             port: 0,
-            // توکن نشست در نسخه‌های قبلی ذخیره نمی‌شد؛ هنگام بازیابی تازه می‌شود.
+            // Older versions did not persist the join token; it is regenerated on restore.
             token: '',
             phase: _session.phase,
             roundIndex: _session.currentRound?.index ?? 0,
@@ -283,8 +296,13 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// ذخیرهٔ فوری وضعیت (هنگام رفتن برنامه به پس‌زمینه).
+  /// Persist the state immediately (for example when the app goes to background).
+  ///
+  /// Any pending debounced save is superseded by this immediate write.
   Future<void> flush() async {
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    _saveScheduled = false;
     await _persistNow();
   }
 
@@ -292,15 +310,17 @@ class GameController extends ChangeNotifier {
   void dispose() {
     _ticker?.cancel();
     _hostPingTimer?.cancel();
+    _saveTimer?.cancel();
+    _saveTimer = null;
     unawaited(_hostNet?.stop());
     unawaited(_beacon?.stop());
     unawaited(_client?.close());
     super.dispose();
   }
 
-  // ---------------------------------------------------------------- پروفایل
+  // -------------------------------------------------------------- Profile
 
-  /// ذخیرهٔ نام نمایشی. در نشست فعال، نام در فهرست بازیکنان هم به‌روز می‌شود.
+  /// Save the display name and update it in the active session roster.
   Future<bool> saveDisplayName(String name) async {
     final error = validateDisplayName(name);
     if (error != null) {
@@ -326,9 +346,9 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
-  // ------------------------------------------------------------- میزبان
+  // ----------------------------------------------------------------- Host
 
-  /// ایجاد بازی: نشست تازه، سرور محلی و اعلان شناسایی.
+  /// Create a game: fresh session, local server and discovery beacon.
   Future<bool> createGame({List<int>? activeCategoryIds}) async {
     if (_profile.displayName.trim().isEmpty) {
       _setError('پیش از ایجاد بازی، نام نمایشی خود را در پروفایل وارد کنید.');
@@ -369,10 +389,10 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
-  /// راه‌اندازی سرور محلی، اعلان کشف و زمان‌سنج میزبان.
+  /// Start the local server, discovery and the host timer.
   ///
-  /// این بخش هم در «ایجاد بازی» و هم در «ادامه بازی میزبان» استفاده می‌شود تا
-  /// پس از بازیابی، سرور و QR دوباره فعال شوند (نسخهٔ ۱.۰.۰).
+  /// Shared by Create and Resume on the host, so the server and QR come back
+  /// after a restore.
   Future<bool> _startHostServices() async {
     HostCallbacks callbacks() => HostCallbacks(
       onHello: _handleHello,
@@ -393,7 +413,7 @@ class GameController extends ChangeNotifier {
     _hostNet = null;
     _beacon = null;
 
-    // ابتدا پورت پیش‌فرض؛ اگر در دسترس نبود یک پورت آزاد از سیستم گرفته می‌شود.
+    // Try the default port first; otherwise take any free port from the system.
     HostNetwork? network;
     for (final preferredPort in const <int>[50501, 0]) {
       final candidate = HostNetwork(
@@ -446,7 +466,7 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
-  /// روشن/خاموش کردن ورود بدون کد از شبکهٔ محلی.
+  /// Toggle open join from the local network.
   void setOpenJoin(bool value) {
     if (!isHost) return;
     _openJoin = value;
@@ -464,7 +484,7 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// تغییر دسته‌های فعال در لابی.
+  /// Change the active categories in the lobby.
   void setActiveCategories(List<int> ids) {
     if (!isHost) return;
     if (!_session.setActiveCategories(ids)) {
@@ -475,7 +495,7 @@ class GameController extends ChangeNotifier {
     _touch();
   }
 
-  /// حذف بازیکن از لابی توسط میزبان.
+  /// Remove a player from the lobby (host only).
   Future<void> removePlayer(String playerId) async {
     if (!isHost) return;
     if (playerId == _profile.playerId) return;
@@ -513,9 +533,16 @@ class GameController extends ChangeNotifier {
     }
     final existing = _session.playerById(request.playerId);
     if (existing != null) {
-      // اتصال مجدد بازیکن قبلی: پاسخ‌های قبلی حفظ می‌شوند.
+      // Reconnecting player: keep previous answers and only refresh the display
+      // name. A name that now collides with another player must not abort the
+      // handshake (an unhandled GameRuleException would leave the socket pending
+      // until the 15s timeout), so the old name is kept in that case.
       _session.setConnected(request.playerId, true);
-      _session.renamePlayer(request.playerId, request.displayName);
+      try {
+        _session.renamePlayer(request.playerId, request.displayName);
+      } on GameRuleException catch (e) {
+        AppLogger.instance.log('net', 'reconnect rename skipped: ${e.message}');
+      }
       return const HelloDecision.accept(resumed: true);
     }
     try {
@@ -545,8 +572,8 @@ class GameController extends ChangeNotifier {
   void _handleRemoteStop(String playerId, int roundIndex) {
     final round = _session.currentRound;
     if (round == null || round.index != roundIndex) return;
-    // نسخهٔ ۱.۰.۰: میزبان نیز مستقلاً بررسی می‌کند که پاسخ‌های همان بازیکن
-    // کامل باشد؛ درخواست قدیمی/تکراری یا ناقص بی‌اثر رد می‌شود.
+    // The host independently checks that the player's own answers are complete;
+    // an old, duplicate or incomplete request is dropped without effect.
     if (!_session.canPlayerStop(playerId)) {
       AppLogger.instance.log('net', 'stop rejected: incomplete answers');
       _hostNet?.sendTo(playerId, MsgType.error, {
@@ -557,8 +584,8 @@ class GameController extends ChangeNotifier {
       return;
     }
     if (!_session.requestStop(playerId, nowMs: nowMs())) return;
-    // نسخهٔ ۱.۰.۰: اگر حد نصاب استپ هنوز کامل نشده، دست ادامه دارد و نباید
-    // پاسخ‌های هیچ دستگاهی (از جمله میزبان) قفل شود.
+    // If the Stop threshold is not reached yet the round continues and no device,
+    // including the host, may lock its answers.
     if (_session.phase == GamePhase.collecting) {
       _afterRoundEnded();
     } else {
@@ -627,8 +654,8 @@ class GameController extends ChangeNotifier {
     _touch();
   }
 
-  /// تصمیم صریح میزبان دربارهٔ بازیکن قطع‌شده: پاسخ‌های دریافت‌شده حفظ می‌شوند
-  /// و پاسخ‌های نرسیده خالی تلقی نمی‌شوند؛ داور خودش تصمیم می‌گیرد.
+  /// Explicit host decision about a disconnected player: received answers are
+  /// kept and missing ones are not treated as empty; the referee decides.
   void resolveOfflinePlayer(String playerId) {
     if (!isHost) return;
     if (_session.markSnapshotReceived(playerId)) {
@@ -641,9 +668,9 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  // -------------------------------------------------------------- بازیکن
+  // ---------------------------------------------------------------- Player
 
-  /// جست‌وجوی میزبان‌های فعال در شبکهٔ محلی.
+  /// Search for active hosts on the local network.
   Future<List<DiscoveredHost>> scanHosts({
     Duration timeout = const Duration(milliseconds: 2500),
   }) async {
@@ -656,7 +683,7 @@ class GameController extends ChangeNotifier {
     return discoverHosts(timeout: timeout);
   }
 
-  /// پیوستن به بازی با آدرس و کد اتصال.
+  /// Join a game with an address and a join token.
   Future<bool> joinGame({
     required String address,
     required int port,
@@ -702,7 +729,7 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
-  /// ساخت و اتصال کلاینت بازیکن (مشترک بین «پیوستن» و «ادامه بازی»).
+  /// Build and connect the player client, shared by Join and Resume.
   Future<bool> _attachClient({
     required String address,
     required int port,
@@ -740,8 +767,8 @@ class GameController extends ChangeNotifier {
           connectedOnce) {
         _scheduleSave();
       }
-      // رد شدن صریح توسط میزبان یعنی نشست پایان یافته یا نامعتبر شده است؛
-      // رکورد اتاق باید حذف شود تا «ادامه بازی» فریب‌دهنده نباشد.
+      // An explicit rejection means the session ended or became invalid, so the room
+      // record is removed and Resume is not offered misleadingly.
       if (state == ClientConnectionState.rejected &&
           isPlayer &&
           connectedOnce) {
@@ -782,7 +809,7 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
-  /// خروج از بازی (بازیکن).
+  /// Leave the game as a player.
   Future<void> leaveGame() async {
     await _client?.close();
     _client = null;
@@ -835,7 +862,7 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  /// اعمال وضعیت معتبر میزبان روی نسخهٔ محلی بازیکن.
+  /// Apply the host's authoritative state to the local player copy.
   void _applyAuthoritativeState(Map<String, dynamic> payload) {
     _applyingRemoteState = true;
     try {
@@ -906,7 +933,7 @@ class GameController extends ChangeNotifier {
                 (r) => r.name == reasonName,
                 orElse: () => RoundEndReason.referee,
               );
-        // وضعیت ارسال هر بازیکن.
+        // Submission state per player.
         final submissions = payload['submissions'];
         if (submissions is Map<String, dynamic>) {
           round.stoppedPlayerIds.clear();
@@ -921,7 +948,7 @@ class GameController extends ChangeNotifier {
             }
           });
         }
-        // پاسخ‌های من از میزبان (تا زمانی که در حال تایپ هستم، متن محلی حفظ می‌شود).
+        // My answers come from the host, but local text wins while I am typing.
         final mine = payload['my'];
         if (mine is Map<String, dynamic>) {
           final typing = !round.stoppedPlayerIds.contains(_profile.playerId);
@@ -972,7 +999,7 @@ class GameController extends ChangeNotifier {
       }
       _syncTicker();
       _syncScreenAwake();
-      // ذخیرهٔ پایدار وضعیت روی دستگاه بازیکن (بند ۷ سند ۱.۰.۰).
+      // Persist the state on the player device.
       if (isPlayer) _scheduleSave();
       notifyListeners();
     } catch (error, stack) {
@@ -995,11 +1022,11 @@ class GameController extends ChangeNotifier {
     );
   }
 
-  // ---------------------------------------------------------------- بازی
+  // ------------------------------------------------------------------ Game
 
-  /// شروع دست توسط میزبان (زمان‌سنج از همان لحظه آغاز می‌شود).
+  /// Start a round as host; the timer starts immediately.
   ///
-  /// نسخهٔ ۱.۰.۰: شروع دست به هیچ کلمه یا حرفی وابسته نیست.
+  /// Starting a round needs neither a word nor a letter.
   void startGame() {
     if (!isHost) return;
     if (!_session.canStartGame) {
@@ -1019,7 +1046,7 @@ class GameController extends ChangeNotifier {
     _touch();
   }
 
-  /// شروع دست بعدی (حرف تصادفی جدید، حفظ امتیازها).
+  /// Start the next round, keeping the scores.
   void startNextRound() {
     if (!isHost) return;
     try {
@@ -1035,7 +1062,7 @@ class GameController extends ChangeNotifier {
     _touch();
   }
 
-  /// ثبت پاسخ (میزبان: مستقیم، بازیکن: ارسال به میزبان + به‌روزرسانی محلی).
+  /// Record an answer: directly on the host, otherwise send and update locally.
   void setAnswer(int categoryId, String text) {
     if (!isAnswerWithinLimit(text)) {
       _setError('پاسخ حداکثر می‌تواند ۸۰ نویسه داشته باشد.');
@@ -1052,7 +1079,7 @@ class GameController extends ChangeNotifier {
       }
       return;
     }
-    // بازیکن: ابتدا نمایش محلی (بدون تأخیر) و سپس ارسال به میزبان.
+    // Player: render locally first (no lag), then send to the host.
     final key = AnswerEntry.keyOf(round.index, myPlayerId, categoryId);
     final existing = round.answers[key];
     if (existing == null) return;
@@ -1068,11 +1095,11 @@ class GameController extends ChangeNotifier {
     _client?.sendAnswer(round.index, categoryId, text);
   }
 
-  /// فشردن دکمهٔ «استپ».
+  /// Pressing the Stop button.
   ///
-  /// نسخهٔ ۱.۰.۰: پیش از هر کاری، کامل بودن پاسخ‌های همین بازیکن بررسی
-  /// می‌شود؛ اگر حتی یک فیلد کمتر از دو کاراکتر معتبر داشته باشد، عملیات
-  /// رد می‌شود (حتی با لمس مکرر دکمه یا رویداد قدیمی/تکراری).
+  /// The player's own answers are validated first; a single field with fewer
+  /// than two valid characters rejects the action, even on repeated taps or an
+  /// old or duplicate event.
   Future<void> requestStop() async {
     final round = _session.currentRound;
     if (round == null) return;
@@ -1090,7 +1117,7 @@ class GameController extends ChangeNotifier {
     }
     if (isHost) {
       if (!_session.requestStop(myPlayerId, nowMs: syncedNowMs())) return;
-      // تا رسیدن به حد نصاب استپ، دست ادامه دارد و پاسخ‌ها قفل نمی‌شوند.
+      // Until the Stop threshold is met the round continues and answers stay unlocked.
       if (_session.phase == GamePhase.collecting) {
         _afterRoundEnded();
       } else {
@@ -1099,8 +1126,9 @@ class GameController extends ChangeNotifier {
       _touch();
       return;
     }
-    // بازیکن: ابتدا آخرین پاسخ‌ها روی کانال (ترتیب‌دار) فرستاده می‌شود تا
-    // میزبان پیش از پردازش استپ، پاسخ‌های کامل همین بازیکن را داشته باشد.
+    // Player: flush the latest answers first on the ordered channel so the host
+    // has this player's complete answers before handling the Stop. sendStop
+    // additionally flushes anything queued after these writes.
     for (final category in activeCategories) {
       _client?.sendAnswer(round.index, category.id, myAnswer(category.id));
     }
@@ -1108,7 +1136,7 @@ class GameController extends ChangeNotifier {
     _setNotice('درخواست استپ برای میزبان ارسال شد.');
   }
 
-  /// توقف/ادامهٔ زمان‌سنج (فقط میزبان).
+  /// Pause or resume the timer (host only).
   void pauseGame() {
     if (!isHost) return;
     if (_session.pause(syncedNowMs())) {
@@ -1127,7 +1155,7 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  /// پایان دستی دست توسط میزبان.
+  /// End the round manually as host.
   void forceEndRound() {
     if (!isHost) return;
     if (_session.endRound(RoundEndReason.referee, nowMs: syncedNowMs())) {
@@ -1136,7 +1164,7 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  /// پس از پایان دست: پاسخ‌های خود را به میزبان می‌فرستیم و منتظر بقیه می‌مانیم.
+  /// After the round ends, send our own answers and wait for the others.
   void _afterRoundEnded() {
     final round = _session.currentRound;
     if (round == null) return;
@@ -1194,7 +1222,7 @@ class GameController extends ChangeNotifier {
     );
   }
 
-  // ---------------------------------------------------------------- داوری
+  // --------------------------------------------------------------- Judging
 
   void setJudgement(String playerId, int categoryId, JudgementStatus? status) {
     if (!isHost) return;
@@ -1202,7 +1230,7 @@ class GameController extends ChangeNotifier {
     _touch(save: false);
   }
 
-  /// ثبت نهایی داوری و اعلام نتایج به همهٔ دستگاه‌ها.
+  /// Finalize judging and announce results to every device.
   RoundScoring finalizeJudging() {
     if (!isHost) {
       throw GameRuleException('داوری فقط روی دستگاه میزبان انجام می‌شود.');
@@ -1214,15 +1242,16 @@ class GameController extends ChangeNotifier {
     return scored;
   }
 
-  /// پایان رسمی بازی توسط میزبان (بند ۵ سند ۱.۰.۰).
+  /// Formally end the game as host.
   ///
-  /// - پایان جلسه برای همهٔ دستگاه‌ها ارسال می‌شود؛ بازیکنان آنلاین بی‌درنگ به
-  ///   صفحهٔ اصلی می‌روند و وضعیت پایان برای بازیکنان آفلاین ذخیره می‌شود.
-  /// - وضعیت اتاق «پایان‌یافته» می‌شود، اتصال و QR نامعتبر و «ادامه بازی» حذف
-  ///   می‌شود و بازیکنان نمی‌توانند به جلسهٔ پایان‌یافته برگردند.
+  /// - The end is broadcast; online players return Home immediately and offline
+  ///   players find the ended state when they next start the app.
+  /// - The room is marked ended, its connection and QR become invalid and Resume
+  ///   disappears; nobody can rejoin an ended session.
   Future<void> finishGame() async {
     if (!isHost) return;
     final gameId = _gameId;
+    await _cancelPendingSave();
     await _broadcastSessionEnded(
       'بازی توسط میزبان به‌صورت رسمی پایان یافت.',
     );
@@ -1236,17 +1265,17 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// اعلام پایان جلسه به همهٔ بازیکنان و علامت‌گذاری اتاق‌های همان نشست.
+  /// Broadcast the session end and mark the rooms of that session.
   Future<void> _broadcastSessionEnded(String reason) async {
     _hostNet?.broadcast(MsgType.sessionEnded, {
       'reason': reason,
       'gameId': _gameId,
     });
-    // فرصت کوتاه برای رسیدن پیام پیش از بستن سوکت‌ها.
+    // Give the message a brief moment to arrive before closing sockets.
     await Future<void>.delayed(const Duration(milliseconds: 120));
   }
 
-  /// حذف همهٔ رکوردهای اتاق مربوط به یک نشست (پایان رسمی یا خروج از اتاق).
+  /// Delete every room record of one session (formal end or explicit exit).
   Future<void> _removeRoomsOfGame(String gameId) async {
     if (gameId.isEmpty) return;
     final all = await roomStore.loadAll();
@@ -1258,9 +1287,10 @@ class GameController extends ChangeNotifier {
     await _reloadRooms();
   }
 
-  /// پایان جلسه روی دستگاه بازیکن (پس از اعلام رسمی میزبان).
+  /// End the session on a player device after the host announced it.
   Future<void> _handleSessionEnded(String reason) async {
     final gameId = _gameId;
+    await _cancelPendingSave();
     await _detachAll();
     await _removeRoomsOfGame(gameId);
     _sessionFinished = true;
@@ -1270,11 +1300,11 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// بازگشت به صفحهٔ اصلی و نگه‌داشتن اتاق برای ادامهٔ بعدی.
+  /// Return Home keeping the room resumable.
   ///
-  /// اگر میزبان تنها عضو باقی‌مانده باشد، بازگشت اتاق را می‌بندد تا سرور و
-  /// اعلان کشف بی‌استفاده نمانند. با وجود عضو دیگری، وضعیت و ارتباط‌ها حفظ
-  /// می‌شوند و میزبان می‌تواند از «ادامه بازی» برگردد.
+  /// A lone host closes the room on return so the server and discovery stop;
+  /// with other members present the state and connections are kept and the host
+  /// can come back through Resume.
   Future<void> backToHome() async {
     if (isHost && _session.activePlayerCount <= 1) {
       await leaveRoom();
@@ -1284,11 +1314,12 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// خروج صریح از اتاق (متفاوت از بازگشت به صفحهٔ اصلی) — با تأیید کاربر.
+  /// Explicit exit from the room, distinct from going Home, after confirmation.
   ///
-  /// رکورد اتاق از این دستگاه حذف می‌شود تا دیگر «ادامه بازی» نداشته باشد.
-  /// اگر میزبان باشد، جلسه برای همه پایان می‌یابد (چون میزبان مرجع است).
+  /// The room record is removed so Resume is no longer offered.
+  /// As host this ends the session for everyone, since the host is authoritative.
   Future<void> leaveRoom([RoomRecord? room]) async {
+    await _cancelPendingSave();
     final target = room;
     if (target != null) {
       final isCurrentRoom =
@@ -1328,7 +1359,7 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// قطع همهٔ ارتباط‌ها و بازگشت به حالت بی‌نقش، بدون پاک‌کردن رکورد اتاق.
+  /// Close all links and return to the role-less state, keeping the room record.
   Future<void> _detachAll() async {
     await _hostNet?.stop();
     _hostNet = null;
@@ -1354,8 +1385,8 @@ class GameController extends ChangeNotifier {
     _session = GameSession.fresh(nowMs: nowMs());
   }
 
-  /// خروج از بازی (سازگاری با کد نسخه‌های قبل): ارتباط‌ها بسته می‌شوند اما
-  /// رکورد اتاق حفظ می‌شود تا «ادامه بازی» ممکن باشد.
+  /// Leave the game (legacy entry point): links are closed but the room record
+  /// is kept so Resume stays possible.
   Future<void> closeSession({bool silent = false}) async {
     final keep = _role == GameRole.host ? _session : null;
     final keepGameId = _gameId;
@@ -1380,9 +1411,9 @@ class GameController extends ChangeNotifier {
     if (!silent) notifyListeners();
   }
 
-  // ------------------------------------------------------- اتاق‌های ذخیره‌شده
+  // --------------------------------------------------------- Saved rooms
 
-  /// اتاق‌های قابل نمایش روی این دستگاه (جدیدترین اول).
+  /// Rooms shown on this device, newest first.
   List<RoomRecord> get savedRooms {
     final list = _rooms.where((r) => !r.ended).toList(growable: false);
     final sorted = List<RoomRecord>.from(list)
@@ -1390,10 +1421,10 @@ class GameController extends ChangeNotifier {
     return List<RoomRecord>.unmodifiable(sorted);
   }
 
-  /// آیا اتاق قابل ادامه‌ای وجود دارد؟
+  /// Whether a resumable room exists.
   bool get hasResumableRoom => savedRooms.any((r) => r.resumable);
 
-  /// اتاق جاری این دستگاه (اگر نقشی فعال باشد).
+  /// Current room of this device when a role is active.
   RoomRecord? get activeRoom {
     if (_gameId.isEmpty || _role == GameRole.none) return null;
     for (final room in _rooms) {
@@ -1402,7 +1433,7 @@ class GameController extends ChangeNotifier {
     return null;
   }
 
-  /// بارگذاری دوبارهٔ فهرست اتاق‌ها از حافظهٔ پایدار (برای رابط کاربری و آزمون).
+  /// Reload the room list from storage, for the UI and tests.
   Future<void> reloadSavedRooms() async {
     await _reloadRooms();
     notifyListeners();
@@ -1413,7 +1444,7 @@ class GameController extends ChangeNotifier {
     foundSavedGame = _rooms.any((r) => r.resumable);
   }
 
-  /// ساخت رکورد اتاق از وضعیت فعلی.
+  /// Build a room record from the current state.
   RoomRecord? _roomRecordFromState() {
     if (_gameId.isEmpty || _role == GameRole.none) return null;
     final round = _session.currentRound;
@@ -1456,7 +1487,7 @@ class GameController extends ChangeNotifier {
     );
   }
 
-  /// بازیابی اتاق ذخیره‌شده («ادامه بازی») برای میزبان یا بازیکن.
+  /// Resume a saved room as host or player.
   Future<bool> resumeRoom(RoomRecord room) async {
     if (room.myPlayerId != _profile.playerId) {
       _setError(
@@ -1502,7 +1533,7 @@ class GameController extends ChangeNotifier {
     _resetSnapshotTracking();
     _clockOffsetMs = 0;
 
-    // بازیابی زمان‌سنج از زمان باقی‌ماندهٔ ذخیره‌شده.
+    // Restore the timer from the saved remaining time.
     final round = _session.currentRound;
     if (round != null) {
       final remaining = room.remainingMs > 0
@@ -1515,7 +1546,7 @@ class GameController extends ChangeNotifier {
         round.pausedRemainingMs = remaining;
       }
     }
-    // بازیکنان پس از بازیابی، ابتدا «قطع‌شده» هستند تا دوباره وصل شوند.
+    // After a restore, players start out disconnected until they reconnect.
     for (final player in _session.players) {
       if (player.id != myPlayerId) {
         _session.setConnected(player.id, false);
@@ -1585,7 +1616,7 @@ class GameController extends ChangeNotifier {
         notifyListeners();
         return false;
       }
-      // اتاق فعلاً در دسترس نیست؛ رکورد حفظ می‌شود تا بعداً دوباره تلاش شود.
+      // The room is unreachable for now; the record stays for a later retry.
       _netStatus = NetStatus.disconnected;
       _role = GameRole.player;
       _setError(
@@ -1629,10 +1660,10 @@ class GameController extends ChangeNotifier {
     });
   }
 
-  /// ساخت payload QR Code برای اتصال به میزبان (بند ۱).
+  /// Build the QR payload used to join the host.
   ///
-  /// شامل: شناسهٔ نشست، آدرس میزبان، پورت، توکن اتصال، نام میزبان،
-  /// زمان ساخت و وقت انقضاء (QR بعد از پایان جلسه نامعتبر می‌شود).
+  /// Contains the session ID, host address, port, join token, host name,
+  /// creation time and expiry; the QR becomes invalid once the session ends.
   Map<String, dynamic> qrConnectionPayload() {
     final now = nowMs();
     return <String, dynamic>{
@@ -1648,11 +1679,11 @@ class GameController extends ChangeNotifier {
     };
   }
 
-  /// اعتبارسنجی دادهٔ اسکن‌شده از QR.
+  /// Validate data scanned from a QR code.
   ///
-  /// نسخهٔ ۱.۰.۰: اعتبارسنجی «ساختاری» است و به نشست محلی این دستگاه وابسته
-  /// نیست؛ پیش از این، مقایسه با شناسهٔ نشست محلی باعث می‌شد اسکن QR روی
-  /// دستگاه بازیکن (که هنوز نشستی ندارد) همیشه رد شود.
+  /// Validation is structural and independent of any local session, because
+  /// comparing against a local session ID used to reject every scan on a player
+  /// device that had no session yet.
   bool qrPayloadValid(Map<String, dynamic>? payload) {
     if (payload == null) return false;
     if (payload['v'] != 1 || payload['type'] != 'sm_join') return false;
@@ -1669,8 +1700,9 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
-  /// دور ریختن همهٔ بازی‌های ذخیره‌شده روی این دستگاه.
+  /// Discard every saved game on this device.
   Future<void> discardSavedGame() async {
+    await _cancelPendingSave();
     await closeSession(silent: true);
     await store.clear();
     await roomStore.clear();
@@ -1680,7 +1712,7 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // -------------------------------------------------------------- داخلی
+  // -------------------------------------------------------------- Internal
 
   void _broadcastState() {
     final host = _hostNet;
@@ -1761,7 +1793,7 @@ class GameController extends ChangeNotifier {
         if (second != _lastTickSecond) {
           _lastTickSecond = second;
           if (second <= 0 && !isHost) {
-            // زمان تمام شده؛ منتظر اعلام میزبان می‌مانیم (بدون تغییر وضعیت).
+            // Time is up; wait for the host announcement without changing state.
             notifyListeners();
           } else {
             notifyListeners();
@@ -1790,22 +1822,51 @@ class GameController extends ChangeNotifier {
     if (save) _scheduleSave();
   }
 
+  /// Drop any pending save, wait for a running one, and refuse both.
+  Future<void> _cancelPendingSave() async {
+    _persistEpoch += 1;
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    _saveScheduled = false;
+    final running = _inFlightSave;
+    if (running != null) {
+      // Errors are already handled inside the write itself.
+      await running;
+    }
+  }
+
   void _scheduleSave() {
     if (_saveScheduled) return;
     _saveScheduled = true;
-    scheduleMicrotask(() async {
+    // Debounce: answer-by-answer typing would otherwise rewrite the whole
+    // session and room JSON for every keystroke. A pending timer is flushed
+    // explicitly by [_persistNow] callers (lifecycle flush, leave, finish).
+    _saveTimer?.cancel();
+    _saveTimer = Timer(_saveDebounce, () async {
       _saveScheduled = false;
+      _saveTimer = null;
       await _persistNow();
     });
   }
 
-  Future<void> _persistNow() async {
+  Future<void> _persistNow() {
+    final write = _writeState();
+    _inFlightSave = write;
+    return write.whenComplete(() {
+      if (identical(_inFlightSave, write)) _inFlightSave = null;
+    });
+  }
+
+  Future<void> _writeState() async {
     if (_role == GameRole.none) return;
+    final epoch = _persistEpoch;
     if (isHost) {
       final ok = await store.save(_session, nowMs: nowMs());
       if (!ok) {
         _lastError = 'ذخیرهٔ اطلاعات بازی انجام نشد.';
       }
+      // A room exit or a session end happened while this write was running.
+      if (epoch != _persistEpoch) return;
     }
     final record = _roomRecordFromState();
     if (record == null) return;
@@ -1813,6 +1874,8 @@ class GameController extends ChangeNotifier {
     if (!ok && _lastError == null) {
       _lastError = 'ذخیرهٔ اطلاعات اتاق انجام نشد.';
     }
+    // An exit that landed while the room write was running already reloaded.
+    if (epoch != _persistEpoch) return;
     await _reloadRooms();
   }
 }

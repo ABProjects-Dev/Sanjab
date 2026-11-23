@@ -1,12 +1,12 @@
-/// تم ثابت و یکپارچهٔ برنامه — فقط حالت تاریک (Dark Mode).
+/// Fixed, consistent application theme: dark mode only.
 ///
-/// رنگ‌بندی مستقل از رنگ آیکون بازی انتخاب شده است و برای وضعیت‌های مختلف
-/// (تأیید، تکراری، رد، خالی) رنگ‌های قابل تشخیص دارد.
+/// The palette is independent of the launcher artwork and keeps distinct
+/// colors for confirmed, duplicate, rejected and empty states.
 library;
 
 import 'package:flutter/material.dart';
 
-/// رنگ‌های ثابت برنامه.
+/// Application color constants.
 class AppColors {
   AppColors._();
 
@@ -15,12 +15,16 @@ class AppColors {
   static const Color surfaceHigh = Color(0xFF1E2530);
   static const Color outline = Color(0xFF2C3542);
 
-  static const Color primary = Color(0xFF7C6CFF);
+  // Contrast on all surfaces (WCAG AA >= 4.5:1 for body text):
+  // surfaceHigh 4.72, surface 5.29, background 5.79.
+  static const Color primary = Color(0xFF8B7CFF);
   static const Color primarySoft = Color(0xFF2A2550);
 
   static const Color textPrimary = Color(0xFFF2F4F8);
   static const Color textSecondary = Color(0xFF9AA4B2);
-  static const Color textMuted = Color(0xFF6B7684);
+  // Contrast on all surfaces (WCAG AA >= 4.5:1 for body text):
+  // surfaceHigh 4.60, surface 5.16, background 5.64.
+  static const Color textMuted = Color(0xFF828DA0);
 
   static const Color confirmed = Color(0xFF2FBF71);
   static const Color duplicate = Color(0xFFF2B01E);
@@ -29,7 +33,7 @@ class AppColors {
   static const Color timer = Color(0xFF4FC3F7);
 }
 
-/// ساخت تم برنامه.
+/// Build the application theme.
 ThemeData buildAppTheme() {
   final base = ThemeData(
     useMaterial3: true,

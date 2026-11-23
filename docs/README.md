@@ -1,6 +1,6 @@
 # Documentation Index
 
-All technical documentation in this repository is maintained in English. Review date for this set: 2026-11-04.
+All technical documentation in this repository is maintained in English. Review date for this set: 2026-11-23.
 
 - [Project Overview](PROJECT_OVERVIEW.md) — scope, platform, current source/release status, repository map.
 - [Architecture](ARCHITECTURE.md) — runtime composition, layers, state and persistence/network flow.
@@ -15,4 +15,4 @@ All technical documentation in this repository is maintained in English. Review 
 - [Local Network API](API.md) — TCP/UDP protocol, discovery, QR, and security boundaries.
 - [Android Release Builds](ANDROID_RELEASE.md) — signed release workflow, secrets, and artifact verification.
 
-`SOURCE_ANALYSIS.md` is explicitly a historical review of the pre-remediation baseline. `PROJECT_STATUS.md`, `PROJECT_PLAN.md`, `REQUIREMENTS.md`, and `ARCHITECTURE.md` describe the active 1.1.0 release candidate. CI passed for the merged gameplay changes; the version-bump PR is pending checks. Static review and CI are not substitutes for physical-device or two-phone verification.
+`SOURCE_ANALYSIS.md` is explicitly a historical review of the pre-remediation baseline. `PROJECT_STATUS.md`, `PROJECT_PLAN.md`, `REQUIREMENTS.md`, and `ARCHITECTURE.md` describe the active 1.1.2 release candidate. CI is green for the merged changes; the release candidate is pending its own CI run and signed APK publication. Static review and CI are not substitutes for physical-device or two-phone verification.

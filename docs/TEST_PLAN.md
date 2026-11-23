@@ -2,7 +2,7 @@
 
 ## Current inventory
 
-The active release-preparation branch is `arena/da68caee-sanjab`. The `test/` directory contains domain, network, controller, persistence, and widget suites; `integration_test/` contains one Android-device host-flow test (`app_flow_test.dart`). Declaration counts are intentionally omitted because they can drift independently of executed test results.
+The active release-preparation branch is `main`. The `test/` directory contains domain, network, controller, persistence, and widget suites; `integration_test/` contains one Android-device host-flow test (`app_flow_test.dart`). Declaration counts are intentionally omitted because they can drift independently of executed test results.
 
 The unit/widget test files cover:
 
@@ -40,7 +40,7 @@ Device integration (requires an Android device/emulator):
 flutter test integration_test/app_flow_test.dart -d <DEVICE_ID>
 ```
 
-The GitHub Actions `Flutter checks` workflow runs Flutter tests, Dart analysis, and Android debug APK build. These checks passed for the merged gameplay PR; checks for the 1.1.0 version-bump PR are pending. CI is not physical-LAN verification.
+The GitHub Actions `Flutter checks` workflow runs Flutter tests (with a coverage summary), a version-sync check, Dart analysis, the Android debug APK build, and — on `main` or by manual dispatch — a release build gate with an emulator smoke test. CI is not physical-LAN verification.
 
 ## Additional regression scenarios recommended
 

@@ -1,4 +1,4 @@
-/// آزمون موتور امتیازدهی نسخهٔ ۱.۰.۰ (بند ۹ سند).
+/// Scoring engine tests.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -126,13 +126,13 @@ void main() {
   group('امتیازدهی کل دست', () {
     test('جمع امتیاز هر بازیکن در همهٔ دسته‌ها درست است', () {
       final answers = <AnswerEntry>[
-        // دستهٔ ۰: p1 یکتا و بقیه خالی ⇒ ۲۰
+        // Category 0: p1 is unique and the rest are empty, so 20.
         entry('p1', JudgementStatus.confirmed, categoryId: 0),
         entry('p2', JudgementStatus.empty, categoryId: 0),
-        // دستهٔ ۱: p1 و p2 تأییدشده ⇒ ۱۰ و ۱۰
+        // Category 1: p1 and p2 confirmed, so 10 and 10.
         entry('p1', JudgementStatus.confirmed, categoryId: 1),
         entry('p2', JudgementStatus.confirmed, categoryId: 1),
-        // دستهٔ ۲: p2 تکراری ⇒ ۵
+        // Category 2: p2 is a duplicate, so 5.
         entry('p2', JudgementStatus.duplicate, categoryId: 2),
         entry('p1', JudgementStatus.rejected, categoryId: 2),
       ];

@@ -1,0 +1,7 @@
+# Default owners for everything in the repository.
+* @ABProjects-Dev
+
+# Release and CI definitions change the ability to publish; review explicitly.
+/.github/workflows/ @ABProjects-Dev
+/android/app/build.gradle.kts @ABProjects-Dev
+/pubspec.yaml @ABProjects-Dev
