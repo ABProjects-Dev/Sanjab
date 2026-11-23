@@ -59,10 +59,12 @@ jobs:
         run: |
           set +e
           report_file="$RUNNER_TEMP/flutter-test-report.jsonl"
-          # Serial: several suites bind a fixed TCP port on the host, so running
-          # test files in parallel lets them race for it and flake the run.
-          flutter test --no-pub --coverage --concurrency=1 --reporter=github --file-reporter="json:$report_file"
+          # Serial: several suites bind a TCP port on the host, so running test
+          # files in parallel lets them race for it and flake the run.
+          flutter test --no-pub --coverage --concurrency=1 --reporter=github \
+            --file-reporter="json:$report_file" > test-failures.log 2>&1
           test_status=$?
+          cat test-failures.log
           python3 - "$report_file" "$test_status" <<'PY'
           import json
           import sys
@@ -114,6 +116,29 @@ jobs:
               print("::error title=Flutter tests failed::See the Flutter test output above.")
           PY
           exit "$test_status"
+
+      - name: Show failing test output
+        if: ${{ failure() && hashFiles('test-failures.log') != '' }}
+        shell: bash
+        run: |
+          # stdout is not retrievable in some environments; lift the failing test
+          # output into annotations so the reason is visible on the PR.
+          python3 - test-failures.log <<'PY'
+          import sys
+
+          text = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+          lines = text.splitlines()
+          interesting = [
+              index
+              for index, line in enumerate(lines)
+              if line.startswith(("EXCEPTION CAUGHT", "The following", "Test failed", "TimeoutException"))
+              or "was thrown" in line
+          ]
+          for index in interesting[:12]:
+              block = " | ".join(lines[index:index + 4])[:900]
+              message = block.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Flutter test detail::{message}")
+          PY
 
       - name: Summarize line coverage
         if: ${{ always() && hashFiles('coverage/lcov.info') != '' }}
