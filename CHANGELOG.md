@@ -27,6 +27,7 @@ Notable changes to Sanjab are recorded here. Version numbers follow Semantic Ver
 ### Verification
 
 - `flutter analyze`, `flutter test --coverage` (with the lcov report uploaded as an artifact), the debug APK build and the new release emulator smoke test run in GitHub Actions.
+- Passed on 2026-11-23 in PR #21 and again on `main` after the merge (commit `0845639`): 174 tests with 68.7% line coverage, analysis clean at error/warning level, debug APK build, and the release gate building a 67.1 MiB R8-shrunk APK and launching it on an API 30 emulator. The signed production APK is still to be published through the Android release workflow.
 
 ## [1.1.1] - 2026-11-22
 
