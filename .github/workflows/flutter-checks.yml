@@ -13,7 +13,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: flutter-${{ github.head_ref || github.ref_name }}
+  # One run per event source: a branch push and its pull_request run have the
+  # same ref name, and sharing a group made them cancel each other.
+  group: flutter-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 env:
