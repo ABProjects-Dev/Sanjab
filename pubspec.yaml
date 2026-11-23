@@ -19,7 +19,7 @@ dependencies:
   # Renders the join QR code on the host device.
   qr_flutter: ^4.1.0
   # Scans the host QR code with the camera when joining.
-  mobile_scanner: ^6.0.0
+  mobile_scanner: ^7.5.0
 
 dev_dependencies:
   flutter_test:
