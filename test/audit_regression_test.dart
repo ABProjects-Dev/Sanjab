@@ -171,6 +171,17 @@ void main() {
       host.session.renamePlayer('p1', 'مینا دو');
       host.session.renamePlayer('p2', 'مینا');
 
+      // Let the host observe the previous socket shutting down before the
+      // reconnect. Reconnecting while the old socket is half-closed makes the
+      // loopback reset the new connection, which is a test-timing artefact.
+      expect(
+        await waitUntil(
+          () => !host.session.connectedPlayerIds.contains('p1'),
+        ),
+        isTrue,
+        reason: 'host must see the old socket go away',
+      );
+
       // p1 reconnects announcing its old name: this used to throw out of the
       // hello handler and leave the socket hanging until the handshake timeout.
       expect(await join(player1), isTrue);

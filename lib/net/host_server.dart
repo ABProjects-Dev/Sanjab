@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import '../core/app_logger.dart';
 import '../domain/answer_rules.dart';
 import 'line_channel.dart';
 import 'protocol.dart';
@@ -100,6 +101,7 @@ class HostNetwork {
   final int maxPendingHandshakes;
 
   ServerSocket? _server;
+  StreamSubscription<Socket>? _acceptSubscription;
   final Map<String, LineChannel> _channels = <String, LineChannel>{};
   final Map<String, MessageDeduper> _dedupers = <String, MessageDeduper>{};
   final Map<String, SequenceGuard> _guards = <String, SequenceGuard>{};
@@ -124,10 +126,22 @@ class HostNetwork {
   Set<String> get connectedPlayerIds => _channels.keys.toSet();
 
   /// Start the server on a free port.
+  ///
+  /// Accepting is deliberately defensive: a peer may reset between the TCP
+  /// handshake and `accept`, and dart:io reports that as an error on the
+  /// listening socket. Such an error must never escape as an uncaught exception
+  /// nor end the accept loop, because the host has to keep admitting players.
   Future<void> start() async {
     if (_server != null) return;
-    _server = await ServerSocket.bind(InternetAddress.anyIPv4, preferredPort);
-    _server!.listen(_onSocket, onError: (Object _) {});
+    final server = await ServerSocket.bind(InternetAddress.anyIPv4, preferredPort);
+    _server = server;
+    _acceptSubscription = server.listen(
+      _onSocket,
+      onError: (Object error, StackTrace stack) {
+        AppLogger.instance.error('net.accept.listen', error, stack);
+      },
+      cancelOnError: false,
+    );
   }
 
   /// Local IPv4 addresses, for display and manual join.
@@ -147,26 +161,32 @@ class HostNetwork {
     return result;
   }
 
+  /// Accept one socket without ever letting it throw into the accept loop.
+  ///
+  /// A peer that connects and resets immediately is legitimate traffic; the
+  /// resulting errors (socket configuration, stream setup) must be dropped on
+  /// the floor instead of surfacing as uncaught errors.
   void _onSocket(Socket socket) {
-    // A peer that connects and drops immediately is legitimate; never let such
-    // a socket escape this handler as an uncaught error.
     try {
-      if (_pendingHandshake.length >= maxPendingHandshakes) {
-        rejectedConnections += 1;
-        socket.destroy();
-        return;
-      }
-      socket.setOption(SocketOption.tcpNoDelay, true);
-    } on Exception {
-      // The socket resets between accept and configuration: drop it silently.
+      _acceptSocket(socket);
+    } catch (error, stack) {
       rejectedConnections += 1;
+      AppLogger.instance.error('net.accept.socket', error, stack);
       try {
         socket.destroy();
-      } on Object {
+      } catch (_) {
         // Already gone.
       }
+    }
+  }
+
+  void _acceptSocket(Socket socket) {
+    if (_pendingHandshake.length >= maxPendingHandshakes) {
+      rejectedConnections += 1;
+      socket.destroy();
       return;
     }
+    socket.setOption(SocketOption.tcpNoDelay, true);
 
     final channel = LineChannel(socket, label: 'pending');
     final key = 'pending-${++_pendingSequence}';
@@ -413,7 +433,12 @@ class HostNetwork {
   Future<void> stop() async {
     final server = _server;
     _server = null;
+    // Close the listening socket first: a pending accept error then still has
+    // the subscription's onError to land in instead of becoming uncaught.
     await server?.close();
+    final subscription = _acceptSubscription;
+    _acceptSubscription = null;
+    await subscription?.cancel();
 
     for (final channel in _channels.values.toList()) {
       await channel.close();
