@@ -1,7 +1,7 @@
-/// روشن نگه‌داشتن صفحهٔ گوشی در طول بازی.
+/// Keeps the screen awake during play.
 ///
-/// پیاده‌سازی با یک کانال سادهٔ پلتفرمی در لایهٔ اندروید انجام می‌شود
-/// (بدون وابستگی اضافی). در محیط تست/دسکتاپ بی‌صدا نادیده گرفته می‌شود.
+/// Implemented with a small platform channel on the Android side
+/// (no extra dependency). Silently ignored on test and desktop platforms.
 library;
 
 import 'package:flutter/services.dart';
@@ -15,19 +15,19 @@ class ScreenAwake {
 
   static bool _current = false;
 
-  /// فعال/غیرفعال کردن روشن ماندن صفحه.
+  /// Enable or disable keeping the screen awake.
   static Future<void> setEnabled(bool enabled) async {
     if (_current == enabled) return;
     _current = enabled;
     try {
       await _channel.invokeMethod<void>('keepScreenOn', enabled);
     } on MissingPluginException {
-      // محیط تست یا پلتفرم بدون پیاده‌سازی — نادیده گرفته می‌شود.
+      // Test environment or platform without an implementation: ignore.
     } on PlatformException {
-      // شکست در تنظیم فلگ سیستم نباید جریان بازی را متوقف کند.
+      // A failed system flag must not interrupt gameplay.
     } catch (_) {
-      // در محیط‌هایی که Binding یا پیاده‌سازی پلتفرم آماده نیست (آزمون، دسکتاپ)
-      // این قابلیت بی‌صدا نادیده گرفته می‌شود و هرگز جریان بازی را قطع نمی‌کند.
+      // Where the binding or platform side is unavailable (tests, desktop),
+      // this feature is ignored silently and never interrupts gameplay.
     }
   }
 }

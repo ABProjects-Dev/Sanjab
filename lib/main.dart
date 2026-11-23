@@ -1,4 +1,4 @@
-/// نقطهٔ ورود برنامهٔ «سنجاب».
+/// Entry point of the Sanjab application.
 library;
 
 import 'dart:async';
@@ -18,13 +18,13 @@ import 'core/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // جهت صفحه: فقط Portrait.
+  // Screen orientation: portrait only.
   await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // مدیریت خطاهای عمومی برنامه.
+  // Application-wide error handlers.
   FlutterError.onError = (FlutterErrorDetails details) {
     AppLogger.instance.error('flutter', details.exception, details.stack);
     if (kDebugMode) {
@@ -36,12 +36,12 @@ Future<void> main() async {
     return true;
   };
 
-  // ویجت خطا: پیام فارسی به‌جای صفحهٔ قرمز.
+  // Error widget: a Persian message instead of the red error screen.
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return const _FriendlyErrorView();
   };
 
-  // پوشهٔ دادهٔ برنامه برای ذخیره‌سازی موقت.
+  // Application data directory used for local persistence.
   Directory dataDir;
   try {
     final support = await getApplicationSupportDirectory();
@@ -63,7 +63,7 @@ Future<void> main() async {
   runApp(SanjabApp(controller: controller));
 }
 
-/// نمایش خطای قابل فهم برای کاربر (به‌جای صفحهٔ خطای پیش‌فرض).
+/// User-facing error view shown instead of the default error screen.
 class _FriendlyErrorView extends StatelessWidget {
   const _FriendlyErrorView();
 

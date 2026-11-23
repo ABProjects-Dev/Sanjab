@@ -1,41 +1,41 @@
-/// موتور امتیازدهی نسخهٔ ۱.۰.۰ — منطق خالص و مستقل از رابط کاربری.
+/// Scoring engine: pure logic with no UI dependency.
 ///
-/// قوانین (بند ۹ سند نسخه ۱.۰.۰):
-///  - پاسخ خالی ..................................................... ۰
-///  - پاسخ ردشده .................................................... ۰
-///  - پاسخ تکراری (تشخیص دستی داور) ................................. ۵
-///  - پاسخ تأییدشدهٔ عادی .......................................... ۱۰
-///  - تنها پاسخ تأییدشدهٔ دسته و وجود پاسخ تکراری در سایر بازیکنان ... ۱۵
-///  - تنها پاسخ تأییدشدهٔ دسته و بقیهٔ پاسخ‌ها خالی یا ردشده ......... ۲۰
+/// Rules:
+///  - empty answer ................................................... 0
+///  - rejected answer ................................................ 0
+///  - duplicate (decided by the referee) ............................. 5
+///  - ordinary confirmed answer ..................................... 10
+///  - sole confirmed answer with another duplicate in the category ..... 15
+///  - sole confirmed answer with all others empty or rejected ......... 20
 ///
-/// نکته‌های کلیدی:
-///  * امتیاز ویژه «۱۵» و «۲۰» امتیاز نهایی همان پاسخ است و با ۱۰ جمع نمی‌شود.
-///  * اگر بیش از یک پاسخ تأییدشده وجود داشته باشد، امتیاز ویژه اعمال نمی‌شود.
-///  * قانون ۲۰ تنها وقتی اعمال می‌شود که هیچ پاسخ تکراری در آن دسته نباشد.
-///  * همهٔ محاسبات یک‌بار و در یک گذر انجام می‌شود، پس امتیاز دوباره ثبت نمی‌شود.
+/// Key points:
+///  * The 15 and 20 bonuses replace the base 10, they are not added to it.
+///  * With more than one confirmed answer no bonus applies.
+///  * The 20 rule requires that no duplicate exists in the category.
+///  * Everything is computed in one pass, so scores are never double counted.
 library;
 
 import 'models.dart';
 
-/// امتیاز پاسخ تأییدشدهٔ عادی.
+/// Score of an ordinary confirmed answer.
 const int kScoreConfirmed = 10;
 
-/// امتیاز پاسخ تأییدشدهٔ یکتا در حضور پاسخ تکراری دیگران.
+/// Score of a sole confirmed answer when another player is a duplicate.
 const int kScoreUniqueWithDuplicate = 15;
 
-/// امتیاز پاسخ تأییدشدهٔ یکتا وقتی بقیهٔ پاسخ‌ها خالی یا ردشده‌اند.
+/// Score of a sole confirmed answer when all others are empty or rejected.
 const int kScoreUniqueAlone = 20;
 
-/// امتیاز پاسخ تکراری.
+/// Score of a duplicate answer.
 const int kScoreDuplicate = 5;
 
-/// امتیاز پاسخ ردشده.
+/// Score of a rejected answer.
 const int kScoreRejected = 0;
 
-/// امتیاز پاسخ خالی.
+/// Score of an empty answer.
 const int kScoreEmpty = 0;
 
-/// یک پاسخ پس از امتیازدهی.
+/// One answer after scoring.
 class ScoredAnswer {
   const ScoredAnswer({
     required this.playerId,
@@ -52,18 +52,18 @@ class ScoredAnswer {
   final JudgementStatus status;
   final int score;
 
-  /// آیا امتیاز ویژهٔ یکتا (۱۵ یا ۲۰) به این پاسخ داده شده است.
+  /// Whether this answer received the uniqueness bonus.
   final bool uniqueBonus;
 }
 
-/// نتیجهٔ امتیازدهی یک دست.
+/// Scoring result of one round.
 class RoundScoring {
   const RoundScoring({required this.answers, required this.perPlayer});
 
-  /// پاسخ‌های امتیازدهی‌شده.
+  /// Scored answers.
   final List<ScoredAnswer> answers;
 
-  /// امتیاز هر بازیکن در این دست (بازیکنان بدون پاسخ هم با ۰ حاضرند).
+  /// Per-player score of the round; players without answers appear with 0.
   final Map<String, int> perPlayer;
 
   int scoreOf(String playerId, int categoryId) {
@@ -81,7 +81,7 @@ class RoundScoring {
   }
 }
 
-/// خلاصهٔ داوری یک دسته، برای نمایش و آزمون.
+/// Summary of one category's judgement, for display and tests.
 class CategoryTally {
   const CategoryTally({
     required this.confirmedCount,
@@ -94,11 +94,11 @@ class CategoryTally {
   final int duplicateCount;
   final bool hasDuplicate;
 
-  /// آیا دقیقاً یک پاسخ تأییدشده در دسته وجود دارد.
+  /// Whether the category has exactly one confirmed answer.
   final bool uniqueConfirmed;
 }
 
-/// شمارش وضعیت پاسخ‌های یک دسته.
+/// Count answer states in one category.
 CategoryTally tallyCategory(List<AnswerEntry> categoryAnswers) {
   var confirmed = 0;
   var duplicate = 0;
@@ -123,7 +123,7 @@ CategoryTally tallyCategory(List<AnswerEntry> categoryAnswers) {
   );
 }
 
-/// امتیاز پایهٔ یک پاسخ، پیش از اعمال قانون یکتایی.
+/// Base score of an answer before the uniqueness rule.
 int baseScoreOf(AnswerEntry answer) {
   if (answer.isBlank || answer.status == JudgementStatus.empty) return 0;
   switch (answer.status) {
@@ -134,14 +134,14 @@ int baseScoreOf(AnswerEntry answer) {
     case JudgementStatus.rejected:
       return kScoreRejected;
     case JudgementStatus.unchecked:
-      // پاسخ داوری‌نشده امتیاز ندارد؛ داور باید وضعیت آن را مشخص کند.
+      // An unjudged answer scores nothing; the referee must decide it.
       return 0;
     case JudgementStatus.empty:
       return kScoreEmpty;
   }
 }
 
-/// امتیازدهی یک دسته (همهٔ پاسخ‌های همان دسته از همهٔ بازیکنان).
+/// Score one category across all players.
 List<ScoredAnswer> scoreCategory(List<AnswerEntry> categoryAnswers) {
   final tally = tallyCategory(categoryAnswers);
   final result = <ScoredAnswer>[];
@@ -152,11 +152,11 @@ List<ScoredAnswer> scoreCategory(List<AnswerEntry> categoryAnswers) {
     if (!blank &&
         a.status == JudgementStatus.confirmed &&
         tally.uniqueConfirmed) {
-      // قانون یکتایی: امتیاز نهایی جای ۱۰ می‌نشیند و جمع نمی‌شود.
+      // Uniqueness rule: the bonus replaces the base 10, it is not added.
       if (tally.hasDuplicate) {
-        score = kScoreUniqueWithDuplicate; // ۱۵
+        score = kScoreUniqueWithDuplicate; // Bonus with duplicate.
       } else {
-        score = kScoreUniqueAlone; // ۲۰
+        score = kScoreUniqueAlone; // Bonus alone.
       }
       bonus = true;
     }
@@ -174,10 +174,10 @@ List<ScoredAnswer> scoreCategory(List<AnswerEntry> categoryAnswers) {
   return result;
 }
 
-/// امتیازدهی کامل یک دست.
+/// Score a whole round.
 ///
-/// [answers] همهٔ پاسخ‌های دست (همهٔ بازیکنان × همهٔ دسته‌های فعال).
-/// [playerIds] فهرست بازیکنان دست؛ برای اطمینان از حضور همه در جدول امتیاز.
+/// [answers] holds every answer of the round (players x active categories).
+/// [playerIds] lists the round players so all appear in the score table.
 RoundScoring scoreRound(
   List<AnswerEntry> answers, {
   required List<String> playerIds,
@@ -197,7 +197,7 @@ RoundScoring scoreRound(
   return RoundScoring(answers: scored, perPlayer: perPlayer);
 }
 
-/// رتبه‌بندی بر اساس مجموع امتیاز. تساوی ⇒ رتبهٔ مشترک.
+/// Standings by total score; ties share a rank.
 List<Standing> buildStandings({
   required List<Player> players,
   required Map<String, int> totals,

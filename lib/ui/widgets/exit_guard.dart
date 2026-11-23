@@ -1,8 +1,8 @@
-/// نگهبان دکمهٔ Back گوشی و ابزار مشترک «بازگشت به صفحه اصلی».
+/// Android back-button guard plus the shared return-to-Home helper.
 ///
-/// بازگشت به صفحهٔ اصلی، اتاق را برای ادامه نگه می‌دارد؛ اما اگر میزبان
-/// تنها عضو باقی‌مانده باشد، اتاق خودکار بسته می‌شود. خروج صریح همچنان از
-/// گزینهٔ «بستن اتاق» یا «خروج از اتاق» در منو در دسترس است.
+/// Going Home keeps the room resumable, but a lone host closes it automatically.
+/// An explicit exit is still available from the menu.
+///
 library;
 
 import 'package:flutter/material.dart';
@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import '../../state/game_scope.dart';
 import 'common.dart';
 
-/// دکمهٔ بازگشت گوشی؛ رفتار اتاق را بر اساس حضور اعضای دیگر تعیین می‌کند.
+/// Back button handling that depends on whether other members are present.
 class ExitGuard extends StatelessWidget {
   const ExitGuard({super.key, required this.child});
 
@@ -31,7 +31,7 @@ class ExitGuard extends StatelessWidget {
   }
 }
 
-/// بازگشت به صفحهٔ اصلی؛ میزبان تنها، اتاق را خودکار می‌بندد.
+/// Return Home; a lone host closes the room automatically.
 Future<void> goToHomeScreen(BuildContext context) async {
   final controller = GameScope.read(context);
   await controller.backToHome();
@@ -39,8 +39,8 @@ Future<void> goToHomeScreen(BuildContext context) async {
   Navigator.of(context).popUntil((route) => route.isFirst);
 }
 
-/// خروج صریح از اتاق (با تأیید): میزبان اتاق را می‌بندد و جلسه برای همه
-/// پایان می‌یابد؛ بازیکن فقط از عضویت خودش خارج می‌شود.
+/// Explicit exit after confirmation: the host closes the room and ends the
+/// session for everyone, while a player leaves only its own membership.
 Future<void> confirmLeaveRoom(
   BuildContext context, {
   String? roomName,

@@ -1,4 +1,4 @@
-/// لابی: فهرست بازیکنان، کد اتصال، وضعیت شبکه و شروع بازی (فقط میزبان).
+/// Lobby: player list, join code, network state and start (host only).
 library;
 
 import 'dart:convert';
@@ -48,10 +48,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
     final controller = _listening;
     if (controller == null || _navigating) return;
     if (controller.session.phase != GamePhase.lobby) {
-      // میزبان بازی را شروع کرد (یا بازیکن با نشست جاری همگام شد).
+      // The host started the game, or the player synced with a running session.
       _goToGame();
     } else if (controller.session.rounds.isNotEmpty) {
-      // بازی به پایان رسمی رسید — بازگشت به صفحه اصلی.
+      // The game ended formally; go back Home.
       _goToHome();
     }
   }

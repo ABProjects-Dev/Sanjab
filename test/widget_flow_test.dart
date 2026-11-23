@@ -1,4 +1,4 @@
-/// آزمون ویجت نسخهٔ ۱.۰.۰: صفحهٔ اصلی، پروفایل و راهنمای بازی.
+/// Widget tests: Home, Profile and Guide.
 library;
 
 import 'package:flutter/material.dart';
@@ -46,15 +46,27 @@ void main() {
     expect(find.text('پیوستن به بازی'), findsOneWidget);
     expect(find.text('راهنمای بازی'), findsOneWidget);
     expect(find.text('تنظیمات'), findsOneWidget);
-    // نام نمایشی پروفایل روی صفحهٔ اصلی دیده می‌شود.
+    // The profile display name appears on Home.
     expect(find.text('بازیکن آزمون'), findsOneWidget);
   });
 
   testWidgets('دکمهٔ ایجاد بازی بدون خطا در دسترس است', (tester) async {
     await pumpApp(tester);
-    await tester.tap(find.text('ایجاد بازی'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    // Creating a game binds a real TCP port and needs the real event loop, so
+    // run the tap inside runAsync and let the flow settle there. The host is
+    // shut down in the same block so no socket or timer outlives the test.
+    await tester.runAsync(() async {
+      await tester.tap(find.text('ایجاد بازی'));
+      await tester.pump();
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      await tester.pump();
+      expect(controller.isHost, isTrue, reason: 'the host must have started');
+      // Stopping the server inside the test keeps the room resumable, which is
+      // the documented behaviour of this path. The lobby route itself is
+      // covered by the navigation tests; here only the setup path matters.
+      await controller.closeSession(silent: true);
+      await tester.pump();
+    });
     expect(tester.takeException(), isNull);
   });
 
@@ -87,7 +99,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(profiles.profile.displayName, 'سارا');
-      // شناسهٔ پایدار بازیکن با تغییر نام عوض نمی‌شود.
+      // Renaming keeps the stable player ID.
       expect(profiles.profile.playerId, 'test-player');
     },
   );

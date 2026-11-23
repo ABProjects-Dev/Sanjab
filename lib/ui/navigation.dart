@@ -1,4 +1,4 @@
-/// مسیریابی مشترک بین صفحه‌های بازی.
+/// Shared routing between the game screens.
 library;
 
 import 'package:flutter/material.dart';
@@ -9,7 +9,7 @@ import 'screens/judging_screen.dart';
 import 'screens/play_screen.dart';
 import 'screens/results_screen.dart';
 
-/// برچسب فارسی فاز بازی.
+/// Persian label of a game phase.
 String phaseLabel(GamePhase phase) {
   switch (phase) {
     case GamePhase.lobby:
@@ -29,7 +29,7 @@ String phaseLabel(GamePhase phase) {
   }
 }
 
-/// باز کردن صفحهٔ متناسب با فاز جاری بازی.
+/// Open the screen that matches the current phase.
 void openGameScreen(BuildContext context) {
   final controller = GameScope.read(context);
   final route = switch (controller.session.phase) {

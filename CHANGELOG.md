@@ -2,6 +2,33 @@
 
 Notable changes to Sanjab are recorded here. Version numbers follow Semantic Versioning; Android build numbers increase monotonically.
 
+## [1.1.2] - 2026-11-23
+
+### Added
+
+- Single source of truth for the app version: `pubspec.yaml` feeds both the Gradle `versionName`/`versionCode` and the generated `lib/core/app_version.dart` shown in Settings and the About section, with `tool/sync_app_version.py --check` failing CI on drift.
+- Release gate in CI: on `main` and on manual dispatch the pipeline builds a **release** APK with a throwaway keystore, prints the aapt2 badging output and APK size, then installs and launches it on an API 30 emulator, so R8 minification, resource shrinking and the release-only code paths are exercised on every change.
+- `LICENSE` (MIT), `SECURITY.md`, `CONTRIBUTING.md`, `.github/CODEOWNERS`, `.github/dependabot.yml` and a weekly Actions-cache pruning workflow.
+
+### Improved
+
+- Track the Gradle wrapper (`gradlew`, `gradlew.bat`, `gradle-wrapper.jar`) so Android builds are reproducible without regenerating it.
+- Pin every GitHub Actions use to a commit SHA, cap workflow timeouts, and keep artifacts for a defined retention window.
+- Persist the active game state on a debounce (600 ms) instead of on every keystroke, and coalesce outgoing answer frames (150 ms) while still flushing before Stop and before backgrounding.
+- Raise the primary and muted text colors to WCAG AA contrast (>= 4.5:1) against all three surface levels.
+- Align `README.md`, `docs/*.md` and `PROJECT_STATUS.md` with the current release, branch and repository facts, and rewrite all source-controlled code comments in English.
+
+### Fixed
+
+- A rename rejected by the session rules during reconnect no longer throws out of the hello handler; the previous name is kept and the reconnect completes.
+- The QR scanner screen degrades gracefully when the camera permission is denied or the device has no scanner support, offering manual entry instead of an unhandled error.
+- The release workflow no longer overwrites published assets: it refuses to upload when `Sanjab-<tag>.apk` or its checksum already exists, verifies the built version against `pubspec.yaml`, and never uses `--clobber`.
+
+### Verification
+
+- `flutter analyze`, `flutter test --coverage` (with the lcov report uploaded as an artifact), the debug APK build and the new release emulator smoke test run in GitHub Actions.
+- Passed on 2026-11-23 in PR #21 and again on `main` after the merge (commit `0845639`): 174 tests with 68.7% line coverage, analysis clean at error/warning level, debug APK build, and the release gate building a 67.1 MiB R8-shrunk APK and launching it on an API 30 emulator. The signed production APK is still to be published through the Android release workflow.
+
 ## [1.1.1] - 2026-11-22
 
 ### Improved

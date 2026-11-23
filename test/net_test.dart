@@ -1,8 +1,8 @@
-/// آزمون شبکهٔ واقعی روی لوکال‌هاست (اتصال TCP، احراز دسترسی، تحویل پیام‌ها،
-/// جلوگیری از پیام تکراری و اتصال مجدد).
+/// Real networking on localhost: TCP connect, join authentication, message
+/// delivery, duplicate suppression and reconnection.
 ///
-/// این آزمون‌ها روی همان کدی اجرا می‌شوند که روی گوشی‌ها اجرا می‌شود؛ تنها
-/// تفاوت، آدرس ۱۲۷.۰.۰.۱ به‌جای آدرس شبکهٔ محلی است.
+/// These tests exercise the same code as real devices; only the address
+/// differs (127.0.0.1 instead of the LAN address).
 library;
 
 import 'dart:async';
@@ -515,7 +515,7 @@ void main() {
             'name': 'سارا',
           },
         ).encode(),
-        // همان پیام پاسخ با شناسهٔ یکسان، دو بار:
+        // The same answer message with an identical ID, twice:
         NetMessage(
           type: MsgType.answer,
           id: 'dup',
@@ -585,7 +585,7 @@ void main() {
       );
       await socket.flush();
       await waitUntil(() => host.hellos.length == 1);
-      // تلاش برای جعل پیام «وضعیت» و «نتیجهٔ داوری» از سمت بازیکن.
+      // A player tries to forge state and result messages.
       socket.write(
         NetMessage(
           type: MsgType.state,

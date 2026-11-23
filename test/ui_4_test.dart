@@ -1,6 +1,6 @@
-/// آزمون‌های رابط کاربری نسخهٔ ۱.۰.۰: QR روی پس‌زمینهٔ سفید، برگشت سیستمی،
-/// بخش «ادامه بازی» در صفحهٔ اصلی و بررسی ایستا برای
-/// حذف کامل قابلیت تعیین کلمه و دکمهٔ خروج از بازی.
+/// UI tests: the QR panel, system back handling, the resume section on Home and
+/// a static check that the per-round word feature and the exit button are gone.
+///
 library;
 
 import 'dart:io';
@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sanjab/app.dart';
+import 'package:sanjab/core/app_version.dart';
+import 'package:sanjab/core/persian.dart';
 import 'package:sanjab/data/room_repository.dart';
 import 'package:sanjab/domain/models.dart';
 import 'package:sanjab/domain/profile.dart';
@@ -105,7 +107,11 @@ void main() {
     expect(find.text('ادامه بازی'), findsOneWidget);
     expect(find.text('خروج از اتاق'), findsOneWidget);
     expect(find.textContaining('میزبان: سارا'), findsOneWidget);
-    expect(find.textContaining('نسخهٔ ۱.۱.۰'), findsOneWidget);
+    // The footer must show the version generated from pubspec.yaml, not a literal.
+    expect(
+      find.textContaining('نسخهٔ ${faNum(kAppVersionName)}'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('اتاق پایان‌یافته در صفحهٔ اصلی «ادامه بازی» ندارد', (tester) async {
@@ -246,7 +252,7 @@ void main() {
       final models = File('lib/domain/models.dart').readAsStringSync();
       final protocol = File('lib/net/protocol.dart').readAsStringSync();
       expect(models, contains('const int kProtocolVersion = 4;'));
-      expect(protocol, contains('نسخهٔ ۴'));
+      expect(protocol, contains('(version 4)'));
       expect(protocol, contains('{"v":4,"t":"type"'));
     });
 
@@ -286,7 +292,7 @@ void main() {
   });
 
   test('نقشهٔ صفحه‌ها برای فاز پایان‌یافته معتبر است', () {
-    // فقط از وجود صفحه‌ها مطمئن می‌شویم (بدون ساخت کنترلر شبکه).
+    // Only check that the screens exist, without building a network controller.
     expect(const LobbyScreen(), isNotNull);
     expect(const PlayScreen(), isNotNull);
     expect(const JudgingScreen(), isNotNull);

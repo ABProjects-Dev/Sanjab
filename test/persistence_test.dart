@@ -63,14 +63,14 @@ void main() {
     await repository.save(first, nowMs: 10);
     final second = sampleSession();
     second.addPlayer('سومین');
-    await repository.save(second, nowMs: 20); // این ذخیره، پشتیبان می‌سازد
+    await repository.save(second, nowMs: 20); // This save creates the backup.
 
     final main = File('${tempDir.path}/active_session.json');
     main.writeAsStringSync('{ این فایل خراب است');
 
     final loaded = await repository.load();
     expect(loaded, isNotNull);
-    // پشتیبان مربوط به ذخیرهٔ قبلی است (۲ بازیکن)
+    // The backup belongs to the previous save (two players).
     expect(loaded!.players.length, 2);
   });
 
@@ -117,7 +117,7 @@ void main() {
       await File('${tempDir.path}/active_session.json')
           .writeAsString(jsonEncode(legacy));
       expect(await repository.load(), isNull);
-      // فایل قدیمی نباید برنامه را از ذخیرهٔ وضعیت جدید باز دارد.
+      // A stale file must not block saving the newer state.
       final session = sampleSession();
       expect(await repository.save(session, nowMs: 10), isTrue);
       expect((await repository.load())!.phase, GamePhase.playing);
@@ -127,7 +127,7 @@ void main() {
   test('فایل خراب، وضعیت بازی را از بین نمی‌برد', () async {
     final session = sampleSession();
     await repository.save(session, nowMs: 10);
-    await repository.save(session, nowMs: 20); // نسخهٔ پشتیبان ساخته می‌شود
+    await repository.save(session, nowMs: 20); // The backup copy is created.
     await File('${tempDir.path}/active_session.json').writeAsString('{خراب');
     final loaded = await repository.load();
     expect(loaded, isNotNull);

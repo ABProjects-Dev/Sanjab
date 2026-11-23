@@ -1,4 +1,4 @@
-/// اتصال بازیکن عضو به میزبان (TCP روی شبکهٔ محلی) با تلاش مجدد خودکار.
+/// A joined player's TCP connection to the host, with automatic retry.
 library;
 
 import 'dart:async';
@@ -7,28 +7,28 @@ import 'dart:io';
 import 'line_channel.dart';
 import 'protocol.dart';
 
-/// وضعیت اتصال بازیکن.
+/// Player connection state.
 enum ClientConnectionState {
-  /// پیش از تلاش اتصال.
+  /// Before the first connection attempt.
   idle,
 
-  /// در حال اتصال.
+  /// Connecting.
   connecting,
 
-  /// متصل و احراز هویت‌شده.
+  /// Connected and authenticated.
   connected,
 
-  /// قطع شده و در حال تلاش مجدد.
+  /// Disconnected and retrying.
   reconnecting,
 
-  /// اتصال قطع شده و تلاش مجدد متوقف است.
+  /// Disconnected with retries stopped.
   disconnected,
 
-  /// میزبان درخواست را رد کرد.
+  /// The host rejected the request.
   rejected,
 }
 
-/// اتصال یک بازیکن به میزبان.
+/// One player's connection to the host.
 class GameClient {
   GameClient({
     required this.hostAddress,
@@ -69,18 +69,26 @@ class GameClient {
 
   static const Duration _snapshotRetryInterval = Duration(seconds: 2);
 
-  /// پیام‌های رسیده از میزبان.
+  /// Coalescing window for answer messages: typing sends one frame instead of
+  /// one frame per keystroke, which keeps the host broadcast fan-out small.
+  static const Duration _answerCoalesceInterval = Duration(milliseconds: 150);
+
+  final Map<int, String> _pendingAnswers = <int, String>{};
+  int? _pendingAnswerRound;
+  Timer? _answerTimer;
+
+  /// Messages received from the host.
   Stream<NetMessage> get messages => _incoming.stream;
 
-  /// تغییر وضعیت اتصال (برای نمایش در رابط کاربری).
+  /// Connection state changes, for the UI.
   Stream<ClientConnectionState> get states => _states.stream;
 
   ClientConnectionState get state => _state;
 
-  /// آخرین خطای قابل نمایش (فارسی).
+  /// Last user-facing error message.
   String? get lastError => _lastError;
 
-  /// اتصال برقرار شد و helloAck دریافت شد.
+  /// Connected and authenticated: helloAck was received.
   bool get isConnected => _state == ClientConnectionState.connected;
 
   /// Exposed for diagnostics/tests: initial connection failures must not retry.
@@ -92,7 +100,7 @@ class GameClient {
     if (!_states.isClosed) _states.add(next);
   }
 
-  /// تلاش برای اتصال و احراز هویت.
+  /// Connect and authenticate.
   Future<bool> connect() async {
     _closedByUser = false;
     _setState(ClientConnectionState.connecting);
@@ -199,20 +207,69 @@ class GameClient {
     });
   }
 
-  /// ارسال پاسخ یک دسته به میزبان.
-  bool sendAnswer(int roundIndex, int categoryId, String text) =>
-      _channel?.send(MsgType.answer, {
+  /// Queue an answer update for the host.
+  ///
+  /// The latest text per category is kept and flushed on a short timer, so a
+  /// burst of keystrokes produces a single message per category.
+  bool sendAnswer(int roundIndex, int categoryId, String text) {
+    final channel = _channel;
+    if (channel == null || _closedByUser) return false;
+    final pendingRound = _pendingAnswerRound;
+    if (pendingRound != null && pendingRound != roundIndex) {
+      // A new round started while answers of the previous one were still
+      // queued: flush them first so they keep their own round index instead of
+      // being relabeled with the newer one.
+      _flushPendingAnswers();
+    }
+    _pendingAnswerRound = roundIndex;
+    _pendingAnswers[categoryId] = text;
+    _answerTimer ??= Timer(_answerCoalesceInterval, () {
+      _answerTimer = null;
+      _flushPendingAnswers();
+    });
+    return true;
+  }
+
+  void _flushPendingAnswers() {
+    final channel = _channel;
+    final roundIndex = _pendingAnswerRound;
+    if (channel == null || _closedByUser || roundIndex == null) {
+      _pendingAnswers.clear();
+      _pendingAnswerRound = null;
+      return;
+    }
+    final pending = Map<int, String>.from(_pendingAnswers);
+    _pendingAnswers.clear();
+    _pendingAnswerRound = null;
+    pending.forEach((categoryId, text) {
+      channel.send(MsgType.answer, {
         'r': roundIndex,
         'c': categoryId,
         't': text,
-      }) ??
-      false;
+      });
+    });
+  }
 
-  /// ارسال درخواست استپ.
-  bool sendStop(int roundIndex) =>
-      _channel?.send(MsgType.stop, {'r': roundIndex}) ?? false;
+  /// Send every queued answer immediately.
+  ///
+  /// Used before a Stop request so the host holds this player's complete
+  /// answers before it validates and records the Stop.
+  void flushPendingAnswers() {
+    _answerTimer?.cancel();
+    _answerTimer = null;
+    _flushPendingAnswers();
+  }
 
-  /// اعلام خروج صریح از بازی؛ قطع اتصال عادی چنین پیامی نمی‌فرستد.
+  /// Send a Stop request.
+  ///
+  /// Any queued answer of the same round is flushed first: the two frames share
+  /// one ordered channel, so the answers cannot be overtaken by the Stop.
+  bool sendStop(int roundIndex) {
+    flushPendingAnswers();
+    return _channel?.send(MsgType.stop, {'r': roundIndex}) ?? false;
+  }
+
+  /// Announce an explicit exit; a plain disconnect never sends this.
   bool sendLeave() {
     if (!isConnected || _closedByUser) return false;
     return _channel?.send(MsgType.leave, const <String, dynamic>{}) ?? false;
@@ -260,9 +317,13 @@ class GameClient {
     _pendingSnapshotAnswers = null;
   }
 
-  /// بستن اتصال (بدون تلاش مجدد).
+  /// Close the connection without retrying.
   Future<void> close() async {
     _closedByUser = true;
+    _answerTimer?.cancel();
+    _answerTimer = null;
+    _pendingAnswers.clear();
+    _pendingAnswerRound = null;
     _retryTimer?.cancel();
     _snapshotRetryTimer?.cancel();
     _snapshotRetryTimer = null;

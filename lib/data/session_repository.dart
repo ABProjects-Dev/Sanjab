@@ -1,12 +1,12 @@
-/// ذخیره‌سازی موقت وضعیت بازی روی حافظهٔ محلی دستگاه.
+/// Temporary persistence of the active game session on the device.
 ///
-/// الزامات سند (بند ۱۱):
-///  - هیچ سابقهٔ دائمی از بازی‌ها یا بازیکنان ساخته نمی‌شود؛
-///  - وضعیت بازی فعال به‌صورت موقت ذخیره می‌شود تا اگر برنامه ناگهانی بسته شد
-///    قابل بازیابی باشد؛
-///  - نوشتن «اتمیک» است: ابتدا در فایل موقت نوشته و سپس جای‌گزین می‌شود؛
-///  - یک نسخهٔ پشتیبان (`.bak`) نگه داشته می‌شود تا در صورت خرابی فایل اصلی،
-///    آخرین وضعیت سالم بازیابی شود.
+/// Requirements:
+///  - No permanent history of games or players is kept;
+///  - The active game is saved so an abrupt app exit is recoverable;
+///    (continuation of the previous line)
+///  - Writes are atomic: write a temp file, then replace the target;
+///  - A backup copy is kept so a corrupt main file can be recovered
+///    from the last known-good state.
 library;
 
 import 'dart:convert';
@@ -16,7 +16,7 @@ import '../core/app_logger.dart';
 import '../core/serial_task_queue.dart';
 import '../domain/game_session.dart';
 
-/// قرارداد ذخیره‌سازی وضعیت بازی (برای تست‌پذیری و جای‌گزینی آسان).
+/// Session storage contract, for testability and easy substitution.
 abstract class SessionStore {
   Future<void> ensureDirectory();
 
@@ -27,11 +27,11 @@ abstract class SessionStore {
   Future<void> clear();
 }
 
-/// پیاده‌سازی فایل‌محور روی حافظهٔ محلی دستگاه.
+/// File-backed implementation on device storage.
 class SessionRepository implements SessionStore {
   SessionRepository(this.directory);
 
-  /// پوشهٔ دادهٔ برنامه (تزریق‌پذیر برای تست).
+  /// Application data directory (injectable for tests).
   final Directory directory;
   final SerialTaskQueue _writes = SerialTaskQueue();
 
@@ -46,7 +46,7 @@ class SessionRepository implements SessionStore {
     }
   }
 
-  /// بارگذاری وضعیت ذخیره‌شده. در صورت خرابی فایل اصلی، از پشتیبان استفاده می‌شود.
+  /// Load the saved session, falling back to the backup if the main file is corrupt.
   @override
   Future<GameSession?> load() async {
     final main = await _read(_mainPath);
@@ -77,7 +77,7 @@ class SessionRepository implements SessionStore {
     }
   }
 
-  /// ذخیرهٔ اتمیک وضعیت. در صورت خطا، وضعیت قبلی حفظ می‌شود.
+  /// Atomically save the session; on error the previous state is kept.
   @override
   Future<bool> save(GameSession session, {required int nowMs}) async {
     final String payload;
@@ -107,7 +107,7 @@ class SessionRepository implements SessionStore {
           try {
             await main.copy(_backupPath);
           } catch (_) {
-            // پشتیبان اختیاری است؛ شکست آن مانع ذخیرهٔ اصلی نمی‌شود.
+            // The backup is best effort; its failure must not block the main write.
           }
         }
         await temp.rename(_mainPath);
@@ -119,7 +119,7 @@ class SessionRepository implements SessionStore {
     });
   }
 
-  /// پاک‌سازی کامل داده‌های موقت بازی، پس از پایان ذخیره‌های در صف.
+  /// Delete all temporary game data after queued writes finish.
   @override
   Future<void> clear() async {
     await _writes.run(() async {

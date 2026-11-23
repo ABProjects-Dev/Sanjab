@@ -1,4 +1,4 @@
-/// پروفایل: نمایش و ویرایش نام نمایشی.
+/// Profile: view and edit the display name.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,7 +12,7 @@ import '../widgets/common.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.firstRun = false});
 
-  /// اگر اولین اجرا باشد، بازگشت پس از ذخیره انجام می‌شود.
+  /// On first run, saving returns to the previous screen.
   final bool firstRun;
 
   @override

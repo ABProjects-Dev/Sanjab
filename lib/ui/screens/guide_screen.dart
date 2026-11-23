@@ -1,4 +1,4 @@
-/// راهنمای کامل بازی نسخهٔ ۱.۰.۰ (چندنفره) — مطابق منطق واقعی پیاده‌سازی‌شده.
+/// Complete game guide, matching the implemented rules.
 library;
 
 import 'package:flutter/material.dart';

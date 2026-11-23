@@ -1,4 +1,4 @@
-/// صفحهٔ بازی (دست جاری): حرف، زمان‌سنج همگام، پاسخ‌ها و دکمهٔ «استپ».
+/// Play screen: synced timer, answers and the Stop button.
 library;
 
 import 'dart:convert';
@@ -103,7 +103,7 @@ class _PlayScreenState extends State<PlayScreen> {
     }
     final phase = controller.session.phase;
     if (phase == GamePhase.lobby || phase == GamePhase.finished) {
-      // بازی به پایان رسمی رسید یا نشست خالی است — بازگشت به صفحه اصلی.
+      // The game ended formally or the session is empty; go back Home.
       _goToHome();
       return;
     }
@@ -131,7 +131,7 @@ class _PlayScreenState extends State<PlayScreen> {
     _navigating = false;
   }
 
-  /// نمایش QR اتصال (میزبان) — مفید پس از بازیابی جلسه.
+  /// Show the join QR on the host, useful after restoring a session.
   Future<void> _showQrDialog() async {
     final controller = GameScope.read(context);
     await showDialog<void>(
@@ -194,7 +194,7 @@ class _PlayScreenState extends State<PlayScreen> {
     final phase = session.phase;
     final stopped = controller.iAmStopped;
     final canType = phase == GamePhase.playing && !stopped;
-    // شرط فعال بودن دکمهٔ استپ (نسخهٔ ۱.۰.۰).
+    // Stop button enablement rule.
     final canStop = controller.iCanStop;
 
     return ExitGuard(
@@ -290,7 +290,7 @@ class _PlayScreenState extends State<PlayScreen> {
               : Column(
                   children: [
                     _RoundHeader(controller: controller),
-                    // تگ‌های وضعیت بازیکنان در بالای صفحه (بند ۳).
+                    // Player state chips at the top of the screen.
                     _PlayersStrip(controller: controller),
                     Expanded(
                       child: ListView.separated(
@@ -360,16 +360,16 @@ class _PlayScreenState extends State<PlayScreen> {
                           SizedBox(
                             height: 54,
                             child: FilledButton.icon(
-                              // نسخهٔ ۱.۰.۰: دکمهٔ استپ تنها وقتی فعال است که
-                              // همهٔ پاسخ‌های همین بازیکن حداقل ۲ کاراکتر
-                              // معتبر داشته باشند.
+                              // Stop is enabled only when every answer of this player
+                              // has at least two valid characters.
+                              //
                               onPressed: canStop ? _stop : null,
                               style: FilledButton.styleFrom(
                                 backgroundColor: stopped
                                     ? AppColors.surfaceHigh
                                     : AppColors.rejected,
-                                // حالت غیرفعال باید کاملاً از فعال تشخیص داده
-                                // شود (خاکستری کم‌رنگ + متن محو).
+                                // The disabled state must be unmistakable against the enabled one:
+                                // muted grey with dimmed text.
                                 disabledBackgroundColor: AppColors.surfaceHigh,
                                 disabledForegroundColor: AppColors.textMuted,
                                 disabledIconColor: AppColors.textMuted,
@@ -506,7 +506,7 @@ class _PlayersStrip extends StatelessWidget {
 
   final GameController controller;
 
-  /// برچسب وضعیت یک بازیکن بر اساس فاز بازی و اتصال.
+  /// Player state label from the phase and connection state.
   (String, Color) _statusOf(Player player) {
     final session = controller.session;
     final connected = session.isConnected(player.id);

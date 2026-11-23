@@ -2,8 +2,8 @@ name: sanjab
 description: "سنجاب — Persian category word game (Android, local-network multiplayer)"
 publish_to: 'none'
 
-# نسخهٔ ۱.۱.۱ — VersionCode: 10
-version: 1.1.1+10
+# Single source of truth for the app version (see tool/sync_app_version.py).
+version: 1.1.2+11
 
 environment:
   sdk: ^3.13.7
@@ -14,11 +14,11 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  # مسیر ذخیره‌سازی موقت وضعیت بازی (بدون نیاز به شبکه)
+  # Local storage for the temporary game state (no network needed).
   path_provider: ^2.1.4
-  # تولید QR Code برای اتصال به میزبان (صفحهٔ ایجاد بازی)
+  # Renders the join QR code on the host device.
   qr_flutter: ^4.1.0
-  # اسکن QR Role با دوربین (صفحهٔ پیوستن به بازی)
+  # Scans the host QR code with the camera when joining.
   mobile_scanner: ^6.0.0
 
 dev_dependencies:
