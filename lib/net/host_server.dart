@@ -126,21 +126,38 @@ class HostNetwork {
   Set<String> get connectedPlayerIds => _channels.keys.toSet();
 
   /// Start the server on a free port.
-  ///
-  /// Accepting is deliberately defensive: a peer may reset between the TCP
-  /// handshake and `accept`, and dart:io reports that as an error on the
-  /// listening socket. Such an error must never escape as an uncaught exception
-  /// nor end the accept loop, because the host has to keep admitting players.
   Future<void> start() async {
     if (_server != null) return;
     final server = await ServerSocket.bind(InternetAddress.anyIPv4, preferredPort);
     _server = server;
-    _acceptSubscription = server.listen(
-      _onSocket,
-      onError: (Object error, StackTrace stack) {
-        AppLogger.instance.error('net.accept.listen', error, stack);
+    _listenForConnections(server);
+  }
+
+  /// Accept connections, absorbing peer resets at the listener level.
+  ///
+  /// dart:io reports a peer that resets between the TCP handshake and `accept`
+  /// as an error on the listening socket's stream. `onError` gets the first one,
+  /// but a stream keeps delivering after an error and a reset arriving while the
+  /// socket closes can escape to the ambient zone as an uncaught error, which
+  /// would make the host look crashed. The subscription is therefore created in
+  /// a guarded zone: every escaped error is logged and counted instead, and the
+  /// host keeps admitting players.
+  void _listenForConnections(ServerSocket server) {
+    runZonedGuarded(
+      () {
+        _acceptSubscription = server.listen(
+          _onSocket,
+          onError: (Object error, StackTrace stack) {
+            rejectedConnections += 1;
+            AppLogger.instance.error('net.accept.listen', error, stack);
+          },
+          cancelOnError: false,
+        );
       },
-      cancelOnError: false,
+      (error, stack) {
+        rejectedConnections += 1;
+        AppLogger.instance.error('net.accept.zone', error, stack);
+      },
     );
   }
 

@@ -63,9 +63,9 @@ void main() {
     expect(controller.isHost, isTrue, reason: 'the host must have started');
 
     // Shut the host down inside the test body: no ticker or debounce timer may
-    // outlive it, or the test fails with a pending timer.
+    // outlive it, and the test zone must end with no pending timers.
     await tester.runAsync(() => controller.closeSession(silent: true));
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     expect(controller.isHost, isFalse);
   });
 

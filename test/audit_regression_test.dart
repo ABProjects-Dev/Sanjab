@@ -85,8 +85,9 @@ GameController buildController(String id, String name, {RoomStore? rooms}) =>
 
 /// A host that records answer frames so coalescing can be observed.
 class RecordingHost {
-  RecordingHost() {
+  RecordingHost({int preferredPort = 0}) {
     network = HostNetwork(
+      preferredPort: preferredPort,
       gameId: 'g1',
       token: 'ABC123',
       callbacks: HostCallbacks(
