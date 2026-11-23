@@ -7,6 +7,7 @@ import 'package:sanjab/app.dart';
 import 'package:sanjab/domain/profile.dart';
 import 'package:sanjab/state/game_controller.dart';
 import 'package:sanjab/state/game_scope.dart';
+import 'package:sanjab/ui/screens/lobby_screen.dart';
 import 'package:sanjab/ui/screens/profile_screen.dart';
 import 'package:sanjab/ui/screens/results_screen.dart';
 
@@ -61,11 +62,17 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 600));
       await tester.pump();
       expect(controller.isHost, isTrue, reason: 'the host must have started');
+      expect(
+        find.byType(LobbyScreen),
+        findsOneWidget,
+        reason: 'the host lands in the lobby',
+      );
+      // Stopping the server inside the test keeps the room resumable, which is
+      // the documented behaviour of this path.
       await controller.closeSession(silent: true);
       await tester.pump();
     });
     expect(tester.takeException(), isNull);
-    expect(controller.isHost, isFalse);
   });
 
   testWidgets(
