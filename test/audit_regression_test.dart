@@ -151,13 +151,14 @@ void main() {
       // hello handler and leave the socket hanging until the handshake timeout.
       expect(await join(player1), isTrue);
       expect(
-        await waitUntil(() => host.session.playerById('p1')!.connected),
+        await waitUntil(
+          () => host.session.connectedPlayerIds.contains('p1'),
+        ),
         isTrue,
         reason: 'the reconnecting player must be marked connected',
       );
       expect(host.session.playerById('p1')!.name, 'مینا دو');
       expect(host.session.playerById('p2')!.name, 'مینا');
-      expect(host.session.connectedPlayerIds, contains('p1'));
       expect(player1.lastError, isNull);
     });
   });
