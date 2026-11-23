@@ -252,7 +252,7 @@ void main() {
       final models = File('lib/domain/models.dart').readAsStringSync();
       final protocol = File('lib/net/protocol.dart').readAsStringSync();
       expect(models, contains('const int kProtocolVersion = 4;'));
-      expect(protocol, contains('نسخهٔ ۴'));
+      expect(protocol, contains('(version 4)'));
       expect(protocol, contains('{"v":4,"t":"type"'));
     });
 

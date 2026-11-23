@@ -157,6 +157,7 @@ void main() {
       );
       expect(host.session.playerById('p1')!.name, 'مینا دو');
       expect(host.session.playerById('p2')!.name, 'مینا');
+      expect(host.session.connectedPlayerIds, contains('p1'));
       expect(player1.lastError, isNull);
     });
   });
@@ -399,7 +400,7 @@ void main() {
     test('a denied permission is classified as recoverable', () {
       expect(
         scannerFailureFrom(
-          const PlatformException(
+          PlatformException(
             code: 'PERMISSION_DENIED',
             message: 'User denied permission',
           ),
